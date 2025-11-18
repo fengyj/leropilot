@@ -30,13 +30,11 @@ jobs:
           retry npm run build
           cd ..
           mkdir -p artifact/frontend
-          if [ -d frontend/dist ]; then
-            cp -r frontend/dist/* artifact/frontend/
-          elif [ -d src/leropilot/static ]; then
+          if [ -d src/leropilot/static ]; then
             cp -r src/leropilot/static/* artifact/frontend/
           else
-            echo "No frontend build output found" >&2
-            ls -la || true
+            echo "No frontend build output found in src/leropilot/static" >&2
+            ls -la src/leropilot/ || true
             exit 1
           fi
 
@@ -106,55 +104,7 @@ jobs:
         shell: bash
         run: |
           if [ ! -f build.spec ]; then
-            python - <<EOF
-          with open('build.spec', 'w') as f:
-              f.write('''# -*- mode: python ; coding: utf-8 -*-
-          
-          block_cipher = None
-          
-          a = Analysis(
-              ['src/leropilot/main.py'],
-              pathex=[],
-              binaries=[],
-              datas=[
-                  ('src/leropilot/static', 'leropilot/static'),
-              ],
-              hiddenimports=[],
-              hookspath=[],
-              hooksconfig={},
-              runtime_hooks=[],
-              excludes=['torch', 'tensorflow', 'matplotlib', 'pytest'],
-              win_no_prefer_redirects=False,
-              win_private_assemblies=False,
-              cipher=block_cipher,
-              noarchive=False,
-          )
-          
-          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-          
-          exe = EXE(
-              pyz,
-              a.scripts,
-              a.binaries,
-              a.zipfiles,
-              a.datas,
-              [],
-              name='leropilot',
-              debug=False,
-              bootloader_ignore_signals=False,
-              strip=False,
-              upx=True,
-              upx_exclude=[],
-              runtime_tmpdir=None,
-              console=True,
-              disable_windowed_traceback=False,
-              argv_emulation=False,
-              target_arch=None,
-              codesign_identity=None,
-              entitlements_file=None,
-          )
-          ''')
-          EOF
+            printf '%s\n' \              '# -*- mode: python ; coding: utf-8 -*-' \              '' \              'block_cipher = None' \              '' \              'a = Analysis(' \              "    ['src/leropilot/main.py']," \              '    pathex=[],' \              '    binaries=[],' \              '    datas=[' \              "        ('src/leropilot/static', 'leropilot/static')," \              '    ],' \              '    hiddenimports=[],' \              '    hookspath=[],' \              '    hooksconfig={},' \              '    runtime_hooks=[],' \              "    excludes=['torch', 'tensorflow', 'matplotlib', 'pytest']," \              '    win_no_prefer_redirects=False,' \              '    win_private_assemblies=False,' \              '    cipher=block_cipher,' \              '    noarchive=False,' \              ')' \              '' \              'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)' \              '' \              'exe = EXE(' \              '    pyz,' \              '    a.scripts,' \              '    a.binaries,' \              '    a.zipfiles,' \              '    a.datas,' \              '    [],' \              "    name='leropilot'," \              '    debug=False,' \              '    bootloader_ignore_signals=False,' \              '    strip=False,' \              '    upx=True,' \              '    upx_exclude=[],' \              '    runtime_tmpdir=None,' \              '    console=True,' \              '    disable_windowed_traceback=False,' \              '    argv_emulation=False,' \              '    target_arch=None,' \              '    codesign_identity=None,' \              '    entitlements_file=None,' \              ')' > build.spec
           fi
 
       - name: PyInstaller build
