@@ -119,3 +119,21 @@ export LEROPILOT_PORT=9000
 ## License
 
 See LICENSE file for details.
+
+## CI / Releases
+
+Pre-built artifacts for Linux, Windows and macOS are produced by GitHub Actions and attached to Releases.
+
+- To download CI-built artifacts (temporary): open the workflow run in the repository Actions tab and download the artifact named like `leropilot-<os>-<run_id>`.
+- To download official release binaries: open the repository Releases page and download the assets attached to the desired tag (files are named `leropilot-<tag>-<os>`).
+
+Recommended release workflow:
+
+1. Push a tag (for example `v0.1.0`) to trigger the `publish-release.yml` workflow.
+2. Actions will build binaries for all supported platforms and create a GitHub Release for that tag.
+3. Download the platform-specific asset from the Release page and distribute it to users.
+
+Notes:
+- Artifacts uploaded by workflow runs are retained for a limited time; Releases are persistent and intended for distribution.
+- Building platform-specific installers or signing (macOS notarization or Windows Authenticode) requires additional credentials and is not performed by default.
+
