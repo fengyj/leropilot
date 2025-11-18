@@ -1,0 +1,79 @@
+name: Build matrix (Linux/Windows/macOS)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+        shell: bash
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          pip install pyinstaller
+        shell: bash
+
+      - name: Copy frontend build into backend
+        run: |
+          rm -rf src/leropilot/static || true
+          mkdir -p src/leropilot/static
+          cp -r frontend/dist/* src/leropilot/static/
+        shell: bash
+
+      - name: PyInstaller build
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            py -3 -m PyInstaller --noconfirm --clean build.spec
+          else
+            pyinstaller --noconfirm --clean build.spec
+          fi
+        shell: bash
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp dist/leropilot.exe release/leropilot-${{ github.run_id }}-win.exe || true
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            cp -r dist/leropilot release/leropilot-${{ github.run_id }}-mac || true
+          else
+            cp dist/leropilot release/leropilot-${{ github.run_id }}-linux || true
+          fi
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leropilot-${{ matrix.os }}-${{ github.run_id }}
+          path: release/
