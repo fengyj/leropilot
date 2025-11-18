@@ -19,17 +19,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
+          name: frontend-dist
+          path: frontend-artifact
 
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+      - name: Prepare static files
         shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf src/leropilot/static || true
+          mkdir -p src/leropilot/static
+          cp -r frontend-artifact/* src/leropilot/static/ || true
+          ls -la src/leropilot/static || true
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -39,16 +42,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
           pip install pyinstaller
-        shell: bash
-
-      - name: Copy frontend build into backend
-        run: |
-          rm -rf src/leropilot/static || true
-          mkdir -p src/leropilot/static
-          cp -r frontend/dist/* src/leropilot/static/
-        shell: bash
 
       - name: PyInstaller build
         run: |
@@ -57,7 +51,6 @@ jobs:
           else
             pyinstaller --noconfirm --clean build.spec
           fi
-        shell: bash
 
       - name: Prepare release files
         run: |
@@ -69,7 +62,6 @@ jobs:
           else
             cp dist/leropilot release/leropilot-${{ github.ref_name }}-linux || true
           fi
-        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

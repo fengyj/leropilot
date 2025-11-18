@@ -9,13 +9,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11']
+  build-frontend:
+    name: Build frontend (single job)
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,43 +21,100 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+      - name: Build frontend (with retry)
         shell: bash
+        run: |
+          set -euxo pipefail
+          retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
+          cd frontend
+          retry npm ci
+          retry npm run build
+          cd ..
+          mkdir -p artifact/frontend
+          if [ -d frontend/dist ]; then
+            cp -r frontend/dist/* artifact/frontend/
+          elif [ -d src/leropilot/static ]; then
+            cp -r src/leropilot/static/* artifact/frontend/
+          else
+            echo "No frontend build output found" >&2
+            ls -la || true
+            exit 1
+          fi
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: artifact/frontend/
+
+  package:
+    name: Package on ${{ matrix.os }}
+    needs: build-frontend
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-artifact
+
+      - name: Prepare static files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          pwd
+          ls -la
+          rm -rf src/leropilot/static || true
+          mkdir -p src/leropilot/static
+          cp -r frontend-artifact/* src/leropilot/static/ || true
+          echo "Static files placed:" && ls -la src/leropilot/static || true
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Python deps
+      - name: Install Python deps (with retry if requirements.txt exists)
+        shell: bash
         run: |
+          set -euxo pipefail
+          retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || true
-          pip install pyinstaller
-        shell: bash
+          if [ -f requirements.txt ]; then
+            retry pip install -r requirements.txt
+          fi
+          retry pip install pyinstaller
 
-      - name: Copy frontend build into backend
-        run: |
-          rm -rf src/leropilot/static || true
-          mkdir -p src/leropilot/static
-          cp -r frontend/dist/* src/leropilot/static/
+      - name: Diagnostic info
         shell: bash
+        run: |
+          set -euxo pipefail
+          python --version
+          pip --version
+          pyinstaller --version || true
+          ls -la
 
       - name: PyInstaller build
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            py -3 -m PyInstaller --noconfirm --clean build.spec
-          else
-            pyinstaller --noconfirm --clean build.spec
-          fi
         shell: bash
+        run: |
+          set -euxo pipefail
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            py -3 -m PyInstaller --noconfirm --clean --log-level=DEBUG build.spec
+          else
+            pyinstaller --noconfirm --clean --log-level=DEBUG build.spec
+          fi
 
       - name: Prepare release files
+        shell: bash
         run: |
+          set -euxo pipefail
           mkdir -p release
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp dist/leropilot.exe release/leropilot-${{ github.run_id }}-win.exe || true
@@ -70,7 +123,6 @@ jobs:
           else
             cp dist/leropilot release/leropilot-${{ github.run_id }}-linux || true
           fi
-        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
