@@ -133,11 +133,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            py -3 -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
-          else
-            pyinstaller --noconfirm --clean --log-level=INFO build.spec
-          fi
+          python -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
 
       - name: Prepare release files
         shell: bash
