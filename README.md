@@ -123,9 +123,7 @@ export LEROPILOT_PORT=9000
 
 LeRoPilot utilizes GitHub Actions for continuous integration, automated builds, and release management. Here's a summary of the key workflows:
 
-- **`build.yml`**: A basic CI check that runs on every push and pull request to the main branches. It builds the frontend, installs Python dependencies, and runs quick verification tests like linting and import checks.
-
-- **`build-matrix.yml`**: This workflow performs a comprehensive build across multiple operating systems (Linux, Windows, macOS). It ensures the application can be packaged correctly on each platform. The resulting binaries are uploaded as artifacts for testing purposes.
+- **`build-matrix.yml`**: Runs on every push to any branch. It builds the frontend, installs dependencies, runs lint/tests, and packages the application for Linux, Windows, and macOS. The resulting binaries are uploaded as artifacts for verification.
 
 - **`publish-release.yml`**: Triggered by pushing a tag (e.g., `v0.1.0`), this workflow automates the entire release process. It builds the application for all target platforms and attaches the final binaries to a new GitHub Release.
 
@@ -169,9 +167,7 @@ I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email:
 
 This project uses GitHub Actions to automate builds, tests, and releases. Here's an overview of the workflows:
 
-- **`build.yml`**: A basic CI check that runs on every push and pull request. It builds the frontend and verifies the backend to ensure basic integrity.
-
-- **`build-matrix.yml`**: Performs a full cross-platform build on Linux, Windows, and macOS. The resulting binaries are uploaded as temporary artifacts.
+- **`build-matrix.yml`**: Runs on every push to any branch, handling frontend builds, linting, testing, and cross-platform packaging for Linux, Windows, and macOS with artifacts uploaded for download.
 
 - **`publish-release.yml`**: Automates the release process. When a tag is pushed, it builds the application for all platforms and attaches the binaries to a GitHub Release.
 

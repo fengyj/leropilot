@@ -1,11 +1,13 @@
-# This workflow performs a comprehensive build across multiple operating systems (Linux, Windows, macOS)
-# to ensure the application can be packaged correctly on each platform.
+# This workflow runs on every push to any branch. It performs a comprehensive
+# build across multiple operating systems (Linux, Windows, macOS) to ensure the
+# application can be packaged correctly. It also runs linting and tests.
 # The resulting binaries are uploaded as artifacts for testing purposes.
-name: Build matrix (Linux/Windows/macOS)
+name: Build and Test Matrix
 
 on:
-  pull_request:
-    branches: [ main ]
+  push:
+    branches:
+      - '**'
   workflow_dispatch:
 
 jobs:
@@ -83,16 +85,33 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install Python deps (with retry if requirements.txt exists)
+      - name: Install Python dependencies
         shell: bash
         run: |
           set -euxo pipefail
-          retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            retry pip install -r requirements.txt
+          python -m pip install -e ".[dev]"
+          python -m pip install pyinstaller
+
+      - name: Run lint
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if command -v ruff >/dev/null 2>&1; then
+            ruff check src
+          else
+            echo "ruff not available; skipping lint."
           fi
-          retry pip install pyinstaller
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [ -f pytest.ini ] || [ -d tests ]; then
+            python -m pytest -q
+          else
+            echo "No tests detected; skipping pytest."
+          fi
 
       - name: Diagnostic info
         shell: bash

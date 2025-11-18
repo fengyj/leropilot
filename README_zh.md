@@ -111,12 +111,14 @@ export LEROPILOT_PORT=9000
 
 ## CI / 发布
 
-项目在 GitHub Actions 上构建跨平台二进制（Linux/Windows/macOS）。构建产物会以 artifacts 上传，tag 推送时会创建 Release 并把资产附到 Release：
+项目的 CI/CD 由 GitHub Actions 驱动，核心工作流如下：
 
-- 在 Actions 页面选择对应 workflow 运行，下载名为 `leropilot-<os>-<run_id>` 的 artifact（临时）。
-- 在 Releases 页面下载正式发布的资产，文件名类似 `leropilot-<tag>-<os>`（长期保存）。
+- **`build-matrix.yml`**：每次向任意分支推送代码时都会运行。该流程会构建前端、安装依赖、执行 lint 与单元测试，并分别在 Linux、Windows、macOS 上打包可执行文件，构建产物会以 artifacts 形式保存备用。
+- **`publish-release.yml`**：当推送形如 `v*` 的标签或手动触发时运行，用于生成正式发布版本并把多平台产物附加到 GitHub Release。
+- **`cla.yml`**：在 Pull Request 中检查是否包含 CLA 签署声明，确保合规性。
+- **`auto-merge-label.yml`**：自动为新的或更新的 Pull Request 添加 `needs-review` 标签，以便快速分配审核。
 
-注意：签名/签章（如 macOS notarization 或 Windows Authenticode）需要证书与私密凭据，不在默认 CI 中完成。
+你可以在仓库的 “Actions” 标签页查看每次构建的状态与日志。
 
 ## 许可与 CLA
 
@@ -148,18 +150,17 @@ I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email:
 
 ## CI / 发布说明
 
-LeRoPilot 的跨平台可执行文件由 GitHub Actions 自动构建并作为 artifacts 或 Release 资产提供下载。
+- **CI 构建产物**：`build-matrix.yml` 在每次推送后都会上传名为 `leropilot-<os>-<run_id>` 的临时 artifacts，可在 Actions 标签页对应的运行记录中下载。
+- **正式发布资产**：在 Releases 页面可以获取 `publish-release.yml` 生成的长期保存二进制文件，命名格式为 `leropilot-<tag>-<os>`。
 
-- 如果你想获取 CI 构建（临时保存）的产物：打开仓库的 Actions 标签页，选择对应的 workflow 运行，下载名为 `leropilot-<os>-<run_id>` 的 artifact。
-- 要获取官方发布的二进制文件：打开仓库的 Releases 页面，下载对应 tag 下附带的资产（文件命名类似 `leropilot-<tag>-<os>`）。
+推荐的发布步骤：
 
-推荐的发布流程：
-
-1. 在仓库中推送一个 tag（例如 `v0.1.0`），这会触发 `publish-release.yml` workflow。
-2. Actions 会在 Linux/Windows/macOS 上构建对应平台的二进制并将其上传为 artifacts，然后创建一个 GitHub Release 并把这些资产附到 Release 中。
-3. 在 Release 页面下载对应平台的资产并分发给用户。
+1. 推送一个版本标签（例如 `v0.1.0`），触发 `publish-release.yml`。
+2. GitHub Actions 会在三个平台上构建最新可执行文件并附加到对应 Release。
+3. 从 Release 页面下载目标平台的资产对外发布。
 
 注意事项：
-- Actions 上传的 workflow artifacts 会在一段时间后过期；Release 资产会长期保留，适合对外发布。
-- 生成平台特定的签名/安装器（例如 macOS 的 notarization 或 Windows 的 Authenticode 签名）需要额外的证书与私密凭据，这些通常不在默认 CI 中完成，需要在拥有相应凭据的环境中执行额外步骤。
+
+- workflow artifacts 只临时保存，适合内部测试；Release 资产会长期可用。
+- 平台签名（如 macOS notarization、Windows Authenticode）需要额外凭据，默认流程不会自动完成。
 
