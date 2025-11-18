@@ -1,9 +1,6 @@
 name: Build matrix (Linux/Windows/macOS)
 
 on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
