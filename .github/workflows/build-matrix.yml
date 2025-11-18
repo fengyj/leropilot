@@ -1,3 +1,6 @@
+# This workflow performs a comprehensive build across multiple operating systems (Linux, Windows, macOS)
+# to ensure the application can be packaged correctly on each platform.
+# The resulting binaries are uploaded as artifacts for testing purposes.
 name: Build matrix (Linux/Windows/macOS)
 
 on:
@@ -18,7 +21,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: frontend/package.json
 
       - name: Build frontend (with retry)
         shell: bash
@@ -26,7 +29,7 @@ jobs:
           set -euxo pipefail
           retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
           cd frontend
-          retry npm ci
+          retry npm install
           retry npm run build
           cd ..
           mkdir -p artifact/frontend

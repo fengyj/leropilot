@@ -1,3 +1,7 @@
+# This workflow automates the entire release process.
+# Triggered by pushing a tag in the format 'v*', it builds the application
+# for all target platforms (Linux, Windows, macOS), creates a new GitHub Release,
+# and attaches the final binaries as assets for distribution.
 name: Publish Release (build + attach assets)
 
 on:

@@ -119,14 +119,21 @@ data_dir: ~/.leropilot
 export LEROPILOT_PORT=9000
 ```
 
-## CI / Releases
+## CI / Workflows
 
-LeRoPilot 在 GitHub Actions 上进行跨平台构建（Linux/Windows/macOS），构建产物会以 artifacts 形式上传，tag 推送时还会创建 Release 并把资产附到 Release。以下为常见操作：
+LeRoPilot utilizes GitHub Actions for continuous integration, automated builds, and release management. Here's a summary of the key workflows:
 
-- 在 Actions 标签页中选择对应的 workflow 运行，下载名为 `leropilot-<os>-<run_id>` 的 artifact（临时）。
-- 在 Releases 页面下载正式发布的资产，文件名类似 `leropilot-<tag>-<os>`（长期保存）。
+- **`build.yml`**: A basic CI check that runs on every push and pull request to the main branches. It builds the frontend, installs Python dependencies, and runs quick verification tests like linting and import checks.
 
-注意：签名/签章（macOS notarization 或 Windows Authenticode）需要额外凭据，不在默认 CI 中完成。
+- **`build-matrix.yml`**: This workflow performs a comprehensive build across multiple operating systems (Linux, Windows, macOS). It ensures the application can be packaged correctly on each platform. The resulting binaries are uploaded as artifacts for testing purposes.
+
+- **`publish-release.yml`**: Triggered by pushing a tag (e.g., `v0.1.0`), this workflow automates the entire release process. It builds the application for all target platforms and attaches the final binaries to a new GitHub Release.
+
+- **`cla.yml`**: To maintain legal clarity, this workflow checks that every pull request description contains a signed Contributor License Agreement (CLA). This is a mandatory check for all contributions.
+
+- **`auto-merge-label.yml`**: This simple workflow automatically adds the `needs-review` label to new or updated pull requests, helping to streamline the code review process.
+
+You can view the status and logs of these workflows in the "Actions" tab of the repository.
 
 ## 许可与贡献者协议 (License & CLA)
 
@@ -158,20 +165,21 @@ I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email:
 
 感谢使用与关注 LeRoPilot！欢迎按 `CONTRIBUTING.md` 指引参与贡献。
 
-## CI / Releases
+## CI / Workflows
 
-Pre-built artifacts for Linux, Windows and macOS are produced by GitHub Actions and attached to Releases.
+This project uses GitHub Actions to automate builds, tests, and releases. Here's an overview of the workflows:
 
-- To download CI-built artifacts (temporary): open the workflow run in the repository Actions tab and download the artifact named like `leropilot-<os>-<run_id>`.
-- To download official release binaries: open the repository Releases page and download the assets attached to the desired tag (files are named `leropilot-<tag>-<os>`).
+- **`build.yml`**: A basic CI check that runs on every push and pull request. It builds the frontend and verifies the backend to ensure basic integrity.
 
-Recommended release workflow:
+- **`build-matrix.yml`**: Performs a full cross-platform build on Linux, Windows, and macOS. The resulting binaries are uploaded as temporary artifacts.
 
-1. Push a tag (for example `v0.1.0`) to trigger the `publish-release.yml` workflow.
-2. Actions will build binaries for all supported platforms and create a GitHub Release for that tag.
-3. Download the platform-specific asset from the Release page and distribute it to users.
+- **`publish-release.yml`**: Automates the release process. When a tag is pushed, it builds the application for all platforms and attaches the binaries to a GitHub Release.
 
-Notes:
-- Artifacts uploaded by workflow runs are retained for a limited time; Releases are persistent and intended for distribution.
-- Building platform-specific installers or signing (macOS notarization or Windows Authenticode) requires additional credentials and is not performed by default.
+- **`cla.yml`**: Enforces the Contributor License Agreement by checking that the signature is present in all pull request descriptions.
+
+- **`auto-merge-label.yml`**: Adds a `needs-review` label to new pull requests to facilitate the review process.
+
+Pre-built artifacts and official releases can be downloaded as follows:
+- **Temporary Artifacts**: Go to the "Actions" tab, find the relevant workflow run, and download the artifacts (e.g., `leropilot-<os>-<run_id>`).
+- **Official Releases**: Visit the "Releases" page to download persistent, versioned binaries (e.g., `leropilot-<tag>-<os>`).
 
