@@ -2,7 +2,7 @@
 # LeRoPilot
 
 
-[![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
+[![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) [![Publish Release](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
 
 **许可：** AGPLv3 — 版权 © 2025 冯裕坚 (Feng Yu Jian) <fengyj@live.com>。
 
