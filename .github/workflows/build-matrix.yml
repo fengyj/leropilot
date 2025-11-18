@@ -20,6 +20,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend (with retry)
         shell: bash
@@ -44,8 +46,9 @@ jobs:
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist
+          name: frontend-dist-${{ github.run_number }}
           path: artifact/frontend/
+          retention-days: 7
 
   package:
     name: Package on ${{ matrix.os }}
@@ -62,7 +65,7 @@ jobs:
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
-          name: frontend-dist
+          name: frontend-dist-${{ github.run_number }}
           path: frontend-artifact
 
       - name: Prepare static files
@@ -80,6 +83,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
       - name: Install Python deps (with retry if requirements.txt exists)
         shell: bash
@@ -156,9 +160,9 @@ exe = EXE(
 SPEC
           fi
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            py -3 -m PyInstaller --noconfirm --clean --log-level=DEBUG build.spec
+            py -3 -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
           else
-            pyinstaller --noconfirm --clean --log-level=DEBUG build.spec
+            pyinstaller --noconfirm --clean --log-level=INFO build.spec
           fi
 
       - name: Prepare release files
@@ -177,5 +181,6 @@ SPEC
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-${{ matrix.os }}-${{ github.run_id }}
+          name: leropilot-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_number }}
           path: release/
+          retention-days: 7
