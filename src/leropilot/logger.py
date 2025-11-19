@@ -1,11 +1,12 @@
-import structlog
 from pathlib import Path
+
+import structlog
 
 
 def get_logger(name: str) -> structlog.BoundLogger:
     log_dir = Path.home() / ".leropilot" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    
+
     structlog.configure(
         processors=[
             structlog.processors.add_log_level,
@@ -17,5 +18,5 @@ def get_logger(name: str) -> structlog.BoundLogger:
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
     )
-    
+
     return structlog.get_logger(name)

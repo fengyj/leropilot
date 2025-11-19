@@ -1,35 +1,16 @@
 
-# LeRoPilot
 
+# LeRoPilot
 
 [![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) [![Publish Release](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
 
-**许可：** AGPLv3 — 版权 © 2025 冯裕坚 (Feng Yu Jian) <fengyj@live.com>。
+LeRoPilot 是一个桌面/网页混合的小型应用：使用 Python 后端（FastAPI）提供功能，前端使用 TypeScript（Vite）构建本地 UI。项目提供 macOS、Linux 和 Windows 的预编译二进制，也可以从源码运行以便开发和调试。
 
-一句快速开始：下载对应平台的二进制后运行（Linux/macOS）:
-
-```bash
-chmod +x ./leropilot && ./leropilot
-```
-
-Windows 上双击 `leropilot.exe`。
-
-## 目录
-
-- [快速开始](#快速开始)
-- [下载并运行](#下载并运行)
-- [从源码构建](#从源码构建)
-- [开发模式](#开发模式)
-- [配置](#配置)
-- [CI / 发布](#ci--发布)
-- [许可与 CLA](#许可与-cla)
-- [商业授权](#商业授权)
-- [故障排查](#故障排查)
-- [联系方式](#联系方式)
+快速开始（中文说明）请参阅下文。英文说明见 `README.md`。
 
 ## 快速开始
 
-1. 在 Releases 页面下载对应平台的资产（`leropilot-<tag>-<os>`）。
+1. 在 GitHub Releases 页面下载与你的平台匹配的二进制（例如 `leropilot-vX.Y.Z-linux` 或 `leropilot-vX.Y.Z-win.exe`）。
 2. 在 macOS / Linux 上：
 
 ```bash
@@ -37,13 +18,13 @@ chmod +x ./leropilot
 ./leropilot
 ```
 
-Windows：双击 `leropilot.exe`。
+3. 在 Windows 上：双击 `leropilot.exe` 运行。
 
-默认打开浏览器并访问 `http://127.0.0.1:8000`。
+应用默认会打开浏览器并在 `http://127.0.0.1:8000` 提供 UI 界面。
 
-## 下载并运行
+## 下载与发布资产
 
-预编译二进制可在 Releases 页面获取，文件格式示例：`leropilot-v0.1.0-linux`、`leropilot-v0.1.0-win.exe`、`leropilot-v0.1.0-mac`。
+预编译的发布资产位于 GitHub Releases 页面。Actions 临时 artifacts 可以从相应的 workflow 运行中下载（适合内部测试）；正式发布的二进制会附加到 Release 页面并长期保存。
 
 ## 从源码构建
 
@@ -52,13 +33,13 @@ Windows：双击 `leropilot.exe`。
 - Python 3.10+
 - Node.js 16+
 
-> 注意：PyInstaller 不能跨平台交叉编译。要生成 Windows 可执行文件，请在 Windows 环境或 `windows-latest` runner 上构建；要生成 macOS 可执行文件，请在 macOS 环境或 `macos-latest` runner 上构建。
+注意：PyInstaller 无法可靠地跨平台交叉编译。请在目标平台（或对应 runner）上构建目标平台的可执行文件。
 
 ### 构建步骤
 
 ```bash
-# 安装 Python 依赖
-pip install -e "[dev]"
+# 安装 Python 开发依赖
+pip install -e ".[dev]"
 
 # 构建前端
 cd frontend
@@ -66,15 +47,13 @@ npm ci
 npm run build
 cd ..
 
-# 使用脚本打包（会执行前端构建并通过 PyInstaller 打包）
+# 使用打包脚本（会执行前端构建并通过 PyInstaller 打包）
 python scripts/build.py
 ```
 
 生成的可执行文件位于 `dist/` 目录。
 
-### 触发发布（示例）
-
-在仓库中打标签并推送：
+触发发布（示例）：
 
 ```bash
 git tag v0.1.0
@@ -96,71 +75,67 @@ cd frontend
 npm run dev
 ```
 
+开发模式下前端在 `http://localhost:5173` 运行，dev server 会将 API 请求代理到后端以便联调。
+
 ## 配置
 
-应用数据存放在 `~/.leropilot/`：
+应用数据与日志默认位于 `~/.leropilot/`：
 
-- 配置：`~/.leropilot/config.yaml`
-- 日志：`~/.leropilot/logs/`
+- `~/.leropilot/config.yaml` — 配置
+- `~/.leropilot/logs/` — 日志
 
-可通过环境变量（`LEROPILOT_` 前缀）覆盖配置，例如：
+示例 `config.yaml`：
+
+```yaml
+port: 8000
+data_dir: ~/.leropilot
+```
+
+可以通过环境变量（`LEROPILOT_` 前缀）覆盖配置。例如：
 
 ```bash
 export LEROPILOT_PORT=9000
 ```
 
-## CI / 发布
+## CI / 发布工作流
 
-项目的 CI/CD 由 GitHub Actions 驱动，核心工作流如下：
+本项目使用 GitHub Actions 实现 CI、构建与发布。关键工作流：
 
-- **`build-matrix.yml`**：每次向任意分支推送代码时都会运行。该流程会构建前端、安装依赖、执行 lint 与单元测试，并分别在 Linux、Windows、macOS 上打包可执行文件，构建产物会以 artifacts 形式保存备用。
-- **`publish-release.yml`**：当推送形如 `v*` 的标签或手动触发时运行，用于生成正式发布版本并把多平台产物附加到 GitHub Release。
-- **`cla.yml`**：在 Pull Request 中检查是否包含 CLA 签署声明，确保合规性。
-- **`auto-merge-label.yml`**：自动为新的或更新的 Pull Request 添加 `needs-review` 标签，以便快速分配审核。
+- `build-matrix.yml`：在每次 push 时运行，负责构建前端、安装依赖、运行 lint/tests，并在 Linux/Windows/macOS 上打包可执行文件，产物以 artifacts 上传。
+- `publish-release.yml`：当推送 tag（例如 `v0.1.0`）时触发，构建并发布 Release 资产。
+- `cla.yml`：在 PR 中验证是否包含 CLA 签署声明，确保合规。
+- `auto-merge-label.yml`：自动为新建或更新的 PR 添加 `needs-review` 标签以便审查。
 
-你可以在仓库的 “Actions” 标签页查看每次构建的状态与日志。
+临时 artifacts 可在 Actions 标签页对应运行中下载；正式的 Release 资产请在 Releases 页面获取。
 
-## 许可与 CLA
+## 贡献与 CLA
 
-本项目采用 GNU AGPLv3。外部贡献者需要签署 CLA（见 `cla/CLA.md` 与 `CONTRIBUTING.md`）。在 PR 描述中包含：
+欢迎贡献。提交 PR 前请阅读 `CONTRIBUTING.md` 并签署 CLA（见 `cla/CLA.md`）。在 PR 描述中包含以下行以接受 CLA：
 
 ```
 I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email: <your-email>
 ```
 
-## 商业授权
-
-如需商业许可或企业支持，请参见 `COMMERCIAL.md`。
-
 ## 故障排查
 
-- WSL/无 GUI：自动打开浏览器可能失败（xdg-open 错误），可手动访问 `http://127.0.0.1:8000`。
-- 权限：请为 macOS/Linux 二进制执行 `chmod +x ./leropilot`。
-- 端口占用：若 8000 被占用，可通过 `config.yaml` 或 `LEROPILOT_PORT` 环境变量修改。
-- 构建跨平台失败：请在对应平台上构建（参见 PyInstaller 注意）。
+- 无头环境 / WSL：自动打开浏览器可能失败（xdg-open），请手动访问 `http://127.0.0.1:8000`。
+- 权限问题：在 macOS/Linux 上请先运行 `chmod +x ./leropilot`。
+- 端口占用：如果 8000 被占用，请修改 `config.yaml` 或设置 `LEROPILOT_PORT`。
+- 跨平台构建失败：请在目标平台或相应 runner 上构建（参见 PyInstaller 注意）。
+
+## 商业授权
+
+如需商业许可或企业支持，请参考 `COMMERCIAL.md`。
 
 ## 联系方式
 
 - 作者：冯裕坚 (Feng Yu Jian)
 - 邮箱：fengyj@live.com
 
----
+## 许可
 
-感谢使用与关注 LeRoPilot！欢迎按 `CONTRIBUTING.md` 指引参与贡献。
+本项目采用 GNU AGPLv3 许可。详见仓库根目录的 `LICENSE` 文件。
 
-## CI / 发布说明
+感谢使用 LeRoPilot，欢迎报告问题或提交改进建议。
 
-- **CI 构建产物**：`build-matrix.yml` 在每次推送后都会上传名为 `leropilot-<os>-<run_id>` 的临时 artifacts，可在 Actions 标签页对应的运行记录中下载。
-- **正式发布资产**：在 Releases 页面可以获取 `publish-release.yml` 生成的长期保存二进制文件，命名格式为 `leropilot-<tag>-<os>`。
-
-推荐的发布步骤：
-
-1. 推送一个版本标签（例如 `v0.1.0`），触发 `publish-release.yml`。
-2. GitHub Actions 会在三个平台上构建最新可执行文件并附加到对应 Release。
-3. 从 Release 页面下载目标平台的资产对外发布。
-
-注意事项：
-
-- workflow artifacts 只临时保存，适合内部测试；Release 资产会长期可用。
-- 平台签名（如 macOS notarization、Windows Authenticode）需要额外凭据，默认流程不会自动完成。
 

@@ -20,6 +20,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pyinstaller==6.11.1",
+    "mypy>=1.8.0,<2.0.0",
+    "ruff>=0.6.0,<1.0.0",
+    "types-PyYAML>=6.0.0,<7.0.0",
+    "pytest>=7.0.0,<8.0.0",
+    "pytest-asyncio>=0.21.0,<1.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -27,3 +32,46 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 leropilot = ["static/**/*"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+# NOTE: flake8 and isort configuration removed — ruff is the primary linter.
+# If you still need flake8/isort, re-add configuration sections or install
+# corresponding tools. Ruff is configured in [tool.ruff] above and includes
+# import-sorting rules (select = ["I"]).
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+    "build",
+    "dist",
+    ".venv",
+    "__pycache__",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "ANN",    # flake8-annotations
+]
+extend-ignore = [
+    "E203",   # whitespace before ':' (conflicts with black)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+

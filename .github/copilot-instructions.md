@@ -24,7 +24,7 @@ This document defines how the AI coding assistant (Copilot) should generate and 
 
 ### 3. Explicit, Readable Communication
 
-- All code comments, commit messages, PR descriptions, and docs MUST be in English (except `*.zh.md`).
+- All code comments, commit messages, PR descriptions, and docs MUST be in English (except `*_zh.md`).
 - Names MUST be meaningful; avoid unclear abbreviations.
 - Public APIs need clear docstrings, including rationale if intent is non-obvious.
 
@@ -465,4 +465,4 @@ When Copilot edits documentation (e.g., `README.md`, files in `docs/`):
 
 - Ensure the structure is clear and logical; reorganize if it improves readability.
 - Use pseudo-code, diagrams, or examples for complex concepts.
-- Write in English, except for `*.zh.md` files, which are in Chinese.
+- Write in English, except for `*_zh.md` files, which are in Chinese.
