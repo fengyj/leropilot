@@ -38,6 +38,8 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.mypy_cache/
+.ruff_cache/
 nosetests.xml
 coverage.xml
 *.cover
@@ -69,6 +71,11 @@ src/leropilot/static/
 
 # Application data
 .leropilot/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
 
 # Logs
 *.log
