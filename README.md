@@ -2,7 +2,15 @@
 
 [![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) [![Publish Release](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
 
-LeRoPilot is a small desktop/web hybrid application that serves a local UI and provides functionality via a Python backend and a TypeScript frontend. It ships as prebuilt native binaries for macOS, Linux and Windows and can also be run from source for development.
+LeRoPilot is designed to provide a graphical user interface for LeRobot, simplifying the installation process and improving the usability of data recording.
+
+## Key Features
+
+- **Environment Management**: Create and manage different LeRobot environments by selecting specific LeRobot and PyTorch versions, utilizing Python virtual environments.
+- **Device Management**: Conveniently manage devices (robots, cameras) to reduce the effort required for device setup.
+- **Data Recording**: Provides handy data recording tools to facilitate the recording and management of datasets.
+
+LeRoPilot is a desktop/web hybrid application that serves a local UI and provides functionality via a Python backend and a TypeScript frontend. It ships as prebuilt native binaries for macOS, Linux and Windows.
 
 For Mandarin (中文) instructions, see `README_zh.md`.
 
@@ -18,6 +26,7 @@ On Windows: double-click `leropilot.exe`.
 The application opens a browser window by default and serves the UI at `http://127.0.0.1:8000`.
 
 **Contents**
+
 - **Overview**: short project description and license
 - **Quick Start**: run prebuilt binaries
 - **Build from Source**: requirements and build steps
@@ -158,5 +167,3 @@ Commercial licensing and enterprise support are available. See `COMMERCIAL.md` f
 This project is distributed under the GNU AGPLv3. See the `LICENSE` file for full terms.
 
 Thank you for using LeRoPilot — contributions and feedback are appreciated.
-
-

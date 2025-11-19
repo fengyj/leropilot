@@ -1,10 +1,16 @@
-
-
 # LeRoPilot
 
 [![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) [![Publish Release](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
 
-LeRoPilot 是一个桌面/网页混合的小型应用：使用 Python 后端（FastAPI）提供功能，前端使用 TypeScript（Vite）构建本地 UI。项目提供 macOS、Linux 和 Windows 的预编译二进制，也可以从源码运行以便开发和调试。
+LeRoPilot 的开发初衷是为 LeRobot 提供一个图形化界面，旨在简化安装过程并提升数据录制的易操作性。
+
+## 主要功能
+
+- **环境管理**：通过 Python 虚拟环境，允许用户选择 LeRobot 和 PyTorch 的版本，从而创建和管理不同版本的 LeRobot 环境。
+- **设备管理**：提供便捷的设备（机器人、摄像头）管理功能，减少用户在设备设置上的工作量。
+- **数据录制**：提供趁手的数据录制工具，方便用户录制和管理数据集（DataSet）。
+
+LeRoPilot 是一个桌面/网页混合应用：使用 Python 后端（FastAPI）提供功能，前端使用 TypeScript（Vite）构建本地 UI。项目提供 macOS、Linux 和 Windows 的预编译二进制。
 
 快速开始（中文说明）请参阅下文。英文说明见 `README.md`。
 
@@ -137,5 +143,3 @@ I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email:
 本项目采用 GNU AGPLv3 许可。详见仓库根目录的 `LICENSE` 文件。
 
 感谢使用 LeRoPilot，欢迎报告问题或提交改进建议。
-
-
