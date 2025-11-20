@@ -1,0 +1,84 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "environments": "Environments",
+    "devices": "Devices",
+    "recording": "Recording",
+    "datasets": "Datasets",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "activeEnvironment": "Active Environment"
+  },
+  "environments": {
+    "title": "Environments",
+    "subtitle": "Manage your LeRobot environments and dependencies.",
+    "createNew": "Create New",
+    "launch": "Launch",
+    "shell": "Shell",
+    "python": "Python",
+    "pytorch": "PyTorch",
+    "official": "Official",
+    "custom": "Custom",
+    "errorMessage": "Missing dependencies. Please run repair.",
+    "status": {
+      "ready": "Ready",
+      "error": "Error",
+      "installing": "Installing"
+    }
+  },
+  "wizard": {
+    "title": "Create Environment",
+    "subtitle": "Configure your new LeRobot environment.",
+    "steps": {
+      "source": "Source",
+      "hardware": "Hardware",
+      "robots": "Robots",
+      "review": "Review"
+    },
+    "source": {
+      "repoType": "Repository Type",
+      "officialLeRobot": "Official LeRobot",
+      "huggingFace": "Hugging Face",
+      "customUrl": "Custom URL",
+      "gitRepository": "Git Repository",
+      "versionTag": "Version / Tag",
+      "latestStable": "Latest Stable",
+      "nightly": "Nightly"
+    },
+    "hardware": {
+      "detected": "Hardware Detected",
+      "pythonVersion": "Python Version",
+      "pytorchVersion": "PyTorch Version",
+      "recommended": "Recommended",
+      "cpuOnly": "CPU Only",
+      "compatibilityNote": "Compatible with your NVIDIA Driver and LeRobot v2.0."
+    },
+    "robots": {
+      "description": "Select the robots you want to support. This will install additional dependencies."
+    },
+    "review": {
+      "summary": "Summary",
+      "repository": "Repository",
+      "python": "Python",
+      "pytorch": "PyTorch",
+      "robots": "Robots",
+      "none": "None",
+      "internetNote": "Note: This process requires an active internet connection to download dependencies.",
+      "showAdvanced": "Show Advanced: Edit Install Script",
+      "hideAdvanced": "Hide Advanced: Edit Install Script",
+      "installScriptComment": "# Generated Install Script"
+    },
+    "buttons": {
+      "cancel": "Cancel",
+      "back": "Back",
+      "next": "Next",
+      "createEnvironment": "Create Environment"
+    }
+  },
+  "language": {
+    "switchTo": "Switch Language",
+    "english": "English",
+    "chinese": "中文"
+  }
+}

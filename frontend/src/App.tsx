@@ -1,51 +1,25 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { DashboardLayout } from "./layouts/dashboard-layout";
+import { EnvironmentListPage } from "./pages/environment-list-page";
+import { EnvironmentWizard } from "./pages/environment-wizard";
 
 function App() {
-  const [message, setMessage] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const handleClick = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('/api/hello');
-      const data = await response.json();
-      setMessage(JSON.stringify(data, null, 2));
-    } catch (error) {
-      setMessage(`Error: ${error}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>LeRoPilot Frontend</h1>
-      <button
-        onClick={handleClick}
-        disabled={loading}
-        style={{
-          padding: '10px 20px',
-          fontSize: '16px',
-          cursor: loading ? 'not-allowed' : 'pointer',
-        }}
-        data-testid="test-button"
-      >
-        {loading ? 'Loading...' : 'Test Backend API'}
-      </button>
-      {message && (
-        <pre
-          style={{
-            marginTop: '20px',
-            padding: '10px',
-            background: '#f5f5f5',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-          }}
-        >
-          {message}
-        </pre>
-      )}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<DashboardLayout />}>
+          <Route index element={<Navigate to="/environments" replace />} />
+          <Route path="environments" element={<EnvironmentListPage />} />
+          <Route path="environments/new" element={<EnvironmentWizard />} />
+          {/* Placeholders for other routes */}
+          <Route path="dashboard" element={<div className="text-slate-400">Dashboard Placeholder</div>} />
+          <Route path="devices" element={<div className="text-slate-400">Devices Placeholder</div>} />
+          <Route path="recording" element={<div className="text-slate-400">Recording Placeholder</div>} />
+          <Route path="datasets" element={<div className="text-slate-400">Datasets Placeholder</div>} />
+          <Route path="settings" element={<div className="text-slate-400">Settings Placeholder</div>} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 
