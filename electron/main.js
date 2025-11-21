@@ -158,8 +158,8 @@ function createWindow() {
     backgroundColor: '#020617',
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
-      nodeIntegration: true, // Enable for debugging
-      contextIsolation: false, // Disable for debugging
+      nodeIntegration: false,
+      contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
@@ -176,8 +176,10 @@ function createWindow() {
     mainWindow.focus();
   });
 
-  // 强制打开 DevTools 用于调试
-  mainWindow.webContents.openDevTools();
+  // 仅在开发模式下打开 DevTools
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools();
+  }
   
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
     console.log(`[Renderer Console] ${message}`);

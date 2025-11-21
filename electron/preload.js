@@ -11,10 +11,3 @@ try {
   // Fallback when contextIsolation is false
   window.electronAPI = api;
 }
-
-try {
-  contextBridge.exposeInMainWorld('electronAPI', api);
-} catch (error) {
-  // Fallback when contextIsolation is false
-  window.electronAPI = api;
-}
