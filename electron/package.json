@@ -1,6 +1,12 @@
 {
   "name": "leropilot",
   "version": "0.1.0",
+  "description": "LeRoPilot - LeRobot Environment Manager and DataSet Recording",
+  "author": "Feng Yu Jian <fengyj@live.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fengyj/leropilot.git"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
