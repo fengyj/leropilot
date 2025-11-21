@@ -36,8 +36,8 @@ jobs:
       run: uv run ruff format --check .
     - name: Run Mypy
       run: uv run mypy src
-    - name: Run tests
-      run: uv run python -m pytest --tb=short --strict-markers || echo "No tests found or tests failed"
+    - name: Run backend unit tests
+      run: uv run python -m pytest --tb=short --strict-markers
 
   frontend:
     runs-on: ubuntu-latest
@@ -55,6 +55,6 @@ jobs:
       run: cd frontend && npm run lint
     - name: Run Prettier check
       run: cd frontend && npm run check:format
-    - name: Run tests
+    - name: Run frontend unit tests
       run: cd frontend && npm run test -- --run
     # Build step removed - handled by build-matrix.yml
