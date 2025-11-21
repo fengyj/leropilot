@@ -173,9 +173,30 @@ Application data and configuration are stored in `~/.leropilot/` by default:
 Example `config.yaml`:
 
 ```yaml
-port: 8000
-data_dir: ~/.leropilot
+server:
+  port: 8000
+  host: 127.0.0.1
+  auto_open_browser: true
+paths:
+  data_dir: ~/.leropilot
 ```
+
+### Port Configuration
+
+Default port is **8000**. To use a different port:
+
+```bash
+# Desktop Mode (Electron)
+./LeRoPilot --port 9000
+
+# Browser Mode (Python)
+python -m leropilot.main --port 9000
+
+# Or use environment variable
+export LEROPILOT_SERVER_PORT=9000
+```
+
+The port will be saved to `~/.leropilot/config.json` automatically.
 
 Environment variables with the `LEROPILOT_` prefix override configuration values. Example:
 
@@ -208,7 +229,7 @@ I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email:
 
 - Headless or WSL environments: automatic browser opening may fail (xdg-open); visit `http://127.0.0.1:8000` manually.
 - Permission errors: on macOS/Linux run `chmod +x ./leropilot` before executing.
-- Port in use: change the port in `config.yaml` or set `LEROPILOT_PORT`.
+- Port in use: see **Port Configuration** section above for how to change the port.
 - Cross-platform build failures: build on the target platform (see PyInstaller notes).
 
 ## Commercial

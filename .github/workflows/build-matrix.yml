@@ -24,8 +24,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: frontend/package.json
 
       - name: Build frontend (with retry)
@@ -53,14 +53,14 @@ jobs:
           path: artifact/frontend/
           retention-days: 7
 
-  package:
-    name: Package on ${{ matrix.os }}
+  package-pyinstaller:
+    name: Package PyInstaller on ${{ matrix.os }}
     needs: build-frontend
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11']
+        python-version: ["3.11"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          if uv run ruff --version >/dev/null 2>&1; then
+          if uv run ruff --version > /dev/null 2>&1; then
             uv run ruff check src
           else
             echo "ruff not available; skipping lint."
@@ -129,7 +129,52 @@ jobs:
         shell: bash
         run: |
           if [ ! -f build.spec ]; then
-            printf '%s\n' \              '# -*- mode: python ; coding: utf-8 -*-' \              '' \              'block_cipher = None' \              '' \              'a = Analysis(' \              "    ['src/leropilot/main.py']," \              '    pathex=[],' \              '    binaries=[],' \              '    datas=[' \              "        ('src/leropilot/static', 'leropilot/static')," \              '    ],' \              '    hiddenimports=[],' \              '    hookspath=[],' \              '    hooksconfig={},' \              '    runtime_hooks=[],' \              "    excludes=['torch', 'tensorflow', 'matplotlib', 'pytest']," \              '    win_no_prefer_redirects=False,' \              '    win_private_assemblies=False,' \              '    cipher=block_cipher,' \              '    noarchive=False,' \              ')' \              '' \              'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)' \              '' \              'exe = EXE(' \              '    pyz,' \              '    a.scripts,' \              '    a.binaries,' \              '    a.zipfiles,' \              '    a.datas,' \              '    [],' \              "    name='leropilot'," \              '    debug=False,' \              '    bootloader_ignore_signals=False,' \              '    strip=False,' \              '    upx=True,' \              '    upx_exclude=[],' \              '    runtime_tmpdir=None,' \              '    console=True,' \              '    disable_windowed_traceback=False,' \              '    argv_emulation=False,' \              '    target_arch=None,' \              '    codesign_identity=None,' \              '    entitlements_file=None,' \              ')' > build.spec
+            printf '%s\n' \
+              '# -*- mode: python ; coding: utf-8 -*-' \
+              '' \
+              'block_cipher = None' \
+              '' \
+              'a = Analysis(' \
+              "    ['src/leropilot/main.py']," \
+              '    pathex=[],' \
+              '    binaries=[],' \
+              '    datas=[' \
+              "        ('src/leropilot/static', 'leropilot/static')," \
+              '    ],' \
+              '    hiddenimports=[],' \
+              '    hookspath=[],' \
+              '    hooksconfig={},' \
+              '    runtime_hooks=[],' \
+              "    excludes=['torch', 'tensorflow', 'matplotlib', 'pytest']," \
+              '    win_no_prefer_redirects=False,' \
+              '    win_private_assemblies=False,' \
+              '    cipher=block_cipher,' \
+              '    noarchive=False,' \
+              ')' \
+              '' \
+              'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)' \
+              '' \
+              'exe = EXE(' \
+              '    pyz,' \
+              '    a.scripts,' \
+              '    a.binaries,' \
+              '    a.zipfiles,' \
+              '    a.datas,' \
+              '    [],' \
+              "    name='leropilot'," \
+              '    debug=False,' \
+              '    bootloader_ignore_signals=False,' \
+              '    strip=False,' \
+              '    upx=True,' \
+              '    upx_exclude=[],' \
+              '    runtime_tmpdir=None,' \
+              '    console=True,' \
+              '    disable_windowed_traceback=False,' \
+              '    argv_emulation=False,' \
+              '    target_arch=None,' \
+              '    codesign_identity=None,' \
+              '    entitlements_file=None,' \
+              ')' > build.spec
           fi
 
       - name: PyInstaller build
@@ -144,16 +189,137 @@ jobs:
           set -euxo pipefail
           mkdir -p release
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp dist/leropilot.exe release/leropilot-${{ github.run_id }}-win.exe || true
+            cp dist/leropilot.exe release/leropilot-pyinstaller-${{ github.run_id }}-win.exe || true
           elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            cp -r dist/leropilot release/leropilot-${{ github.run_id }}-mac || true
+            cp -r dist/leropilot release/leropilot-pyinstaller-${{ github.run_id }}-mac || true
           else
-            cp dist/leropilot release/leropilot-${{ github.run_id }}-linux || true
+            cp dist/leropilot release/leropilot-pyinstaller-${{ github.run_id }}-linux || true
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_number }}
+          name: leropilot-pyinstaller-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_number }}
           path: release/
+          retention-days: 7
+
+  package-electron:
+    name: Package Electron on ${{ matrix.os }}
+    needs: build-frontend
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist-${{ github.run_number }}
+          path: frontend-artifact
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv sync --extra dev
+
+      - name: Generate backend-only build spec
+        shell: bash
+        run: |
+          cat > build-backend.spec << 'EOF'
+          # -*- mode: python ; coding: utf-8 -*-
+          block_cipher = None
+
+          a = Analysis(
+              ['src/leropilot/main.py'],
+              pathex=[],
+              binaries=[],
+              datas=[],
+              hiddenimports=[],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=['torch', 'tensorflow', 'matplotlib', 'pytest'],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
+
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+          exe = EXE(
+              pyz,
+              a.scripts,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              [],
+              name='leropilot-backend',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              runtime_tmpdir=None,
+              console=True,
+              disable_windowed_traceback=False,
+              argv_emulation=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+          )
+          EOF
+
+      - name: Build Python backend
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv run python -m PyInstaller --noconfirm --clean --log-level=INFO build-backend.spec
+          mkdir -p dist/python
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp dist/leropilot-backend.exe dist/python/
+          else
+            cp dist/leropilot-backend dist/python/
+          fi
+          ls -la dist/python
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: electron/package.json
+
+      - name: Install Electron dependencies
+        shell: bash
+        run: |
+          cd electron
+          npm install
+
+      - name: Build Electron app
+        shell: bash
+        run: |
+          cd electron
+          npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Electron artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: leropilot-electron-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_number }}
+          path: dist/electron/
           retention-days: 7

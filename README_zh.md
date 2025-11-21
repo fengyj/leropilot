@@ -152,11 +152,32 @@ npm start
 示例 `config.yaml`：
 
 ```yaml
-port: 8000
-data_dir: ~/.leropilot
+server:
+  port: 8000
+  host: 127.0.0.1
+  auto_open_browser: true
+paths:
+  data_dir: ~/.leropilot
 ```
 
-可以通过环境变量（`LEROPILOT_` 前缀）覆盖配置。例如：
+### 端口配置
+
+默认端口为 **8000**。如需使用其他端口：
+
+```bash
+# 桌面模式（Electron）
+./LeRoPilot --port 9000
+
+# 浏览器模式（Python）
+python -m leropilot.main --port 9000
+
+# 或使用环境变量
+export LEROPILOT_SERVER_PORT=9000
+```
+
+端口会自动保存到 `~/.leropilot/config.json`。
+
+可以通过环境变量（`LEROPILOT_` 前缀）覆盖配置。例如:：
 
 ```bash
 export LEROPILOT_PORT=9000
@@ -185,7 +206,7 @@ I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email:
 
 - 无头环境 / WSL：自动打开浏览器可能失败（xdg-open），请手动访问 `http://127.0.0.1:8000`。
 - 权限问题：在 macOS/Linux 上请先运行 `chmod +x ./leropilot`。
-- 端口占用：如果 8000 被占用，请修改 `config.yaml` 或设置 `LEROPILOT_PORT`。
+- 端口占用：参见上方**端口配置**部分了解如何更改端口。
 - 跨平台构建失败：请在目标平台或相应 runner 上构建（参见 PyInstaller 注意）。
 
 ## 商业授权
