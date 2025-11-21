@@ -155,7 +155,6 @@ function createWindow() {
     minHeight: 600,
     title: 'LeRoPilot',
     show: false,
-    backgroundColor: '#020617',
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       nodeIntegration: false,

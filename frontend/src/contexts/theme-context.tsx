@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  ReactNode,
+} from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -19,11 +26,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return saved || 'system';
   });
   const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('dark');
+  const themeRef = useRef(theme);
+
+  // Keep themeRef in sync with theme
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
 
   // Apply theme immediately on mount and whenever it changes
   useEffect(() => {
     const root = document.documentElement;
-    
+
     const applyTheme = (resolvedTheme: 'light' | 'dark') => {
       setEffectiveTheme(resolvedTheme);
       root.classList.remove('light', 'dark');
@@ -39,10 +52,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
         applyTheme(e.matches ? 'dark' : 'light');
       };
-      
+
       // Initial application
       handleChange(mediaQuery);
-      
+
       // Listen for changes
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
@@ -59,8 +72,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (response.ok) {
           const config = await response.json();
           const configTheme = config.ui.theme || 'system';
-          // Only update if different from current
-          if (configTheme !== theme) {
+          // Only update if different from current theme
+          // Note: We use a ref to avoid stale closure issues
+          if (configTheme !== themeRef.current) {
             setTheme(configTheme);
           }
         }
@@ -69,7 +83,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     };
     loadConfigTheme();
-  }, []); // Only run once on mount
+  }, []); // Only run once on mount - intentionally empty deps
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, effectiveTheme }}>

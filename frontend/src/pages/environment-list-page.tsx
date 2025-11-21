@@ -1,8 +1,21 @@
-import { Plus, Play, Terminal, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { Button } from "../components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Plus,
+  Play,
+  Terminal,
+  Settings,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Button } from '../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 
 interface Environment {
   id: string;
@@ -10,28 +23,28 @@ interface Environment {
   version: string;
   python: string;
   torch: string;
-  status: "ready" | "error" | "installing";
-  type: "official" | "custom";
+  status: 'ready' | 'error' | 'installing';
+  type: 'official' | 'custom';
 }
 
 const MOCK_ENVS: Environment[] = [
   {
-    id: "1",
-    name: "LeRobot v2.0",
-    version: "v2.0.0",
-    python: "3.10",
-    torch: "2.1.2+cu121",
-    status: "ready",
-    type: "official",
+    id: '1',
+    name: 'LeRobot v2.0',
+    version: 'v2.0.0',
+    python: '3.10',
+    torch: '2.1.2+cu121',
+    status: 'ready',
+    type: 'official',
   },
   {
-    id: "2",
-    name: "Experimental Fork",
-    version: "dev-branch",
-    python: "3.11",
-    torch: "2.4.0",
-    status: "error",
-    type: "custom",
+    id: '2',
+    name: 'Experimental Fork',
+    version: 'dev-branch',
+    python: '3.11',
+    torch: '2.4.0',
+    status: 'error',
+    type: 'custom',
   },
 ];
 
@@ -43,12 +56,16 @@ export function EnvironmentListPage() {
     <div className="flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t("environments.title")}</h1>
-          <p className="text-zinc-600 dark:text-zinc-600 dark:text-zinc-400">{t("environments.subtitle")}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-content-primary">
+            {t('environments.title')}
+          </h1>
+          <p className="text-content-secondary">
+            {t('environments.subtitle')}
+          </p>
         </div>
-        <Button onClick={() => navigate("/environments/new")}>
+        <Button onClick={() => navigate('/environments/new')}>
           <Plus className="mr-2 h-4 w-4" />
-          {t("environments.createNew")}
+          {t('environments.createNew')}
         </Button>
       </div>
 
@@ -59,44 +76,48 @@ export function EnvironmentListPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <CardTitle>{env.name}</CardTitle>
-                  <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <div className="flex items-center gap-2 text-sm text-content-secondary">
                     <span className="capitalize">{t(`environments.${env.type}`)}</span>
                     <span>•</span>
                     <span>{env.version}</span>
                   </div>
                 </div>
-                {env.status === "ready" ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                {env.status === 'ready' ? (
+                  <CheckCircle2 className="h-5 w-5 text-success-icon" />
                 ) : (
-                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                  <AlertCircle className="h-5 w-5 text-warning-icon" />
                 )}
               </div>
             </CardHeader>
             <CardContent className="flex-1 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-zinc-500">{t("environments.python")}</p>
-                  <p className="font-medium text-zinc-700 dark:text-zinc-200">{env.python}</p>
+                  <p className="text-content-tertiary">{t('environments.python')}</p>
+                  <p className="font-medium text-content-primary">
+                    {env.python}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-zinc-500">{t("environments.pytorch")}</p>
-                  <p className="font-medium text-zinc-700 dark:text-zinc-200">{env.torch}</p>
+                  <p className="text-content-tertiary">{t('environments.pytorch')}</p>
+                  <p className="font-medium text-content-primary">
+                    {env.torch}
+                  </p>
                 </div>
               </div>
-              {env.status === "error" && (
-                <div className="rounded-md bg-amber-500/10 p-3 text-xs text-amber-500">
-                  {t("environments.errorMessage")}
+              {env.status === 'error' && (
+                <div className="rounded-md bg-warning-surface p-3 text-xs text-warning-content">
+                  {t('environments.errorMessage')}
                 </div>
               )}
             </CardContent>
-            <CardFooter className="grid grid-cols-3 gap-2 border-t border-zinc-800/50 p-4">
+            <CardFooter className="grid grid-cols-3 gap-2 border-t border-border-default p-4">
               <Button variant="secondary" size="sm" className="w-full">
                 <Play className="mr-2 h-3 w-3" />
-                {t("environments.launch")}
+                {t('environments.launch')}
               </Button>
               <Button variant="secondary" size="sm" className="w-full">
                 <Terminal className="mr-2 h-3 w-3" />
-                {t("environments.shell")}
+                {t('environments.shell')}
               </Button>
               <Button variant="ghost" size="sm" className="w-full px-0">
                 <Settings className="h-4 w-4" />
