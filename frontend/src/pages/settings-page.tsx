@@ -90,7 +90,8 @@ export function SettingsPage() {
     text: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [forceRender, setForceRender] = useState(0); // Force re-render when language changes
+  // Force re-render when language changes
+  const [, setForceRender] = useState(0);
 
   // Store cleanup state in ref to avoid dependency issues
   const cleanupStateRef = useRef<{
@@ -152,8 +153,7 @@ export function SettingsPage() {
         }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadConfig, checkEnvironments, i18n]);
 
   // Update cleanup state ref when config or savedConfig changes
   useEffect(() => {
@@ -178,24 +178,28 @@ export function SettingsPage() {
 
       const currentLang = i18n.language;
       const resolvedLang = i18n.resolvedLanguage;
-      
+
       // If we are already on the target language (or a variant of it), do nothing
-      if (currentLang === targetLang || currentLang.startsWith(targetLang + '-') || 
-          resolvedLang === targetLang || resolvedLang?.startsWith(targetLang + '-')) {
+      if (
+        currentLang === targetLang ||
+        currentLang.startsWith(targetLang + '-') ||
+        resolvedLang === targetLang ||
+        resolvedLang?.startsWith(targetLang + '-')
+      ) {
         return;
       }
 
       try {
         await i18n.changeLanguage(targetLang);
         // Force re-render to update the UI
-        setForceRender(prev => prev + 1);
+        setForceRender((prev) => prev + 1);
       } catch (error) {
         console.error('Failed to change language:', error);
       }
     };
 
     applyLanguageChange();
-  }, [config?.ui.preferred_language, i18n.language, i18n.resolvedLanguage]);
+  }, [config?.ui.preferred_language, i18n.language, i18n.resolvedLanguage, i18n]);
 
   // Helper to check if a specific section has unsaved changes
   const hasUnsavedChanges = (section: 'theme' | 'language') => {
@@ -295,7 +299,7 @@ export function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-content-primary">
+        <h1 className="text-content-primary text-2xl font-bold tracking-tight">
           {t('settings.title')}
         </h1>
         <p className="text-content-secondary">{t('settings.subtitle')}</p>
@@ -312,9 +316,9 @@ export function SettingsPage() {
           )}
         >
           {message.type === 'success' ? (
-            <CheckCircle2 className="h-5 w-5 text-success-icon" />
+            <CheckCircle2 className="text-success-icon h-5 w-5" />
           ) : (
-            <AlertCircle className="h-5 w-5 text-error-icon" />
+            <AlertCircle className="text-error-icon h-5 w-5" />
           )}
           <span>{message.text}</span>
         </div>
@@ -326,7 +330,7 @@ export function SettingsPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1.5">
               <CardTitle>{t('settings.appearance.title')}</CardTitle>
-              <p className="text-sm text-content-secondary">
+              <p className="text-content-secondary text-sm">
                 {t('settings.appearance.description')}
               </p>
             </div>
@@ -339,10 +343,10 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-content-primary">
+            <label className="text-content-primary text-sm font-medium">
               {t('settings.appearance.theme')}
             </label>
-            <p className="mb-3 text-xs text-content-secondary">
+            <p className="text-content-secondary mb-3 text-xs">
               {t('settings.appearance.themeDescription')}
             </p>
             <div className="grid grid-cols-3 gap-3">
@@ -380,7 +384,7 @@ export function SettingsPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1.5">
               <CardTitle>{t('settings.language.title')}</CardTitle>
-              <p className="text-sm text-content-secondary">
+              <p className="text-content-secondary text-sm">
                 {t('settings.language.description')}
               </p>
             </div>
@@ -393,11 +397,11 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div>
-            <label className="text-sm font-medium text-content-primary">
+            <label className="text-content-primary text-sm font-medium">
               {t('settings.language.preferredLanguage')}
             </label>
             <select
-              className="mt-2 w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+              className="border-border-default bg-surface-secondary text-content-primary mt-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
               value={config.ui.preferred_language}
               onChange={(e) => {
                 setConfig({
@@ -421,7 +425,7 @@ export function SettingsPage() {
         <CardHeader>
           <div className="space-y-1.5">
             <CardTitle>{t('settings.paths.title')}</CardTitle>
-            <p className="text-sm text-content-secondary">
+            <p className="text-content-secondary text-sm">
               {t('settings.paths.description')}
             </p>
           </div>
@@ -429,10 +433,10 @@ export function SettingsPage() {
         <CardContent className="space-y-4">
           {/* Data Directory */}
           <div>
-            <label className="text-sm font-medium text-content-primary">
+            <label className="text-content-primary text-sm font-medium">
               {t('settings.paths.dataDir')}
             </label>
-            <p className="mb-2 text-xs text-content-secondary">
+            <p className="text-content-secondary mb-2 text-xs">
               {t('settings.paths.dataDirDescription')}
               {hasEnvironments && ` ${t('settings.paths.dataDirLocked')}`}
             </p>
@@ -441,7 +445,7 @@ export function SettingsPage() {
               className={cn(
                 'w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none',
                 hasEnvironments
-                  ? 'cursor-not-allowed border-border-default bg-surface-tertiary text-content-tertiary opacity-60'
+                  ? 'border-border-default bg-surface-tertiary text-content-tertiary cursor-not-allowed opacity-60'
                   : 'border-border-default bg-surface-secondary text-content-primary',
               )}
               value={config.paths.data_dir}
@@ -459,12 +463,12 @@ export function SettingsPage() {
           {(['repos_dir', 'environments_dir', 'logs_dir', 'cache_dir'] as const).map(
             (pathKey) => (
               <div key={pathKey}>
-                <label className="text-sm font-medium text-content-primary">
+                <label className="text-content-primary text-sm font-medium">
                   {t(`settings.paths.${toCamelCase(pathKey)}`)}
                 </label>
                 <input
                   type="text"
-                  className="mt-2 w-full cursor-not-allowed rounded-md border border-border-default bg-surface-tertiary px-3 py-2 text-content-tertiary"
+                  className="border-border-default bg-surface-tertiary text-content-tertiary mt-2 w-full cursor-not-allowed rounded-md border px-3 py-2"
                   value={config.paths[pathKey] || ''}
                   disabled
                   readOnly
@@ -480,7 +484,7 @@ export function SettingsPage() {
         <CardHeader>
           <div className="space-y-1.5">
             <CardTitle>{t('settings.tools.title')}</CardTitle>
-            <p className="text-sm text-content-secondary">
+            <p className="text-content-secondary text-sm">
               {t('settings.tools.description')}
             </p>
           </div>
@@ -488,7 +492,7 @@ export function SettingsPage() {
         <CardContent className="space-y-6">
           {(['git', 'uv'] as const).map((tool) => (
             <div key={tool} className="space-y-3">
-              <label className="text-sm font-medium text-content-primary">
+              <label className="text-content-primary text-sm font-medium">
                 {t(`settings.tools.${tool}`)}
               </label>
 
@@ -539,7 +543,7 @@ export function SettingsPage() {
                 <input
                   type="text"
                   placeholder={t(`settings.tools.${tool}PathPlaceholder`)}
-                  className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
                   value={config.tools[tool].custom_path || ''}
                   onChange={(e) =>
                     setConfig({
@@ -562,7 +566,7 @@ export function SettingsPage() {
         <CardHeader>
           <div className="space-y-1.5">
             <CardTitle>{t('settings.repositories.title')}</CardTitle>
-            <p className="text-sm text-content-secondary">
+            <p className="text-content-secondary text-sm">
               {t('settings.repositories.description')}
             </p>
           </div>
@@ -572,13 +576,13 @@ export function SettingsPage() {
             {config.repositories.lerobot_sources.map((source, index) => (
               <div
                 key={index}
-                className="flex items-start gap-2 rounded-md border border-border-default bg-surface-tertiary p-3"
+                className="border-border-default bg-surface-tertiary flex items-start gap-2 rounded-md border p-3"
               >
                 <div className="flex-1 space-y-2">
                   <input
                     type="text"
                     placeholder={t('settings.repositories.name')}
-                    className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
                     value={source.name}
                     onChange={(e) => {
                       const newSources = [...config.repositories.lerobot_sources];
@@ -596,7 +600,7 @@ export function SettingsPage() {
                   <input
                     type="text"
                     placeholder={t('settings.repositories.url')}
-                    className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
                     value={source.url}
                     onChange={(e) => {
                       const newSources = [...config.repositories.lerobot_sources];
@@ -636,7 +640,7 @@ export function SettingsPage() {
                             },
                           });
                         }}
-                        className="rounded-md border border-border-default bg-surface-tertiary p-2 text-xs text-content-secondary hover:bg-surface-secondary hover:text-content-primary"
+                        className="border-border-default bg-surface-tertiary text-content-secondary hover:bg-surface-secondary hover:text-content-primary rounded-md border p-2 text-xs"
                         title={t('settings.repositories.setAsDefault')}
                       >
                         {t('settings.repositories.setAsDefault')}
@@ -654,7 +658,7 @@ export function SettingsPage() {
                             },
                           });
                         }}
-                        className="rounded-md border border-border-default bg-surface-tertiary p-2 text-error-icon hover:border-error-border hover:bg-error-surface"
+                        className="border-border-default bg-surface-tertiary text-error-icon hover:border-error-border hover:bg-error-surface rounded-md border p-2"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -688,7 +692,7 @@ export function SettingsPage() {
         <CardHeader>
           <div className="space-y-1.5">
             <CardTitle>{t('settings.pypi.title')}</CardTitle>
-            <p className="text-sm text-content-secondary">
+            <p className="text-content-secondary text-sm">
               {t('settings.pypi.description')}
             </p>
           </div>
@@ -698,13 +702,13 @@ export function SettingsPage() {
             {config.pypi.mirrors.map((mirror, index) => (
               <div
                 key={index}
-                className="flex items-start gap-2 rounded-md border border-border-default bg-surface-tertiary p-3"
+                className="border-border-default bg-surface-tertiary flex items-start gap-2 rounded-md border p-3"
               >
                 <div className="flex-1 space-y-2">
                   <input
                     type="text"
                     placeholder={t('settings.pypi.name')}
-                    className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
                     value={mirror.name}
                     onChange={(e) => {
                       const newMirrors = [...config.pypi.mirrors];
@@ -718,7 +722,7 @@ export function SettingsPage() {
                   <input
                     type="text"
                     placeholder={t('settings.pypi.url')}
-                    className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
                     value={mirror.url}
                     onChange={(e) => {
                       const newMirrors = [...config.pypi.mirrors];
@@ -749,7 +753,7 @@ export function SettingsPage() {
                             pypi: { ...config.pypi, mirrors: newMirrors },
                           });
                         }}
-                        className="rounded-md border border-border-default bg-surface-tertiary p-2 text-xs text-content-secondary hover:bg-surface-secondary hover:text-content-primary"
+                        className="border-border-default bg-surface-tertiary text-content-secondary hover:bg-surface-secondary hover:text-content-primary rounded-md border p-2 text-xs"
                         title={t('settings.pypi.setAsDefault')}
                       >
                         {t('settings.pypi.setAsDefault')}
@@ -764,7 +768,7 @@ export function SettingsPage() {
                             pypi: { ...config.pypi, mirrors: newMirrors },
                           });
                         }}
-                        className="rounded-md border border-border-default bg-surface-tertiary p-2 text-error-icon hover:border-error-border hover:bg-error-surface"
+                        className="border-border-default bg-surface-tertiary text-error-icon hover:border-error-border hover:bg-error-surface rounded-md border p-2"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -795,22 +799,22 @@ export function SettingsPage() {
         <CardHeader>
           <div className="space-y-1.5">
             <CardTitle>{t('settings.advanced.title')}</CardTitle>
-            <p className="text-sm text-content-secondary">
+            <p className="text-content-secondary text-sm">
               {t('settings.advanced.description')}
             </p>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-content-primary">
+            <label className="text-content-primary text-sm font-medium">
               {t('settings.advanced.installationTimeout')}
             </label>
-            <p className="mb-2 text-xs text-content-secondary">
+            <p className="text-content-secondary mb-2 text-xs">
               {t('settings.advanced.installationTimeoutDescription')}
             </p>
             <input
               type="number"
-              className="mt-2 w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+              className="border-border-default bg-surface-secondary text-content-primary mt-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
               value={config.advanced.installation_timeout}
               onChange={(e) =>
                 setConfig({
@@ -825,14 +829,14 @@ export function SettingsPage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-content-primary">
+            <label className="text-content-primary text-sm font-medium">
               {t('settings.advanced.logLevel')}
             </label>
-            <p className="mb-2 text-xs text-content-secondary">
+            <p className="text-content-secondary mb-2 text-xs">
               {t('settings.advanced.logLevelDescription')}
             </p>
             <select
-              className="mt-2 w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+              className="border-border-default bg-surface-secondary text-content-primary mt-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
               value={config.advanced.log_level}
               onChange={(e) =>
                 setConfig({
@@ -853,7 +857,7 @@ export function SettingsPage() {
       </Card>
 
       {/* Actions */}
-      <div className="flex justify-between border-t border-border-default pt-6">
+      <div className="border-border-default flex justify-between border-t pt-6">
         <Button variant="ghost" onClick={resetConfig} disabled={saving}>
           <RotateCcw className="mr-2 h-4 w-4" />
           {t('settings.buttons.reset')}

@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 
-def check_size():
+def check_size() -> None:
     dist_dir = Path(__file__).parent.parent / "dist"
 
     if sys.platform == "win32":

@@ -56,12 +56,10 @@ export function EnvironmentListPage() {
     <div className="flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-content-primary">
+          <h1 className="text-content-primary text-2xl font-bold tracking-tight">
             {t('environments.title')}
           </h1>
-          <p className="text-content-secondary">
-            {t('environments.subtitle')}
-          </p>
+          <p className="text-content-secondary">{t('environments.subtitle')}</p>
         </div>
         <Button onClick={() => navigate('/environments/new')}>
           <Plus className="mr-2 h-4 w-4" />
@@ -76,16 +74,16 @@ export function EnvironmentListPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <CardTitle>{env.name}</CardTitle>
-                  <div className="flex items-center gap-2 text-sm text-content-secondary">
+                  <div className="text-content-secondary flex items-center gap-2 text-sm">
                     <span className="capitalize">{t(`environments.${env.type}`)}</span>
                     <span>•</span>
                     <span>{env.version}</span>
                   </div>
                 </div>
                 {env.status === 'ready' ? (
-                  <CheckCircle2 className="h-5 w-5 text-success-icon" />
+                  <CheckCircle2 className="text-success-icon h-5 w-5" />
                 ) : (
-                  <AlertCircle className="h-5 w-5 text-warning-icon" />
+                  <AlertCircle className="text-warning-icon h-5 w-5" />
                 )}
               </div>
             </CardHeader>
@@ -93,24 +91,20 @@ export function EnvironmentListPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-content-tertiary">{t('environments.python')}</p>
-                  <p className="font-medium text-content-primary">
-                    {env.python}
-                  </p>
+                  <p className="text-content-primary font-medium">{env.python}</p>
                 </div>
                 <div>
                   <p className="text-content-tertiary">{t('environments.pytorch')}</p>
-                  <p className="font-medium text-content-primary">
-                    {env.torch}
-                  </p>
+                  <p className="text-content-primary font-medium">{env.torch}</p>
                 </div>
               </div>
               {env.status === 'error' && (
-                <div className="rounded-md bg-warning-surface p-3 text-xs text-warning-content">
+                <div className="bg-warning-surface text-warning-content rounded-md p-3 text-xs">
                   {t('environments.errorMessage')}
                 </div>
               )}
             </CardContent>
-            <CardFooter className="grid grid-cols-3 gap-2 border-t border-border-default p-4">
+            <CardFooter className="border-border-default grid grid-cols-3 gap-2 border-t p-4">
               <Button variant="secondary" size="sm" className="w-full">
                 <Play className="mr-2 h-3 w-3" />
                 {t('environments.launch')}

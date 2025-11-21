@@ -6,12 +6,13 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from leropilot import __version__
 from leropilot.config import get_config
 from leropilot.logger import get_logger
+from leropilot.routers import config as config_router
 
 logger = get_logger(__name__)
 
@@ -42,8 +43,6 @@ async def hello() -> dict[str, str]:
 
 
 # Register routers
-from leropilot.routers import config as config_router
-
 app.include_router(config_router.router)
 
 
@@ -51,7 +50,7 @@ def get_static_dir() -> Path:
     """获取静态文件目录，兼容开发环境和 PyInstaller 打包后的环境"""
     if getattr(sys, "frozen", False):
         # PyInstaller 打包后的环境
-        base_path = Path(sys._MEIPASS)
+        base_path = Path(sys._MEIPASS)  # type: ignore
         return base_path / "leropilot" / "static"
     else:
         # 开发环境: src/leropilot/static
@@ -64,15 +63,15 @@ def serve_static() -> None:
     if static_dir.exists():
         # Mount static files
         app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
-        
+
         # Serve index.html for root
         @app.get("/")
-        async def read_root():
+        async def read_root() -> FileResponse:
             return FileResponse(static_dir / "index.html")
 
         # Catch-all for SPA routing (serve index.html for any other path)
         @app.get("/{full_path:path}")
-        async def catch_all(full_path: str):
+        async def catch_all(full_path: str) -> FileResponse:
             # Check if file exists in static dir (e.g. favicon.ico)
             file_path = static_dir / full_path
             if file_path.exists() and file_path.is_file():
@@ -108,14 +107,14 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
 
     # 延迟打开浏览器，等待服务器启动
     def open_browser_func() -> None:
-        import time
         import shutil
         import subprocess
         import sys
+        import time
 
         time.sleep(1.5)
         url = f"http://127.0.0.1:{config.server.port}"
-        
+
         if config.server.auto_open_browser:
             # Try to open in app mode (Chrome/Edge)
             browsers = ["google-chrome", "microsoft-edge", "chromium-browser", "chromium"]
@@ -123,7 +122,7 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
                 browsers = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
             elif sys.platform == "win32":
                 browsers = ["chrome", "msedge"]
-            
+
             opened = False
             for browser in browsers:
                 if shutil.which(browser):
@@ -134,14 +133,14 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
                         break
                     except Exception as e:
                         logger.warning(f"Failed to open {browser}: {e}")
-            
+
             if not opened:
                 logger.info("Falling back to default browser")
                 webbrowser.open(url)
 
     if open_browser:
         threading.Thread(target=open_browser_func, daemon=True).start()
-        
+
     uvicorn.run(app, host=config.server.host, port=config.server.port)
 
 

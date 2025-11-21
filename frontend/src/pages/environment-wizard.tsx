@@ -34,17 +34,17 @@ export function EnvironmentWizard() {
     <div className="mx-auto max-w-3xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-content-primary">{t('wizard.title')}</h1>
+        <h1 className="text-content-primary text-2xl font-bold">{t('wizard.title')}</h1>
         <p className="text-content-secondary">{t('wizard.subtitle')}</p>
       </div>
 
       {/* Progress Steps */}
       <div className="relative flex justify-between">
-        <div className="absolute top-1/2 h-0.5 w-full -translate-y-1/2 bg-border-default" />
+        <div className="bg-border-default absolute top-1/2 h-0.5 w-full -translate-y-1/2" />
         {STEPS.map((s) => (
           <div
             key={s.id}
-            className="relative z-10 flex flex-col items-center gap-2 bg-surface-primary px-2"
+            className="bg-surface-primary relative z-10 flex flex-col items-center gap-2 px-2"
           >
             <div
               className={cn(
@@ -59,7 +59,9 @@ export function EnvironmentWizard() {
             <span
               className={cn(
                 'text-xs font-medium',
-                step >= s.id ? 'text-blue-600 dark:text-blue-500' : 'text-content-tertiary',
+                step >= s.id
+                  ? 'text-blue-600 dark:text-blue-500'
+                  : 'text-content-tertiary',
               )}
             >
               {s.title}
@@ -74,7 +76,9 @@ export function EnvironmentWizard() {
           {step === 1 && (
             <div className="space-y-6">
               <div className="space-y-4">
-                <div className="text-sm font-medium text-content-primary">Repository Type</div>
+                <div className="text-content-primary text-sm font-medium">
+                  Repository Type
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => updateConfig({ repoType: 'official' })}
@@ -86,7 +90,7 @@ export function EnvironmentWizard() {
                     )}
                   >
                     <span className="font-bold">Official LeRobot</span>
-                    <span className="text-xs text-content-secondary">Hugging Face</span>
+                    <span className="text-content-secondary text-xs">Hugging Face</span>
                   </button>
                   <button
                     onClick={() => updateConfig({ repoType: 'custom' })}
@@ -98,15 +102,19 @@ export function EnvironmentWizard() {
                     )}
                   >
                     <span className="font-bold">Custom URL</span>
-                    <span className="text-xs text-content-secondary">Git Repository</span>
+                    <span className="text-content-secondary text-xs">
+                      Git Repository
+                    </span>
                   </button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="text-sm font-medium text-content-primary">Version / Tag</div>
+                <div className="text-content-primary text-sm font-medium">
+                  Version / Tag
+                </div>
                 <select
-                  className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
                   value={config.version}
                   onChange={(e) => updateConfig({ version: e.target.value })}
                 >
@@ -121,12 +129,12 @@ export function EnvironmentWizard() {
           {step === 2 && (
             <div className="space-y-6">
               {/* Hardware Detection Card */}
-              <div className="rounded-lg border border-info-border bg-info-surface p-4">
+              <div className="border-info-border bg-info-surface rounded-lg border p-4">
                 <div className="flex items-start gap-3">
-                  <Info className="mt-0.5 h-5 w-5 text-info-icon" />
+                  <Info className="text-info-icon mt-0.5 h-5 w-5" />
                   <div>
-                    <h3 className="font-medium text-info-content">Hardware Detected</h3>
-                    <p className="text-sm text-info-content opacity-90">
+                    <h3 className="text-info-content font-medium">Hardware Detected</h3>
+                    <p className="text-info-content text-sm opacity-90">
                       NVIDIA RTX 4090 (Driver 535.12)
                     </p>
                   </div>
@@ -134,9 +142,11 @@ export function EnvironmentWizard() {
               </div>
 
               <div className="space-y-2">
-                <div className="text-sm font-medium text-content-primary">Python Version</div>
+                <div className="text-content-primary text-sm font-medium">
+                  Python Version
+                </div>
                 <select
-                  className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
                   value={config.pythonVersion}
                   onChange={(e) => updateConfig({ pythonVersion: e.target.value })}
                 >
@@ -146,10 +156,12 @@ export function EnvironmentWizard() {
               </div>
 
               <div className="space-y-2">
-                <div className="text-sm font-medium text-content-primary">PyTorch Version</div>
+                <div className="text-content-primary text-sm font-medium">
+                  PyTorch Version
+                </div>
                 <div className="relative">
                   <select
-                    className="w-full rounded-md border border-border-default bg-surface-secondary px-3 py-2 text-content-primary focus:border-blue-500 focus:outline-none"
+                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
                     value={config.torchVersion}
                     onChange={(e) => updateConfig({ torchVersion: e.target.value })}
                   >
@@ -158,12 +170,12 @@ export function EnvironmentWizard() {
                     <option value="cpu">CPU Only</option>
                   </select>
                   <div className="absolute top-1/2 right-8 -translate-y-1/2">
-                    <span className="rounded bg-success-surface px-2 py-0.5 text-xs font-medium text-success-icon">
+                    <span className="bg-success-surface text-success-icon rounded px-2 py-0.5 text-xs font-medium">
                       Recommended
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-content-tertiary">
+                <p className="text-content-tertiary text-xs">
                   Compatible with your NVIDIA Driver and LeRobot v2.0.
                 </p>
               </div>
@@ -172,7 +184,7 @@ export function EnvironmentWizard() {
 
           {step === 3 && (
             <div className="space-y-4">
-              <p className="text-sm text-content-secondary">
+              <p className="text-content-secondary text-sm">
                 Select the robots you want to support. This will install additional
                 dependencies.
               </p>
@@ -189,7 +201,7 @@ export function EnvironmentWizard() {
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-border-default bg-surface-secondary text-blue-600 focus:ring-blue-500"
+                      className="border-border-default bg-surface-secondary h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
                       checked={config.selectedRobots.includes(robot)}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -205,7 +217,7 @@ export function EnvironmentWizard() {
                         }
                       }}
                     />
-                    <span className="font-medium text-content-primary capitalize">
+                    <span className="text-content-primary font-medium capitalize">
                       {robot}
                     </span>
                   </label>
@@ -216,8 +228,8 @@ export function EnvironmentWizard() {
 
           {step === 4 && (
             <div className="space-y-6">
-              <div className="space-y-3 rounded-lg border border-border-default bg-surface-tertiary p-4">
-                <h3 className="font-medium text-content-primary">Summary</h3>
+              <div className="border-border-default bg-surface-tertiary space-y-3 rounded-lg border p-4">
+                <h3 className="text-content-primary font-medium">Summary</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="text-content-tertiary">Repository</div>
                   <div className="text-content-primary">
@@ -236,9 +248,9 @@ export function EnvironmentWizard() {
                 </div>
               </div>
 
-              <div className="flex gap-3 rounded-lg border border-warning-border bg-warning-surface p-4">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-warning-icon" />
-                <p className="text-sm text-warning-content">
+              <div className="border-warning-border bg-warning-surface flex gap-3 rounded-lg border p-4">
+                <AlertTriangle className="text-warning-icon h-5 w-5 shrink-0" />
+                <p className="text-warning-content text-sm">
                   Note: This process requires an active internet connection to download
                   dependencies.
                 </p>
@@ -253,7 +265,7 @@ export function EnvironmentWizard() {
                 </button>
 
                 {isAdvancedOpen && (
-                  <div className="mt-2 rounded-lg border border-border-default bg-surface-tertiary p-4 font-mono text-xs text-content-secondary">
+                  <div className="border-border-default bg-surface-tertiary text-content-secondary mt-2 rounded-lg border p-4 font-mono text-xs">
                     <p># Generated Install Script</p>
                     <p>uv venv .venv --python {config.pythonVersion}</p>
                     <p>source .venv/bin/activate</p>
@@ -266,7 +278,7 @@ export function EnvironmentWizard() {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex justify-between border-t border-border-default p-6">
+        <CardFooter className="border-border-default flex justify-between border-t p-6">
           <Button variant="ghost" onClick={handleBack}>
             {step === 1 ? t('wizard.buttons.cancel') : t('wizard.buttons.back')}
           </Button>

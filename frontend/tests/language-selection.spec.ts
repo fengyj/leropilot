@@ -10,7 +10,10 @@ test.describe('Language Selection', () => {
 
     // Find the language select dropdown
     // We look for the select that contains language options
-    const languageSelect = page.locator('select').filter({ hasText: 'English' }).first();
+    const languageSelect = page
+      .locator('select')
+      .filter({ hasText: 'English' })
+      .first();
 
     // Ensure we start in English for this test
     await languageSelect.selectOption('en');
@@ -18,7 +21,7 @@ test.describe('Language Selection', () => {
 
     // Switch to Chinese
     await languageSelect.selectOption('zh');
-    
+
     // Verify the title changes to Chinese
     await expect(page.locator('h1')).toHaveText('设置');
   });
@@ -28,9 +31,12 @@ test.describe('Language Selection', () => {
     await page.goto('/settings');
 
     // Change language to Chinese
-    const languageSelect = page.locator('select').filter({ hasText: 'English' }).first();
+    const languageSelect = page
+      .locator('select')
+      .filter({ hasText: 'English' })
+      .first();
     await languageSelect.selectOption('zh');
-    
+
     // Verify change
     await expect(page.locator('h1')).toHaveText('设置');
 

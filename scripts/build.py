@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 
-def build():
+def build() -> None:
     root = Path(__file__).parent.parent
     frontend_dir = root / "frontend"
     dist_dir = root / "dist"

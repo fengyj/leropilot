@@ -27,7 +27,7 @@ class ConfigManager:
             else:
                 # Use platform-specific config directory
                 import sys
-                
+
                 if sys.platform == "win32":
                     # Windows: %APPDATA%\LeRoPilot
                     config_dir = Path(os.getenv("APPDATA", str(Path.home()))) / "LeRoPilot"
@@ -37,9 +37,9 @@ class ConfigManager:
                 else:
                     # Linux/Unix: ~/.config/leropilot
                     config_dir = Path.home() / ".config" / "leropilot"
-                
+
                 config_path = config_dir / "config.yaml"
-        
+
         self.config_path = config_path
         self._config: AppConfig | None = None
 
@@ -90,7 +90,7 @@ class ConfigManager:
         config_dict = config.model_dump(mode="json", exclude_none=True)
 
         # Convert Path objects to strings for YAML serialization
-        def convert_paths(obj: Any) -> Any:
+        def convert_paths(obj: Any) -> Any:  # noqa: ANN401
             if isinstance(obj, dict):
                 return {k: convert_paths(v) for k, v in obj.items()}
             if isinstance(obj, list):
@@ -139,7 +139,22 @@ class ConfigManager:
 
         # PyPI overrides
         if index_url := os.getenv("LEROPILOT_PYPI_INDEX_URL"):
-            config.pypi.index_url = index_url
+            # Add or update environment override mirror
+            from leropilot.models.config import PyPIMirror
+
+            # Remove existing env override if any
+            config.pypi.mirrors = [m for m in config.pypi.mirrors if m.name != "Env Override"]
+
+            # Add new mirror at the beginning
+            config.pypi.mirrors.insert(0, PyPIMirror(
+                name="Env Override",
+                url=index_url,
+                is_default=True
+            ))
+
+            # Ensure only one default
+            for m in config.pypi.mirrors[1:]:
+                m.is_default = False
 
         # HuggingFace overrides
         if hf_token := os.getenv("LEROPILOT_HF_TOKEN"):

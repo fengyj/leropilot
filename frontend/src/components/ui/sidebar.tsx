@@ -25,13 +25,11 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="flex w-64 flex-shrink-0 flex-col border-r border-border-default bg-surface-secondary">
-      <div className="flex h-16 items-center border-b border-border-default px-6">
+    <div className="border-border-default bg-surface-secondary flex w-64 flex-shrink-0 flex-col border-r">
+      <div className="border-border-default flex h-16 items-center border-b px-6">
         <div className="flex items-center gap-2">
           <img src={logo} alt="LeRoPilot Logo" className="h-8 w-8 rounded-lg" />
-          <span className="text-lg font-bold text-content-primary">
-            LeRoPilot
-          </span>
+          <span className="text-content-primary text-lg font-bold">LeRoPilot</span>
         </div>
       </div>
 
@@ -47,7 +45,7 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-info-surface text-info-icon'
                   : 'text-content-secondary hover:bg-surface-tertiary hover:text-content-primary',
               )}
             >
@@ -58,16 +56,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-border-default p-4">
-        <div className="mt-4 rounded-lg bg-surface-tertiary p-3">
-          <p className="mb-1 text-xs font-medium text-content-tertiary">
+      <div className="border-border-default border-t p-4">
+        <div className="bg-surface-tertiary mt-4 rounded-lg p-3">
+          <p className="text-content-tertiary mb-1 text-xs font-medium">
             {t('nav.activeEnvironment')}
           </p>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-success-icon" />
-            <p className="text-sm font-medium text-content-primary">
-              LeRobot v2.0
-            </p>
+            <div className="bg-success-icon h-2 w-2 rounded-full" />
+            <p className="text-content-primary text-sm font-medium">LeRobot v2.0</p>
           </div>
         </div>
       </div>

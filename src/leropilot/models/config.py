@@ -1,7 +1,7 @@
 """Configuration data models for LeRoPilot."""
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -25,10 +25,10 @@ class PathsConfig(BaseModel):
     """Paths configuration."""
 
     data_dir: Path = Field(default_factory=lambda: Path.home() / ".leropilot")
-    repos_dir: Optional[Path] = None
-    environments_dir: Optional[Path] = None
-    logs_dir: Optional[Path] = None
-    cache_dir: Optional[Path] = None
+    repos_dir: Path | None = None
+    environments_dir: Path | None = None
+    logs_dir: Path | None = None
+    cache_dir: Path | None = None
 
     @field_validator("data_dir", mode="before")
     @classmethod

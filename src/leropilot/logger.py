@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import structlog
 
@@ -16,7 +15,8 @@ def get_logger(name: str) -> structlog.BoundLogger:
 
     config = get_config()
     log_dir = config.paths.logs_dir
-    log_dir.mkdir(parents=True, exist_ok=True)
+    if log_dir:
+        log_dir.mkdir(parents=True, exist_ok=True)
 
     # Map string level to integer
     level_map = {
