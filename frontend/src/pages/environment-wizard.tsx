@@ -35,21 +35,21 @@ export function EnvironmentWizard() {
     <div className="mx-auto max-w-3xl space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">{t("wizard.title")}</h1>
-        <p className="text-slate-400">{t("wizard.subtitle")}</p>
+        <h1 className="text-2xl font-bold text-zinc-100">{t("wizard.title")}</h1>
+        <p className="text-zinc-400">{t("wizard.subtitle")}</p>
       </div>
 
       {/* Progress Steps */}
       <div className="relative flex justify-between">
-        <div className="absolute top-1/2 h-0.5 w-full -translate-y-1/2 bg-slate-800" />
+        <div className="absolute top-1/2 h-0.5 w-full -translate-y-1/2 bg-zinc-800" />
         {STEPS.map((s) => (
-          <div key={s.id} className="relative z-10 flex flex-col items-center gap-2 bg-slate-950 px-2">
+          <div key={s.id} className="relative z-10 flex flex-col items-center gap-2 bg-zinc-950 px-2">
             <div
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors",
                 step >= s.id
                   ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-slate-700 bg-slate-900 text-slate-500"
+                  : "border-zinc-700 bg-zinc-900 text-zinc-500"
               )}
             >
               {step > s.id ? <Check className="h-4 w-4" /> : s.id}
@@ -57,7 +57,7 @@ export function EnvironmentWizard() {
             <span
               className={cn(
                 "text-xs font-medium",
-                step >= s.id ? "text-blue-500" : "text-slate-500"
+                step >= s.id ? "text-blue-500" : "text-zinc-500"
               )}
             >
               {s.title}
@@ -72,7 +72,7 @@ export function EnvironmentWizard() {
           {step === 1 && (
             <div className="space-y-6">
               <div className="space-y-4">
-                <label className="text-sm font-medium text-slate-300">Repository Type</label>
+                <label className="text-sm font-medium text-zinc-300">Repository Type</label>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => updateConfig({ repoType: "official" })}
@@ -80,11 +80,11 @@ export function EnvironmentWizard() {
                       "flex flex-col items-center gap-2 rounded-lg border p-4 transition-all",
                       config.repoType === "official"
                         ? "border-blue-600 bg-blue-600/10 text-blue-500"
-                        : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                        : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
                     )}
                   >
                     <span className="font-bold">Official LeRobot</span>
-                    <span className="text-xs text-slate-400">Hugging Face</span>
+                    <span className="text-xs text-zinc-400">Hugging Face</span>
                   </button>
                   <button
                     onClick={() => updateConfig({ repoType: "custom" })}
@@ -92,19 +92,19 @@ export function EnvironmentWizard() {
                       "flex flex-col items-center gap-2 rounded-lg border p-4 transition-all",
                       config.repoType === "custom"
                         ? "border-blue-600 bg-blue-600/10 text-blue-500"
-                        : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                        : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
                     )}
                   >
                     <span className="font-bold">Custom URL</span>
-                    <span className="text-xs text-slate-400">Git Repository</span>
+                    <span className="text-xs text-zinc-400">Git Repository</span>
                   </button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Version / Tag</label>
+                <label className="text-sm font-medium text-zinc-300">Version / Tag</label>
                 <select
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none"
                   value={config.version}
                   onChange={(e) => updateConfig({ version: e.target.value })}
                 >
@@ -130,9 +130,9 @@ export function EnvironmentWizard() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Python Version</label>
+                <label className="text-sm font-medium text-zinc-300">Python Version</label>
                 <select
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none"
                   value={config.pythonVersion}
                   onChange={(e) => updateConfig({ pythonVersion: e.target.value })}
                 >
@@ -142,10 +142,10 @@ export function EnvironmentWizard() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">PyTorch Version</label>
+                <label className="text-sm font-medium text-zinc-300">PyTorch Version</label>
                 <div className="relative">
                   <select
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-blue-500 focus:outline-none"
                     value={config.torchVersion}
                     onChange={(e) => updateConfig({ torchVersion: e.target.value })}
                   >
@@ -159,7 +159,7 @@ export function EnvironmentWizard() {
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-zinc-500">
                   Compatible with your NVIDIA Driver and LeRobot v2.0.
                 </p>
               </div>
@@ -168,7 +168,7 @@ export function EnvironmentWizard() {
 
           {step === 3 && (
             <div className="space-y-4">
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-zinc-400">
                 Select the robots you want to support. This will install additional dependencies.
               </p>
               <div className="grid gap-3">
@@ -179,12 +179,12 @@ export function EnvironmentWizard() {
                       "flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors",
                       config.selectedRobots.includes(robot)
                         ? "border-blue-600 bg-blue-600/10"
-                        : "border-slate-800 bg-slate-900 hover:bg-slate-800"
+                        : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
                     )}
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-blue-600 focus:ring-blue-500"
                       checked={config.selectedRobots.includes(robot)}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -196,7 +196,7 @@ export function EnvironmentWizard() {
                         }
                       }}
                     />
-                    <span className="font-medium text-slate-200 capitalize">{robot}</span>
+                    <span className="font-medium text-zinc-200 capitalize">{robot}</span>
                   </label>
                 ))}
               </div>
@@ -205,17 +205,17 @@ export function EnvironmentWizard() {
 
           {step === 4 && (
             <div className="space-y-6">
-              <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-3">
-                <h3 className="font-medium text-slate-200">Summary</h3>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+                <h3 className="font-medium text-zinc-200">Summary</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-slate-500">Repository</div>
-                  <div className="text-slate-200">{config.repoUrl} ({config.version})</div>
-                  <div className="text-slate-500">Python</div>
-                  <div className="text-slate-200">{config.pythonVersion}</div>
-                  <div className="text-slate-500">PyTorch</div>
-                  <div className="text-slate-200">{config.torchVersion}</div>
-                  <div className="text-slate-500">Robots</div>
-                  <div className="text-slate-200">
+                  <div className="text-zinc-500">Repository</div>
+                  <div className="text-zinc-200">{config.repoUrl} ({config.version})</div>
+                  <div className="text-zinc-500">Python</div>
+                  <div className="text-zinc-200">{config.pythonVersion}</div>
+                  <div className="text-zinc-500">PyTorch</div>
+                  <div className="text-zinc-200">{config.torchVersion}</div>
+                  <div className="text-zinc-500">Robots</div>
+                  <div className="text-zinc-200">
                     {config.selectedRobots.length > 0
                       ? config.selectedRobots.join(", ")
                       : "None"}
@@ -239,7 +239,7 @@ export function EnvironmentWizard() {
                 </button>
                 
                 {isAdvancedOpen && (
-                  <div className="mt-2 rounded-lg border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-slate-300">
+                  <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs text-zinc-300">
                     <p># Generated Install Script</p>
                     <p>uv venv .venv --python {config.pythonVersion}</p>
                     <p>source .venv/bin/activate</p>
@@ -252,7 +252,7 @@ export function EnvironmentWizard() {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex justify-between border-t border-slate-800/50 p-6">
+        <CardFooter className="flex justify-between border-t border-zinc-800/50 p-6">
           <Button variant="ghost" onClick={handleBack}>
             {step === 1 ? t("wizard.buttons.cancel") : t("wizard.buttons.back")}
           </Button>

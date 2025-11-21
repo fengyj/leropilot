@@ -14,19 +14,21 @@ LeRoPilot 是一个桌面/网页混合应用：使用 Python 后端（FastAPI）
 
 快速开始（中文说明）请参阅下文。英文说明见 `README.md`。
 
-## 快速开始
+应用支持两种模式：
 
-1. 在 GitHub Releases 页面下载与你的平台匹配的二进制（例如 `leropilot-vX.Y.Z-linux` 或 `leropilot-vX.Y.Z-win.exe`）。
-2. 在 macOS / Linux 上：
+- **桌面模式（推荐）**：原生 Electron 应用体验。
+- **浏览器模式**：在浏览器中打开，适合 WSL 或远程服务器环境。
 
-```bash
-chmod +x ./leropilot
-./leropilot
-```
+### 快速开始
 
-3. 在 Windows 上：双击 `leropilot.exe` 运行。
-
-应用默认会打开浏览器并在 `http://127.0.0.1:8000` 提供 UI 界面。
+1. 在 GitHub Releases 页面下载与你的平台匹配的二进制。
+2. **桌面模式**：运行便携版可执行文件或安装程序。
+3. **浏览器模式**（适用于 WSL/服务器）：
+   直接运行 Python 后端：
+   ```bash
+   python -m leropilot.main --no-browser
+   ```
+   然后访问 `http://127.0.0.1:8000`。
 
 ## 下载与发布资产
 
@@ -47,17 +49,15 @@ chmod +x ./leropilot
 # 安装 Python 开发依赖
 pip install -e ".[dev]"
 
-# 构建前端
-cd frontend
-npm ci
-npm run build
-cd ..
-
-# 使用打包脚本（会执行前端构建并通过 PyInstaller 打包）
-python scripts/build.py
+# 构建所有内容（前端 + 后端 + Electron）
+python scripts/build-electron.py
 ```
 
-生成的可执行文件位于 `dist/` 目录。
+生成的产物位于 `dist/electron/` 目录：
+
+- Windows: `LeRoPilot-*-portable.exe` (便携版) 和 `LeRoPilot-Setup-*.exe` (安装包)
+- macOS: `LeRoPilot-*.dmg` 和 `LeRoPilot-*.zip`
+- Linux: `LeRoPilot-*.AppImage` 和 `LeRoPilot-*.tar.gz`
 
 触发发布（示例）：
 
@@ -68,20 +68,79 @@ git push origin v0.1.0
 
 ## 开发模式
 
-后端（FastAPI）运行：
+### 浏览器模式（默认）
+
+分别运行后端和前端：
 
 ```bash
+# 终端 1：后端
 python -m leropilot.main
-```
 
-前端开发服务器：
-
-```bash
+# 终端 2：前端
 cd frontend
 npm run dev
 ```
 
-开发模式下前端在 `http://localhost:5173` 运行，dev server 会将 API 请求代理到后端以便联调。
+### Electron 模式
+
+```bash
+# 终端 1：后端（不打开浏览器）
+python -m leropilot.main --no-browser
+
+# 终端 2：前端
+cd frontend
+npm run dev
+
+# 终端 3：Electron
+cd electron
+npm start
+```
+
+### 故障排除
+
+#### WSL / Linux 问题
+
+1. **缺少依赖库（Ubuntu）**：
+   Electron 需要某些 Linux GUI 库，这些库在 WSL 中可能默认未安装。
+
+   **Ubuntu 22.04**：
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libasound2 libgbm1 libxss1
+   ```
+
+   **Ubuntu 24.04**（库名带有 `t64` 后缀）：
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y libnss3 libatk-bridge2.0-0t64 libgtk-3-0t64 libasound2t64 libgbm1 libxss1
+   ```
+
+2. **启动时白屏 / 崩溃**：
+   如果你看到白屏或应用崩溃，并且日志显示 `FATAL: This is frequently caused by incorrect permissions on /dev/shm`，这是某些 WSL 环境下 Electron 的已知问题。
+
+   **修复方法**：运行以下命令修复共享内存权限：
+
+   ```bash
+   sudo chmod 1777 /dev/shm
+   ```
+
+   **注意**：执行此命令后，可能需要重启 WSL：
+
+   ```bash
+   wsl --shutdown
+   ```
+
+   然后重新打开 WSL 终端并重试。
+
+3. **窗口不可见**：
+   如果应用正在运行但窗口不可见，请检查日志是否有错误。应用已配置为在 WSL 中自动禁用硬件加速，以防止渲染问题。
+
+### VS Code 调试
+
+- **Python: FastAPI**：启动后端 + 浏览器（推荐用于 WSL）
+- **Electron: All**：启动后端 + Electron（需要 GUI 环境）
 
 ## 配置
 

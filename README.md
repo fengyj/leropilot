@@ -14,16 +14,20 @@ LeRoPilot is a desktop/web hybrid application that serves a local UI and provide
 
 For Mandarin (中文) instructions, see `README_zh.md`.
 
+The application supports two modes:
+
+- **Desktop Mode (Recommended)**: Native Electron application.
+- **Browser Mode**: Opens a browser window, suitable for WSL or remote servers.
+
 Quick start (Linux / macOS):
 
 ```bash
-chmod +x ./leropilot
-./leropilot
+# Run portable version
+chmod +x ./LeRoPilot-*-portable
+./LeRoPilot-*-portable
 ```
 
-On Windows: double-click `leropilot.exe`.
-
-The application opens a browser window by default and serves the UI at `http://127.0.0.1:8000`.
+On Windows: double-click `LeRoPilot-*-portable.exe` or run the installer.
 
 **Contents**
 
@@ -38,17 +42,14 @@ The application opens a browser window by default and serves the UI at `http://1
 
 ## Quick Start
 
-1. Download a matching prebuilt binary from the Releases page (`leropilot-<tag>-<os>`).
-2. On macOS / Linux:
-
-```bash
-chmod +x ./leropilot
-./leropilot
-```
-
-3. On Windows: run `leropilot.exe` by double-clicking it.
-
-By default the UI will be available at `http://127.0.0.1:8000` in your browser.
+1. Download a matching prebuilt binary from the Releases page.
+2. **Desktop Mode**: Run the portable executable or installer.
+3. **Browser Mode** (for WSL/Server):
+   Run the Python backend directly:
+   ```bash
+   python -m leropilot.main --no-browser
+   ```
+   Then visit `http://127.0.0.1:8000`.
 
 ## Downloads
 
@@ -69,17 +70,15 @@ Notes: PyInstaller cannot reliably cross-compile between OSes. Build Windows exe
 # Install Python dev dependencies
 pip install -e ".[dev]"
 
-# Build frontend
-cd frontend
-npm ci
-npm run build
-cd ..
-
-# Package the application (this runs the frontend build and PyInstaller)
-python scripts/build.py
+# Build everything (Frontend + Backend + Electron)
+python scripts/build-electron.py
 ```
 
-The produced binaries are placed under `dist/`.
+The produced artifacts are placed under `dist/electron/`:
+
+- Windows: `LeRoPilot-*-portable.exe` and `LeRoPilot-Setup-*.exe`
+- macOS: `LeRoPilot-*.dmg` and `LeRoPilot-*.zip`
+- Linux: `LeRoPilot-*.AppImage` and `LeRoPilot-*.tar.gz`
 
 To publish a release (example):
 
@@ -90,20 +89,79 @@ git push origin v0.1.0
 
 ## Development
 
-Run the backend (FastAPI):
+### Browser Mode (Default)
+
+Run the backend (FastAPI) and frontend separately:
 
 ```bash
+# Terminal 1: Backend
 python -m leropilot.main
-```
 
-Run the frontend development server:
-
-```bash
+# Terminal 2: Frontend
 cd frontend
 npm run dev
 ```
 
-During development the frontend runs at `http://localhost:5173` and the frontend dev server proxies API requests to the backend for local testing.
+### Electron Mode
+
+```bash
+# Terminal 1: Backend (no browser)
+python -m leropilot.main --no-browser
+
+# Terminal 2: Frontend
+cd frontend
+npm run dev
+
+# Terminal 3: Electron
+cd electron
+npm start
+```
+
+### Troubleshooting
+
+#### WSL / Linux Issues
+
+1. **Missing Dependencies (Ubuntu)**:
+   Electron requires certain Linux GUI libraries that may not be installed by default in WSL.
+
+   **For Ubuntu 22.04**:
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libasound2 libgbm1 libxss1
+   ```
+
+   **For Ubuntu 24.04** (library names have `t64` suffix):
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y libnss3 libatk-bridge2.0-0t64 libgtk-3-0t64 libasound2t64 libgbm1 libxss1
+   ```
+
+2. **White Screen / Crash on Startup**:
+   If you see a white screen or the app crashes with `FATAL: This is frequently caused by incorrect permissions on /dev/shm`, it's a known issue with Electron in some WSL environments.
+
+   **Fix**: Run the following command to fix shared memory permissions:
+
+   ```bash
+   sudo chmod 1777 /dev/shm
+   ```
+
+   **Note**: After running this command, you may need to restart WSL:
+
+   ```bash
+   wsl --shutdown
+   ```
+
+   Then reopen your WSL terminal and try again.
+
+3. **Window Not Visible**:
+   If the app is running but the window is not visible, try checking the logs for any errors. The app is configured to auto-disable hardware acceleration in WSL to prevent rendering issues.
+
+### VS Code Debugging
+
+- **Python: FastAPI**: Starts backend + browser (Recommended for WSL)
+- **Electron: All**: Starts backend + Electron (Requires GUI environment)
 
 ## Configuration
 

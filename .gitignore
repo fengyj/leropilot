@@ -80,3 +80,6 @@ src/leropilot/static/
 # Logs
 *.log
 logs/
+
+# Husky
+.husky/

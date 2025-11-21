@@ -1,0 +1,54 @@
+{
+  "appId": "com.leropilot.app",
+  "productName": "LeRoPilot",
+  "directories": {
+    "output": "../dist/electron"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "icon.png"
+  ],
+  "extraResources": [
+    {
+      "from": "../dist/python",
+      "to": "python",
+      "filter": ["**/*"]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      },
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "artifactName": "${productName}-Setup-${version}.${ext}"
+  },
+  "portable": {
+    "artifactName": "${productName}-${version}-portable.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage", "tar.gz"],
+    "icon": "icon.png",
+    "category": "Development",
+    "artifactName": "${productName}-${version}.${ext}"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "icon.png",
+    "category": "public.app-category.developer-tools",
+    "artifactName": "${productName}-${version}.${ext}"
+  }
+}

@@ -7,7 +7,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
+from leropilot import __version__
 from leropilot.config import get_config
 from leropilot.logger import get_logger
 
@@ -18,7 +20,7 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application lifespan events."""
     config = get_config()
-    config.data_dir.mkdir(parents=True, exist_ok=True)
+    config.paths.data_dir.mkdir(parents=True, exist_ok=True)
     yield
 
 
@@ -33,10 +35,16 @@ app.add_middleware(
 )
 
 
-@app.get("/api/hello")
+@app.api_route("/api/hello", methods=["GET", "HEAD"])
 async def hello() -> dict[str, str]:
     """Return a simple hello message with version info."""
     return {"message": "Hello from LeRoPilot!", "version": "0.1.0"}
+
+
+# Register routers
+from leropilot.routers import config as config_router
+
+app.include_router(config_router.router)
 
 
 def get_static_dir() -> Path:
@@ -44,38 +52,137 @@ def get_static_dir() -> Path:
     if getattr(sys, "frozen", False):
         # PyInstaller 打包后的环境
         base_path = Path(sys._MEIPASS)
+        return base_path / "leropilot" / "static"
     else:
-        # 开发环境
-        base_path = Path(__file__).parent
-
-    return base_path / "leropilot" / "static"
+        # 开发环境: src/leropilot/static
+        # __file__ is src/leropilot/main.py
+        return Path(__file__).parent / "static"
 
 
 def serve_static() -> None:
     static_dir = get_static_dir()
     if static_dir.exists():
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+        # Mount static files
+        app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+        
+        # Serve index.html for root
+        @app.get("/")
+        async def read_root():
+            return FileResponse(static_dir / "index.html")
+
+        # Catch-all for SPA routing (serve index.html for any other path)
+        @app.get("/{full_path:path}")
+        async def catch_all(full_path: str):
+            # Check if file exists in static dir (e.g. favicon.ico)
+            file_path = static_dir / full_path
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(file_path)
+            # Otherwise serve index.html for client-side routing
+            return FileResponse(static_dir / "index.html")
     else:
         logger.warning("Static directory not found", path=str(static_dir))
 
 
-def run_server() -> None:
+def run_server(port: int | None = None, open_browser: bool = True) -> None:
+    """Run the LeRoPilot server.
+
+    Args:
+        port: Optional port number to override config. If provided, will be saved to config.
+        open_browser: Whether to automatically open the browser.
+    """
     import threading
     import webbrowser
 
+    from leropilot.config import get_config, save_config
+
     config = get_config()
+
+    # If port is provided via CLI, update and save config
+    if port is not None and port != config.server.port:
+        logger.info("Port override detected, updating config", old_port=config.server.port, new_port=port)
+        config.server.port = port
+        save_config(config)
+        logger.info("Config saved with new port", port=port)
+
     serve_static()
 
     # 延迟打开浏览器，等待服务器启动
-    def open_browser() -> None:
+    def open_browser_func() -> None:
         import time
+        import shutil
+        import subprocess
+        import sys
 
         time.sleep(1.5)
-        webbrowser.open(f"http://127.0.0.1:{config.port}")
+        url = f"http://127.0.0.1:{config.server.port}"
+        
+        if config.server.auto_open_browser:
+            # Try to open in app mode (Chrome/Edge)
+            browsers = ["google-chrome", "microsoft-edge", "chromium-browser", "chromium"]
+            if sys.platform == "darwin":
+                browsers = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+            elif sys.platform == "win32":
+                browsers = ["chrome", "msedge"]
+            
+            opened = False
+            for browser in browsers:
+                if shutil.which(browser):
+                    try:
+                        logger.info(f"Opening browser in app mode: {browser}")
+                        subprocess.Popen([browser, f"--app={url}"])
+                        opened = True
+                        break
+                    except Exception as e:
+                        logger.warning(f"Failed to open {browser}: {e}")
+            
+            if not opened:
+                logger.info("Falling back to default browser")
+                webbrowser.open(url)
 
-    threading.Thread(target=open_browser, daemon=True).start()
-    uvicorn.run(app, host="127.0.0.1", port=config.port)
+    if open_browser:
+        threading.Thread(target=open_browser_func, daemon=True).start()
+        
+    uvicorn.run(app, host=config.server.host, port=config.server.port)
+
+
+def main() -> None:
+    """Main entry point with CLI argument parsing."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="LeRoPilot - LeRobot Environment Manager",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  leropilot                    # Start with default/saved port
+  leropilot --port 9000        # Start on port 9000 and save it
+  leropilot --no-browser       # Start without opening browser (for Electron/WSL)
+        """,
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        metavar="PORT",
+        help="Port number to run the server on (will be saved to config)",
+    )
+
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not open browser automatically",
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"LeRoPilot {__version__}",
+    )
+
+    args = parser.parse_args()
+
+    run_server(port=args.port, open_browser=not args.no_browser)
 
 
 if __name__ == "__main__":
-    run_server()
+    main()
