@@ -235,6 +235,14 @@ jobs:
           set -euxo pipefail
           uv sync --extra dev
 
+      - name: Copy frontend to backend static directory
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p src/leropilot/static
+          cp -r frontend-artifact/* src/leropilot/static/
+          ls -la src/leropilot/static
+
       - name: Generate backend-only build spec
         shell: bash
         run: |
@@ -246,7 +254,7 @@ jobs:
               ['src/leropilot/main.py'],
               pathex=[],
               binaries=[],
-              datas=[],
+              datas=[('src/leropilot/static', 'leropilot/static')],
               hiddenimports=[],
               hookspath=[],
               hooksconfig={},
@@ -321,5 +329,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: leropilot-electron-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_number }}
-          path: dist/electron/
+          path: electron/dist/
           retention-days: 7
