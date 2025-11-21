@@ -7,11 +7,14 @@ name: Build and Test Matrix
 on:
   push:
     branches:
-      - '**'
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 jobs:
   build-frontend:
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'build-required')
     name: Build frontend (single job)
     runs-on: ubuntu-latest
     steps:
@@ -83,22 +86,22 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
 
-      - name: Install Python dependencies
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
         shell: bash
         run: |
           set -euxo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-          python -m pip install pyinstaller
+          uv sync --extra dev
 
       - name: Run lint
         shell: bash
         run: |
           set -euxo pipefail
-          if command -v ruff >/dev/null 2>&1; then
-            ruff check src
+          if uv run ruff --version >/dev/null 2>&1; then
+            uv run ruff check src
           else
             echo "ruff not available; skipping lint."
           fi
@@ -108,7 +111,7 @@ jobs:
         run: |
           set -euxo pipefail
           if [ -f pytest.ini ] || [ -d tests ]; then
-            python -m pytest -q
+            uv run python -m pytest -q
           else
             echo "No tests detected; skipping pytest."
           fi
@@ -118,8 +121,8 @@ jobs:
         run: |
           set -euxo pipefail
           python --version
-          pip --version
-          pyinstaller --version || true
+          uv run python --version
+          uv run pyinstaller --version || true
           ls -la
 
       - name: Generate build.spec if missing
@@ -133,7 +136,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          python -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
+          uv run python -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
 
       - name: Prepare release files
         shell: bash
