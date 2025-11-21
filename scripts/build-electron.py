@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build Electron application with embedded Python backend."""
+
 import shutil
 import subprocess
 import sys
@@ -14,11 +15,13 @@ def check_npm() -> None:
         print("Error: npm is not installed or not found in PATH.")
         sys.exit(1)
 
+
 def build_frontend() -> None:
     """Build React frontend."""
     print("\n[1/5] Building React frontend...")
     subprocess.run(["npm", "install"], cwd="frontend", check=True)
     subprocess.run(["npm", "run", "build"], cwd="frontend", check=True)
+
 
 def copy_frontend_to_static() -> None:
     """Verify frontend build is in Python static directory."""
@@ -41,11 +44,13 @@ def copy_frontend_to_static() -> None:
 
     print(f"✓ Frontend build verified in {static_dir}")
 
+
 def build_python_backend() -> None:
     """Build Python backend with PyInstaller."""
     print("\n[3/5] Building Python backend...")
     # Use the existing build script
     subprocess.run([sys.executable, "scripts/build.py"], check=True)
+
 
 def build_electron() -> None:
     """Build Electron application."""
@@ -58,6 +63,7 @@ def build_electron() -> None:
     # Build Electron
     # This will use electron-builder to package everything
     subprocess.run(["npm", "run", "build", "--", "--config", "builder.json"], cwd="electron", check=True)
+
 
 def main() -> None:
     print("Starting LeRoPilot Electron Build Process...")
@@ -113,7 +119,7 @@ def main() -> None:
 
     # We'll do a robust move: move all files/dirs in dist/ that are NOT 'electron' or 'python' to dist/python
     for item in dist_dir.iterdir():
-        if item.name not in ['electron', 'python']:
+        if item.name not in ["electron", "python"]:
             # Move to python_dist
             shutil.move(str(item), str(python_dist / item.name))
 
@@ -122,6 +128,7 @@ def main() -> None:
 
     print("\n✓ Build completed successfully!")
     print("Output directory: dist/electron")
+
 
 if __name__ == "__main__":
     main()

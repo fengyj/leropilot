@@ -28,11 +28,7 @@ def build() -> None:
     print("\n✓ Build completed successfully!")
     print(f"Executable location: {dist_dir / 'leropilot'}")
 
-    executable = (
-        dist_dir / "leropilot.exe"
-        if sys.platform == "win32"
-        else dist_dir / "leropilot"
-    )
+    executable = dist_dir / "leropilot.exe" if sys.platform == "win32" else dist_dir / "leropilot"
     if executable.exists():
         size_mb = executable.stat().st_size / (1024 * 1024)
         print(f"Executable size: {size_mb:.2f} MB")

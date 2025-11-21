@@ -146,11 +146,7 @@ class ConfigManager:
             config.pypi.mirrors = [m for m in config.pypi.mirrors if m.name != "Env Override"]
 
             # Add new mirror at the beginning
-            config.pypi.mirrors.insert(0, PyPIMirror(
-                name="Env Override",
-                url=index_url,
-                is_default=True
-            ))
+            config.pypi.mirrors.insert(0, PyPIMirror(name="Env Override", url=index_url, is_default=True))
 
             # Ensure only one default
             for m in config.pypi.mirrors[1:]:
@@ -211,4 +207,3 @@ def save_config(config: AppConfig) -> None:
         config: Configuration to save
     """
     _config_manager.save(config)
-

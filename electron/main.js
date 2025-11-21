@@ -44,14 +44,14 @@ async function startPythonBackend() {
 
   const pythonPath = getPythonPath();
   const args = ['--port', '8000', '--no-browser'];
-  
+
   console.log(`Starting Python backend: ${pythonPath} ${args.join(' ')}`);
-  
+
   pythonProcess = spawn(pythonPath, args, {
     cwd: process.resourcesPath,
     stdio: 'inherit' // 将输出重定向到父进程，方便调试
   });
-  
+
   pythonProcess.on('error', (err) => {
     console.error('Failed to start Python backend:', err);
   });
@@ -59,7 +59,7 @@ async function startPythonBackend() {
   pythonProcess.on('exit', (code, signal) => {
     console.log(`Python backend exited with code ${code} and signal ${signal}`);
   });
-  
+
   // 等待后端启动
   try {
     await waitOn({
@@ -163,13 +163,13 @@ function createWindow() {
     }
   });
 
-  const startUrl = !app.isPackaged 
-    ? 'http://localhost:5173' 
+  const startUrl = !app.isPackaged
+    ? 'http://localhost:5173'
     : `file://${path.join(__dirname, '../dist/frontend/index.html')}`;
 
   console.log(`Loading URL: ${startUrl}`);
   mainWindow.loadURL(startUrl);
-  
+
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.focus();
@@ -179,15 +179,15 @@ function createWindow() {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
-  
+
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
     console.log(`[Renderer Console] ${message}`);
   });
-  
+
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Page finished loading');
   });
-  
+
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Page failed to load:', errorCode, errorDescription);
   });

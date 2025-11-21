@@ -25,7 +25,7 @@ repos:
 
       - id: mypy
         name: mypy
-        entry: uv run mypy
+        entry: uv run mypy .
         language: system
         files: \.py$
         pass_filenames: false
@@ -34,14 +34,14 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: cd frontend && npm run lint
+        entry: bash -c "cd frontend && npm run lint"
         language: system
         files: \.(js|ts|jsx|tsx)$
         pass_filenames: false
 
       - id: prettier
         name: prettier
-        entry: cd frontend && npm run format
+        entry: bash -c "cd frontend && npm run format"
         language: system
         files: \.(js|ts|jsx|tsx|json|css|scss|md)$
         pass_filenames: false

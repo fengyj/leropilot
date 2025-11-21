@@ -109,13 +109,9 @@ class PyPIMirror(BaseModel):
 class PyPIConfig(BaseModel):
     """PyPI configuration."""
 
-    mirrors: list[PyPIMirror] = Field(default_factory=lambda: [
-        PyPIMirror(
-            name="Official PyPI",
-            url="https://pypi.org/simple",
-            is_default=True
-        )
-    ])
+    mirrors: list[PyPIMirror] = Field(
+        default_factory=lambda: [PyPIMirror(name="Official PyPI", url="https://pypi.org/simple", is_default=True)]
+    )
 
 
 class HuggingFaceConfig(BaseModel):

@@ -114,20 +114,14 @@ async def update_config(config: AppConfig) -> AppConfig:
                 raise HTTPException(
                     status_code=400,
                     detail="Cannot change data directory after environments have been created. "
-                           "This is to prevent data loss and ensure data integrity."
+                    "This is to prevent data loss and ensure data integrity.",
                 )
 
             # Migrate existing data
             try:
-                await migrate_data_directory(
-                    current_config.paths.data_dir,
-                    config.paths.data_dir
-                )
+                await migrate_data_directory(current_config.paths.data_dir, config.paths.data_dir)
             except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to migrate data: {str(e)}"
-                ) from e
+                raise HTTPException(status_code=500, detail=f"Failed to migrate data: {str(e)}") from e
 
         save_config(config)
         return reload_config()
