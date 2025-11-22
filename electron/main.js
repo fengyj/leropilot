@@ -19,21 +19,21 @@ if (isWSL) {
   app.commandLine.appendSwitch('in-process-gpu'); // Run GPU in main process to avoid shared memory issues
 }
 
-// 获取 Python 可执行文件路径
+// Get Python executable path
 function getPythonPath() {
   if (app.isPackaged) {
-    // 生产环境：使用打包的 Python 可执行文件
+    // Production: Use packaged Python executable
     const platform = process.platform;
     const ext = platform === 'win32' ? '.exe' : '';
     return path.join(process.resourcesPath, 'python', `leropilot-backend${ext}`);
   } else {
-    // 开发环境：使用系统 Python
-    // 假设在项目根目录下运行 electron
-    return 'python'; // 或者使用具体的 venv 路径，但在开发环境通常手动启动后端更方便
+    // Development: Use system Python
+    // Assume running electron in project root
+    return 'python'; // Or use specific venv path, but manual backend start is usually easier in dev
   }
 }
 
-// 获取配置文件路径
+// Get config file path
 function getConfigPath() {
   const os = require('os');
   const homeDir = os.homedir();
@@ -41,7 +41,7 @@ function getConfigPath() {
   return path.join(configDir, 'config.json');
 }
 
-// 读取配置文件
+// Read config file
 function readConfig() {
   const fs = require('fs');
   const configPath = getConfigPath();
@@ -55,18 +55,18 @@ function readConfig() {
     console.error('Failed to read config:', err);
   }
 
-  // 返回 null，让后端使用自己的默认值
+  // Return null, let backend use its own defaults
   return null;
 }
 
-// 写入配置文件
+// Write config file
 function writeConfig(config) {
   const fs = require('fs');
   const configPath = getConfigPath();
   const configDir = path.dirname(configPath);
 
   try {
-    // 确保配置目录存在
+    // Ensure config directory exists
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
     }
@@ -80,7 +80,7 @@ function writeConfig(config) {
   }
 }
 
-// 解析命令行参数
+// Parse command line arguments
 function parseCommandLineArgs() {
   const args = process.argv.slice(app.isPackaged ? 1 : 2);
   const result = {};
@@ -88,7 +88,7 @@ function parseCommandLineArgs() {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
-    // 支持 --port=9000 或 --port 9000
+    // Support --port=9000 or --port 9000
     if (arg === '--port' && i + 1 < args.length) {
       result.port = parseInt(args[i + 1], 10);
       i++;
@@ -100,27 +100,27 @@ function parseCommandLineArgs() {
   return result;
 }
 
-// 启动 Python 后端
+// Start Python backend
 async function startPythonBackend() {
-  // 在开发环境下，我们通常手动启动后端以便于调试
+  // In development, we usually start backend manually for debugging
   if (!app.isPackaged) {
     console.log('Development mode: Skipping automatic Python backend start.');
     console.log('Please ensure backend is running manually.');
-    // 开发环境下尝试检测端口，如果失败返回 null
+    // Try to detect port in dev, return null if failed
     return null;
   }
 
-  // 解析命令行参数
+  // Parse command line arguments
   const cmdArgs = parseCommandLineArgs();
 
-  // 读取配置
+  // Read config
   let config = readConfig();
 
-  // 如果提供了 --port 参数，更新配置并保存
+  // If --port argument is provided, update config and save
   if (cmdArgs.port) {
     console.log(`Port override detected: ${cmdArgs.port}`);
 
-    // 如果没有配置文件，创建一个基本的
+    // If no config file, create a basic one
     if (!config) {
       config = {
         server: { port: cmdArgs.port, host: '127.0.0.1', auto_open_browser: true },
@@ -136,10 +136,13 @@ async function startPythonBackend() {
   }
 
   const pythonPath = getPythonPath();
-  // 如果有 --port 参数，传递给后端；否则让后端使用配置文件或自己的默认值
-  const args = cmdArgs.port
-    ? ['--port', cmdArgs.port.toString(), '--no-browser']
-    : ['--no-browser'];
+  // If --port arg exists, pass to backend; otherwise let backend use config or default
+  // Add -u flag to force unbuffered output, important for Windows
+  const args = ['-u'];
+  if (cmdArgs.port) {
+    args.push('--port', cmdArgs.port.toString());
+  }
+  args.push('--no-browser');
 
   console.log(`Starting Python backend: ${pythonPath} ${args.join(' ')}`);
 
@@ -147,26 +150,26 @@ async function startPythonBackend() {
 
   pythonProcess = spawn(pythonPath, args, {
     cwd: process.resourcesPath,
-    stdio: ['ignore', 'pipe', 'pipe'] // 捕获 stdout 和 stderr
+    stdio: ['ignore', 'pipe', 'pipe'] // Capture stdout and stderr
   });
 
-  // 监听 stdout 以检测实际使用的端口
-  pythonProcess.stdout.on('data', (data) => {
+  const handleOutput = (data, source) => {
     const output = data.toString();
-    console.log('[Backend]', output);
+    console.log(`[Backend ${source}]`, output);
 
-    // 尝试从 uvicorn 输出中提取端口号
-    // Uvicorn 输出格式: "Uvicorn running on http://127.0.0.1:8000"
+    // Try to extract port from uvicorn output
+    // Uvicorn output format: "Uvicorn running on http://127.0.0.1:8000"
     const portMatch = output.match(/http:\/\/[\d.]+:(\d+)/);
     if (portMatch && !detectedPort) {
       detectedPort = parseInt(portMatch[1], 10);
       console.log(`Detected backend port: ${detectedPort}`);
     }
-  });
+  };
 
-  pythonProcess.stderr.on('data', (data) => {
-    console.error('[Backend Error]', data.toString());
-  });
+  // Listen to stdout and stderr to detect actual port
+  // Note: Uvicorn logs usually go to stderr
+  pythonProcess.stdout.on('data', (data) => handleOutput(data, 'stdout'));
+  pythonProcess.stderr.on('data', (data) => handleOutput(data, 'stderr'));
 
   pythonProcess.on('error', (err) => {
     console.error('Failed to start Python backend:', err);
@@ -176,18 +179,22 @@ async function startPythonBackend() {
     console.log(`Python backend exited with code ${code} and signal ${signal}`);
   });
 
-  // 等待端口检测或超时
-  const maxWaitTime = 10000; // 10 秒
+  // Wait for port detection or timeout
+  const maxWaitTime = 15000; // Increased to 15 seconds
   const startTime = Date.now();
   while (!detectedPort && Date.now() - startTime < maxWaitTime) {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   if (!detectedPort) {
-    throw new Error('Could not detect backend port. Backend may have failed to start.');
+    console.error('Could not detect backend port. Backend may have failed to start or output is buffered.');
+    // If detection fails, try fallback to default or config port
+    const fallbackPort = cmdArgs.port || (config && config.server && config.server.port) || 8000;
+    console.log(`Falling back to port ${fallbackPort}`);
+    detectedPort = fallbackPort;
   }
 
-  // 等待后端启动
+  // Wait for backend to start
   try {
     await waitOn({
       resources: [`http://127.0.0.1:${detectedPort}/api/hello`],
@@ -200,11 +207,11 @@ async function startPythonBackend() {
     return detectedPort;
   } catch (err) {
     console.error('Timeout waiting for Python backend:', err);
-    throw new Error(`Failed to connect to backend on port ${detectedPort}`);
+    throw new Error(`Failed to connect to backend on port ${detectedPort}. Check logs for details.`);
   }
 }
 
-// 创建应用菜单
+// Create application menu
 function createMenu() {
   const template = [
     {
@@ -275,7 +282,7 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// 创建主窗口
+// Create main window
 function createWindow(backendPort) {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -306,7 +313,7 @@ function createWindow(backendPort) {
     mainWindow.focus();
   });
 
-  // 仅在开发模式下打开 DevTools
+  // Open DevTools only in development mode
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools();
   }
@@ -324,11 +331,25 @@ function createWindow(backendPort) {
   });
 }
 
-// 应用启动
+// App startup
 app.whenReady().then(async () => {
   createMenu();
-  const backendPort = await startPythonBackend();
-  createWindow(backendPort);
+
+  let backendPort;
+  try {
+    backendPort = await startPythonBackend();
+    createWindow(backendPort);
+  } catch (err) {
+    console.error('Fatal error during startup:', err);
+    const { dialog } = require('electron');
+    dialog.showErrorBox('Startup Error',
+      'Failed to start the application backend.\n\n' +
+      'Error details: ' + err.message + '\n\n' +
+      'Please check if port 8000 is available or try running with --port <port>.'
+    );
+    app.quit();
+    return;
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -337,7 +358,7 @@ app.whenReady().then(async () => {
   });
 });
 
-// 退出时清理
+// Cleanup on exit
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
