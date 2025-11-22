@@ -10,10 +10,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-frontend:
-    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'build-required')
-    name: Build frontend (single job)
-    runs-on: ubuntu-latest
+  package-pyinstaller:
+    name: Package PyInstaller on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,59 +28,19 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package.json
 
-      - name: Build frontend (with retry)
+      - name: Build frontend
         shell: bash
         run: |
           set -euxo pipefail
-          retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
           cd frontend
-          retry npm install
-          retry npm run build
+          npm install
+          npm run build
           cd ..
-          mkdir -p artifact/frontend
-          if [ -d src/leropilot/static ]; then
-            cp -r src/leropilot/static/* artifact/frontend/
-          else
-            echo "No frontend build output found in src/leropilot/static" >&2
-            ls -la src/leropilot/ || true
+          # Verify frontend build output
+          if [ ! -d src/leropilot/static ]; then
+            echo "Frontend build failed - static directory not found"
             exit 1
           fi
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist-${{ github.run_number }}
-          path: artifact/frontend/
-          retention-days: 7
-
-  package-pyinstaller:
-    name: Package PyInstaller on ${{ matrix.os }}
-    needs: build-frontend
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist-${{ github.run_number }}
-          path: frontend-artifact
-
-      - name: Prepare static files
-        shell: bash
-        run: |
-          set -euxo pipefail
-          pwd
-          ls -la
-          rm -rf src/leropilot/static || true
-          mkdir -p src/leropilot/static
-          cp -r frontend-artifact/* src/leropilot/static/ || true
-          echo "Static files placed:" && ls -la src/leropilot/static || true
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -202,7 +165,6 @@ jobs:
 
   package-electron:
     name: Package Electron on ${{ matrix.os }}
-    needs: build-frontend
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -212,11 +174,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: frontend-dist-${{ github.run_number }}
-          path: frontend-artifact
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+          # Verify frontend build output
+          if [ ! -d src/leropilot/static ]; then
+            echo "Frontend build failed - static directory not found"
+            exit 1
+          fi
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -231,14 +208,6 @@ jobs:
         run: |
           set -euxo pipefail
           uv sync --extra dev
-
-      - name: Copy frontend to backend static directory
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p src/leropilot/static
-          cp -r frontend-artifact/* src/leropilot/static/
-          ls -la src/leropilot/static
 
       - name: Generate backend-only build spec
         shell: bash
