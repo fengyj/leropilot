@@ -8,7 +8,7 @@
   ],
   "extraResources": [
     {
-      "from": "../dist/python",
+      "from": "python_backend",
       "to": "python",
       "filter": ["**/*"]
     }

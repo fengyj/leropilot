@@ -11,7 +11,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "wait-on http://localhost:5173 && electron .",
-    "build": "electron-builder"
+    "build": "electron-builder --config builder.json"
   },
   "dependencies": {
     "wait-on": "^7.0.1"
