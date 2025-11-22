@@ -335,6 +335,12 @@ jobs:
           else
             test -f dist/python/leropilot-backend && echo "✓ Unix backend found" || echo "✗ Unix backend NOT found"
           fi
+          echo ""
+          echo "Verifying path from electron build directory:"
+          cd electron
+          echo "Current directory after cd electron: $(pwd)"
+          ls -la ../dist/python || echo "../dist/python not accessible from electron/"
+          cd ..
 
       - name: Build Electron app
         shell: bash
@@ -354,13 +360,22 @@ jobs:
           echo "Checking for win-unpacked directory:"
           ls -la electron/dist/win-unpacked/ || ls -la electron/dist/linux-unpacked/ || ls -la electron/dist/mac/ || echo "No unpacked directory found"
           echo ""
+          echo "Listing resources directory:"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ls -la electron/dist/win-unpacked/resources/ || echo "No resources directory"
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            ls -la electron/dist/linux-unpacked/resources/ || echo "No resources directory"
+          else
+            ls -la electron/dist/mac/*/Contents/Resources/ || echo "No resources directory"
+          fi
+          echo ""
           echo "Searching for packaged Python backend in resources:"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             find electron/dist/win-unpacked/resources -name "python" -type d || echo "No python directory in resources"
-            find electron/dist/win-unpacked/resources/python -name "*.exe" || echo "No backend exe in resources/python"
+            find electron/dist/win-unpacked/resources/python -name "*.exe" 2>/dev/null || echo "No backend exe in resources/python"
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             find electron/dist/linux-unpacked/resources -name "python" -type d || echo "No python directory in resources"
-            find electron/dist/linux-unpacked/resources/python -name "leropilot-backend" || echo "No backend in resources/python"
+            find electron/dist/linux-unpacked/resources/python -name "leropilot-backend" 2>/dev/null || echo "No backend in resources/python"
           else
             find electron/dist/mac -name "python" -type d || echo "No python directory in resources"
           fi
