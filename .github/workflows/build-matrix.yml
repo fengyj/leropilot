@@ -351,12 +351,19 @@ jobs:
           echo "Listing electron/dist contents:"
           ls -la electron/dist/ || echo "electron/dist not found!"
           echo ""
-          echo "Listing ../dist/electron contents:"
-          ls -la dist/electron/ || echo "dist/electron not found!"
+          echo "Checking for win-unpacked directory:"
+          ls -la electron/dist/win-unpacked/ || ls -la electron/dist/linux-unpacked/ || ls -la electron/dist/mac/ || echo "No unpacked directory found"
           echo ""
-          echo "Searching for packaged Python backend:"
-          find electron/dist -name "leropilot-backend*" -o -name "python" -type d || echo "No Python backend found in electron/dist"
-          find dist/electron -name "leropilot-backend*" -o -name "python" -type d || echo "No Python backend found in dist/electron"
+          echo "Searching for packaged Python backend in resources:"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            find electron/dist/win-unpacked/resources -name "python" -type d || echo "No python directory in resources"
+            find electron/dist/win-unpacked/resources/python -name "*.exe" || echo "No backend exe in resources/python"
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            find electron/dist/linux-unpacked/resources -name "python" -type d || echo "No python directory in resources"
+            find electron/dist/linux-unpacked/resources/python -name "leropilot-backend" || echo "No backend in resources/python"
+          else
+            find electron/dist/mac -name "python" -type d || echo "No python directory in resources"
+          fi
 
       - name: Upload macOS DMG
         if: matrix.os == 'macos-latest'

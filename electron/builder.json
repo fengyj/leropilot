@@ -1,9 +1,6 @@
 {
   "appId": "com.leropilot.app",
   "productName": "LeRoPilot",
-  "directories": {
-    "output": "../dist/electron"
-  },
   "files": [
     "main.js",
     "preload.js",
