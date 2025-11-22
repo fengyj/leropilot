@@ -8,9 +8,8 @@
   ],
   "extraResources": [
     {
-      "from": "python_backend",
-      "to": "python",
-      "filter": ["**/*"]
+      "from": "python",
+      "to": "python"
     }
   ],
   "win": {

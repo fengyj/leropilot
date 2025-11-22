@@ -317,19 +317,20 @@ jobs:
       - name: Prepare Electron resources
         shell: bash
         run: |
-          echo "Copying Python backend to electron/python_backend..."
-          mkdir -p electron/python_backend
+          echo "Copying Python backend to electron/python..."
+          mkdir -p electron/python
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp dist/python/leropilot-backend.exe electron/python_backend/
+            cp dist/python/leropilot-backend.exe electron/python/
           else
-            cp dist/python/leropilot-backend electron/python_backend/
+            cp dist/python/leropilot-backend electron/python/
           fi
-          ls -la electron/python_backend/
+          ls -la electron/python/
 
       - name: Build Electron app
         shell: bash
         run: |
           cd electron
+          npm install
           npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -347,6 +348,7 @@ jobs:
           echo "Listing resources directory:"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             ls -la electron/dist/win-unpacked/resources/ || echo "No resources directory"
+            ls -la electron/dist/win-unpacked/resources/python/ || echo "No python resources directory"
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             ls -la electron/dist/linux-unpacked/resources/ || echo "No resources directory"
           else
@@ -380,14 +382,25 @@ jobs:
           path: electron/dist/*.zip
           retention-days: 3
 
-      - name: Upload Windows EXE
+      - name: Upload Windows Setup
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-windows-exe
-          path: electron/dist/*.exe
+          name: leropilot-setup-win-x64
+          path: electron/dist/*Setup*.exe
           retention-days: 3
           if-no-files-found: warn
+          compression-level: 0
+
+      - name: Upload Windows Portable
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: leropilot-portable-win-x64
+          path: electron/dist/*Portable*.exe
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 0
 
       - name: Upload Linux AppImage
         if: matrix.os == 'ubuntu-latest'
