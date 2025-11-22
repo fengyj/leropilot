@@ -34,21 +34,21 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Setup-${version}-${os}-${arch}.${ext}"
   },
   "portable": {
-    "artifactName": "${productName}-${version}-portable.${ext}"
+    "artifactName": "${productName}-Portable-${version}-${os}-${arch}.${ext}"
   },
   "linux": {
     "target": ["AppImage", "tar.gz"],
     "icon": "icon.png",
     "category": "Development",
-    "artifactName": "${productName}-${version}.${ext}"
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
   },
   "mac": {
     "target": ["dmg", "zip"],
     "icon": "icon.png",
     "category": "public.app-category.developer-tools",
-    "artifactName": "${productName}-${version}.${ext}"
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
   }
 }

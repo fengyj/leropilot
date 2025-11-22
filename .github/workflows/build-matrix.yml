@@ -317,10 +317,24 @@ jobs:
       - name: Verify Python backend files
         shell: bash
         run: |
-          echo "Checking Python backend files..."
+          echo "=== Checking Python backend files ==="
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "Checking dist/python:"
           ls -la dist/python || echo "dist/python not found!"
+          echo ""
+          echo "Checking from electron perspective (electron/../dist/python):"
           ls -la electron/../dist/python || echo "electron/../dist/python not found!"
-          pwd
+          echo ""
+          echo "File tree of dist/:"
+          find dist/ -type f -name "*.exe" -o -name "leropilot-backend" || echo "No backend executables found"
+          echo ""
+          echo "Checking if backend executable exists:"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            test -f dist/python/leropilot-backend.exe && echo "✓ Windows backend found" || echo "✗ Windows backend NOT found"
+          else
+            test -f dist/python/leropilot-backend && echo "✓ Unix backend found" || echo "✗ Unix backend NOT found"
+          fi
 
       - name: Build Electron app
         shell: bash
@@ -329,6 +343,20 @@ jobs:
           npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Electron build output
+        shell: bash
+        run: |
+          echo "=== Verifying Electron build output ==="
+          echo "Listing electron/dist contents:"
+          ls -la electron/dist/ || echo "electron/dist not found!"
+          echo ""
+          echo "Listing ../dist/electron contents:"
+          ls -la dist/electron/ || echo "dist/electron not found!"
+          echo ""
+          echo "Searching for packaged Python backend:"
+          find electron/dist -name "leropilot-backend*" -o -name "python" -type d || echo "No Python backend found in electron/dist"
+          find dist/electron -name "leropilot-backend*" -o -name "python" -type d || echo "No Python backend found in dist/electron"
 
       - name: Upload macOS DMG
         if: matrix.os == 'macos-latest'
