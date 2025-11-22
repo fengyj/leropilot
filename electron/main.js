@@ -25,7 +25,28 @@ function getPythonPath() {
     // Production: Use packaged Python executable
     const platform = process.platform;
     const ext = platform === 'win32' ? '.exe' : '';
-    return path.join(process.resourcesPath, 'python', `leropilot-backend${ext}`);
+
+    // Standard path (installer/unpacked)
+    const standardPath = path.join(process.resourcesPath, 'python', `leropilot-backend${ext}`);
+
+    // Portable path (often next to the executable in temp dir)
+    const portablePath = path.join(path.dirname(app.getPath('exe')), 'resources', 'python', `leropilot-backend${ext}`);
+
+    // Fallback for some portable configurations where resources might be at root
+    const rootPath = path.join(path.dirname(app.getPath('exe')), 'python', `leropilot-backend${ext}`);
+
+    console.log('Searching for Python backend...');
+    console.log(`Standard path: ${standardPath}`);
+    console.log(`Portable path: ${portablePath}`);
+    console.log(`Root path: ${rootPath}`);
+
+    const fs = require('fs');
+    if (fs.existsSync(standardPath)) return standardPath;
+    if (fs.existsSync(portablePath)) return portablePath;
+    if (fs.existsSync(rootPath)) return rootPath;
+
+    // Default to standard path if nothing found (will fail later with clear error)
+    return standardPath;
   } else {
     // Development: Use system Python
     // Assume running electron in project root

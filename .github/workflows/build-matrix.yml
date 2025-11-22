@@ -326,6 +326,33 @@ jobs:
           fi
           ls -la electron/python/
 
+      - name: Set artifact naming variables
+        shell: bash
+        run: |
+          # Determine OS suffix
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            OS_SUFFIX="win-x64"
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            OS_SUFFIX="linux"
+          else
+            OS_SUFFIX="macos"
+          fi
+
+          # Determine version suffix
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION_SUFFIX="${{ github.ref_name }}" # e.g., v0.1.0
+            # Remove 'v' prefix if present for consistency
+            VERSION_SUFFIX=${VERSION_SUFFIX#v}
+          else
+            VERSION_SUFFIX="latest-${{ github.run_number }}"
+          fi
+
+          echo "ARTIFACT_NAME_PREFIX=leropilot-${OS_SUFFIX}" >> $GITHUB_ENV
+          echo "ARTIFACT_VERSION_SUFFIX=${VERSION_SUFFIX}" >> $GITHUB_ENV
+
+          echo "Artifact Name Prefix: leropilot-${OS_SUFFIX}"
+          echo "Artifact Version Suffix: ${VERSION_SUFFIX}"
+
       - name: Build Electron app
         shell: bash
         run: |
@@ -334,6 +361,8 @@ jobs:
           npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_NAME_PREFIX: ${{ env.ARTIFACT_NAME_PREFIX }}
+          ARTIFACT_VERSION_SUFFIX: ${{ env.ARTIFACT_VERSION_SUFFIX }}
 
       - name: Verify Electron build output
         shell: bash
@@ -366,28 +395,26 @@ jobs:
             find electron/dist/mac -name "python" -type d || echo "No python directory in resources"
           fi
 
-      - name: Upload macOS DMG
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: leropilot-macos-dmg
-          path: electron/dist/*.dmg
-          retention-days: 3
-
-      - name: Upload macOS ZIP
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: leropilot-macos-zip
-          path: electron/dist/*.zip
-          retention-days: 3
+      - name: Inspect Windows Installer
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "=== Inspecting Windows Installer ==="
+          INSTALLER_PATH=$(find electron/dist -name "*setup*.exe" | head -n 1)
+          if [[ -f "$INSTALLER_PATH" ]]; then
+            echo "Installer found at: $INSTALLER_PATH"
+            echo "Listing contents using 7z:"
+            7z l "$INSTALLER_PATH" || echo "Failed to list installer contents"
+          else
+            echo "No installer found to inspect"
+          fi
 
       - name: Upload Windows Setup
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-setup-win-x64
-          path: electron/dist/*Setup*.exe
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-setup-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*setup*.exe
           retention-days: 3
           if-no-files-found: warn
           compression-level: 0
@@ -396,7 +423,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-portable-win-x64
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-portable-${{ env.ARTIFACT_VERSION_SUFFIX }}
           path: electron/dist/*Portable*.exe
           retention-days: 3
           if-no-files-found: warn
@@ -406,15 +433,34 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-linux-appimage
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-appimage-${{ env.ARTIFACT_VERSION_SUFFIX }}
           path: electron/dist/*.AppImage
           retention-days: 3
+          if-no-files-found: warn
 
-      - name: Upload Linux tar.gz
+      - name: Upload Linux Tarball
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: leropilot-linux-targz
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-targz-${{ env.ARTIFACT_VERSION_SUFFIX }}
           path: electron/dist/*.tar.gz
           retention-days: 3
           if-no-files-found: ignore
+
+      - name: Upload macOS DMG
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-dmg-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*.dmg
+          retention-days: 3
+          if-no-files-found: warn
+
+      - name: Upload macOS Zip
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-zip-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*.zip
+          retention-days: 3
+          if-no-files-found: warn
