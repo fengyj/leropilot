@@ -157,9 +157,15 @@ async function startPythonBackend() {
   }
 
   const pythonPath = getPythonPath();
-  // If --port arg exists, pass to backend; otherwise let backend use config or default
-  // Add -u flag to force unbuffered output, important for Windows
-  const args = ['-u'];
+  // Build arguments for backend
+  const args = [];
+
+  // Only add -u flag in development mode (when using Python interpreter)
+  // PyInstaller executables don't accept this flag
+  if (!app.isPackaged) {
+    args.push('-u'); // Force unbuffered output for development
+  }
+
   if (cmdArgs.port) {
     args.push('--port', cmdArgs.port.toString());
   }
