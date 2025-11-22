@@ -314,6 +314,14 @@ jobs:
           cd electron
           npm install
 
+      - name: Verify Python backend files
+        shell: bash
+        run: |
+          echo "Checking Python backend files..."
+          ls -la dist/python || echo "dist/python not found!"
+          ls -la electron/../dist/python || echo "electron/../dist/python not found!"
+          pwd
+
       - name: Build Electron app
         shell: bash
         run: |
@@ -345,6 +353,7 @@ jobs:
           name: leropilot-windows-exe
           path: electron/dist/*.exe
           retention-days: 3
+          if-no-files-found: warn
 
       - name: Upload Linux AppImage
         if: matrix.os == 'ubuntu-latest'
@@ -361,3 +370,4 @@ jobs:
           name: leropilot-linux-targz
           path: electron/dist/*.tar.gz
           retention-days: 3
+          if-no-files-found: ignore

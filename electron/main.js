@@ -173,6 +173,12 @@ async function startPythonBackend() {
 
   pythonProcess.on('error', (err) => {
     console.error('Failed to start Python backend:', err);
+
+    // Check if the error is because the file doesn't exist
+    if (err.code === 'ENOENT') {
+      console.error('Python backend executable not found at:', pythonPath);
+      console.error('This usually means the backend was not packaged correctly.');
+    }
   });
 
   pythonProcess.on('exit', (code, signal) => {
@@ -195,6 +201,9 @@ async function startPythonBackend() {
   }
 
   // Wait for backend to start
+  console.log(`Waiting for backend to be ready on port ${detectedPort}...`);
+  console.log(`Health check URL: http://127.0.0.1:${detectedPort}/api/hello`);
+
   try {
     await waitOn({
       resources: [`http://127.0.0.1:${detectedPort}/api/hello`],
@@ -207,7 +216,21 @@ async function startPythonBackend() {
     return detectedPort;
   } catch (err) {
     console.error('Timeout waiting for Python backend:', err);
-    throw new Error(`Failed to connect to backend on port ${detectedPort}. Check logs for details.`);
+
+    // Check if pythonProcess actually started
+    if (!pythonProcess || pythonProcess.killed) {
+      throw new Error(
+        `Backend process failed to start.\n` +
+        `Executable path: ${pythonPath}\n` +
+        `Please check if the backend was packaged correctly.`
+      );
+    }
+
+    throw new Error(
+      `Failed to connect to backend on port ${detectedPort}.\n` +
+      `The backend process is running but not responding.\n` +
+      `Check logs for details.`
+    );
   }
 }
 
@@ -254,10 +277,17 @@ function createMenu() {
       label: 'Help',
       submenu: [
         {
-          label: 'Documentation',
+          label: 'LeRobot Documentation',
           click: async () => {
             const { shell } = require('electron');
             await shell.openExternal('https://github.com/huggingface/lerobot');
+          }
+        },
+        {
+          label: 'LeRoPilot Documentation',
+          click: async () => {
+            const { shell } = require('electron');
+            await shell.openExternal('https://github.com/fengyj/leropilot');
           }
         },
         {
@@ -284,6 +314,18 @@ function createMenu() {
 
 // Create main window
 function createWindow(backendPort) {
+  // Validate backendPort in production mode
+  if (app.isPackaged && !backendPort) {
+    const { dialog } = require('electron');
+    dialog.showErrorBox('Configuration Error',
+      'Backend port is not available.\n\n' +
+      'The application backend failed to start properly.\n' +
+      'Please check the logs or try running with --port <port>.'
+    );
+    app.quit();
+    return;
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -303,7 +345,7 @@ function createWindow(backendPort) {
   // In production: use Python backend server (port detected from backend)
   const startUrl = !app.isPackaged
     ? 'http://localhost:5173'
-    : `http://127.0.0.1:${backendPort || 8000}`;
+    : `http://127.0.0.1:${backendPort}`;
 
   console.log(`Loading URL: ${startUrl}`);
   mainWindow.loadURL(startUrl);
@@ -326,8 +368,20 @@ function createWindow(backendPort) {
     console.log('Page finished loading');
   });
 
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Page failed to load:', errorCode, errorDescription);
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Page failed to load:', errorCode, errorDescription, validatedURL);
+
+    // Show error dialog for critical failures
+    // -3 is ERR_ABORTED, which is normal for navigation cancellation
+    if (errorCode !== -3 && errorCode !== 0) {
+      const { dialog } = require('electron');
+      dialog.showErrorBox('Failed to Load',
+        `Failed to load the application.\n\n` +
+        `URL: ${validatedURL}\n` +
+        `Error: ${errorDescription} (${errorCode})\n\n` +
+        `Please ensure the backend is running on port ${backendPort || 'unknown'}.`
+      );
+    }
   });
 }
 
@@ -342,10 +396,13 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error('Fatal error during startup:', err);
     const { dialog } = require('electron');
+    const portMsg = backendPort
+      ? `Please check if port ${backendPort} is available or try running with --port <port>.`
+      : 'Please try running with --port <port> to specify a custom port.';
     dialog.showErrorBox('Startup Error',
       'Failed to start the application backend.\n\n' +
       'Error details: ' + err.message + '\n\n' +
-      'Please check if port 8000 is available or try running with --port <port>.'
+      portMsg
     );
     app.quit();
     return;
