@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field, field_validator
 class ServerConfig(BaseModel):
     """Server configuration."""
 
-    # IMPORTANT: 默认端口号 - 必须与 Electron 配置保持一致
-    # 对应文件: electron/main.js -> DEFAULT_PORT
-    # 如需修改，请同时修改两处
+    # IMPORTANT: Default port - must match Electron configuration
+    # Corresponding file: electron/main.js -> DEFAULT_PORT
+    # If modified, update both locations
     port: int = 8000
     host: str = "127.0.0.1"
     auto_open_browser: bool = True

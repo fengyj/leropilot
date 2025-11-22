@@ -378,8 +378,58 @@ jobs:
             echo "No installer found to inspect"
           fi
 
+      # Upload to GitHub Releases (for release events)
+      - name: Upload to Release - Windows Setup
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*setup*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - Windows Portable
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*portable*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - Linux AppImage
+        if: github.event_name == 'release' && matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - Linux Tarball
+        if: github.event_name == 'release' && matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - macOS DMG
+        if: github.event_name == 'release' && matrix.os == 'macos-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - macOS Zip
+        if: github.event_name == 'release' && matrix.os == 'macos-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload as Artifacts (for non-release events like workflow_dispatch)
       - name: Upload Windows Setup
-        if: matrix.os == 'windows-latest'
+        if: github.event_name != 'release' && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME_PREFIX }}-setup-${{ env.ARTIFACT_VERSION_SUFFIX }}
@@ -389,17 +439,17 @@ jobs:
           compression-level: 0
 
       - name: Upload Windows Portable
-        if: matrix.os == 'windows-latest'
+        if: github.event_name != 'release' && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME_PREFIX }}-portable-${{ env.ARTIFACT_VERSION_SUFFIX }}
-          path: electron/dist/*Portable*.exe
+          path: electron/dist/*portable*.exe
           retention-days: 3
           if-no-files-found: warn
           compression-level: 0
 
       - name: Upload Linux AppImage
-        if: matrix.os == 'ubuntu-latest'
+        if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME_PREFIX }}-appimage-${{ env.ARTIFACT_VERSION_SUFFIX }}
@@ -408,7 +458,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Linux Tarball
-        if: matrix.os == 'ubuntu-latest'
+        if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME_PREFIX }}-targz-${{ env.ARTIFACT_VERSION_SUFFIX }}
@@ -417,7 +467,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload macOS DMG
-        if: matrix.os == 'macos-latest'
+        if: github.event_name != 'release' && matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME_PREFIX }}-dmg-${{ env.ARTIFACT_VERSION_SUFFIX }}
@@ -426,7 +476,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload macOS Zip
-        if: matrix.os == 'macos-latest'
+        if: github.event_name != 'release' && matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT_NAME_PREFIX }}-zip-${{ env.ARTIFACT_VERSION_SUFFIX }}

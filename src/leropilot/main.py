@@ -47,13 +47,13 @@ app.include_router(config_router.router)
 
 
 def get_static_dir() -> Path:
-    """获取静态文件目录，兼容开发环境和 PyInstaller 打包后的环境"""
+    """Get static files directory, compatible with development and PyInstaller packaged environments"""
     if getattr(sys, "frozen", False):
-        # PyInstaller 打包后的环境
+        # PyInstaller packaged environment
         base_path = Path(sys._MEIPASS)  # type: ignore
         return base_path / "leropilot" / "static"
     else:
-        # 开发环境: src/leropilot/static
+        # Development environment: src/leropilot/static
         # __file__ is src/leropilot/main.py
         return Path(__file__).parent / "static"
 
@@ -105,7 +105,7 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
 
     serve_static()
 
-    # 延迟打开浏览器，等待服务器启动
+    # Delay browser opening to wait for server startup
     def open_browser_func() -> None:
         import shutil
         import subprocess

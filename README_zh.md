@@ -1,225 +1,157 @@
 # LeRoPilot
 
-[![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) [![Publish Release](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
+[![Build Matrix](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/build-matrix.yml) [![Publish Release](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml/badge.svg?branch=main)](https://github.com/fengyj/leropilot/actions/workflows/publish-release.yml) [![Sync Wiki](https://github.com/fengyj/leropilot/actions/workflows/sync-wiki.yml/badge.svg)](https://github.com/fengyj/leropilot/actions/workflows/sync-wiki.yml) ![license](https://img.shields.io/badge/license-AGPLv3-blue)
 
-LeRoPilot 的开发初衷是为 LeRobot 提供一个图形化界面，旨在简化安装过程并提升数据录制的易操作性。
+为 [LeRobot](https://github.com/huggingface/lerobot) 提供的图形化界面，简化机器人项目的环境管理、设备配置和数据录制。
 
-## 主要功能
+## 🚀 快速开始
 
-- **环境管理**：通过 Python 虚拟环境，允许用户选择 LeRobot 和 PyTorch 的版本，从而创建和管理不同版本的 LeRobot 环境。
-- **设备管理**：提供便捷的设备（机器人、摄像头）管理功能，减少用户在设备设置上的工作量。
-- **数据录制**：提供趁手的数据录制工具，方便用户录制和管理数据集（DataSet）。
-
-LeRoPilot 是一个桌面/网页混合应用：使用 Python 后端（FastAPI）提供功能，前端使用 TypeScript（Vite）构建本地 UI。项目提供 macOS、Linux 和 Windows 的预编译二进制。
-
-快速开始（中文说明）请参阅下文。英文说明见 `README.md`。
-
-应用支持两种模式：
-
-- **桌面模式（推荐）**：原生 Electron 应用体验。
-- **浏览器模式**：在浏览器中打开，适合 WSL 或远程服务器环境。
-
-### 快速开始
-
-1. 在 GitHub Releases 页面下载与你的平台匹配的二进制。
-2. **桌面模式**：运行便携版可执行文件或安装程序。
-3. **浏览器模式**（适用于 WSL/服务器）：
-   直接运行 Python 后端：
-   ```bash
-   python -m leropilot.main --no-browser
-   ```
-   然后访问 `http://127.0.0.1:8000`。
-
-## 下载与发布资产
-
-预编译的发布资产位于 GitHub Releases 页面。Actions 临时 artifacts 可以从相应的 workflow 运行中下载（适合内部测试）；正式发布的二进制会附加到 Release 页面并长期保存。
-
-## 从源码构建
-
-### 要求
-
-- Python 3.10+
-- Node.js 16+
-
-注意：PyInstaller 无法可靠地跨平台交叉编译。请在目标平台（或对应 runner）上构建目标平台的可执行文件。
-
-### 构建步骤
+**[📖 阅读文档](docs/wiki/Home_zh.md)** | **[⬇️ 下载最新版本](https://github.com/fengyj/leropilot/releases)**
 
 ```bash
-# 安装 Python 开发依赖
-pip install -e ".[dev]"
+# 桌面模式（推荐）
+# 下载并运行适合您平台的安装程序或便携版可执行文件
 
-# 构建所有内容（前端 + 后端 + Electron）
-python scripts/build-electron.py
-```
-
-生成的产物位于 `dist/electron/` 目录：
-
-- Windows: `LeRoPilot-*-portable.exe` (便携版) 和 `LeRoPilot-Setup-*.exe` (安装包)
-- macOS: `LeRoPilot-*.dmg` 和 `LeRoPilot-*.zip`
-- Linux: `LeRoPilot-*.AppImage` 和 `LeRoPilot-*.tar.gz`
-
-触发发布（示例）：
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-## 开发模式
-
-### 浏览器模式（默认）
-
-分别运行后端和前端：
-
-```bash
-# 终端 1：后端
-python -m leropilot.main
-
-# 终端 2：前端
-cd frontend
-npm run dev
-```
-
-### Electron 模式
-
-```bash
-# 终端 1：后端（不打开浏览器）
+# 浏览器模式（WSL/服务器）
 python -m leropilot.main --no-browser
+# 然后在浏览器中打开 http://localhost:8000
+```
 
-# 终端 2：前端
+详细安装说明请参见 **[安装指南](docs/wiki/Installation-Guide_zh.md)**。
+
+## ✨ 主要功能
+
+- **环境管理**：使用虚拟环境创建和管理不同 Python、LeRobot 和 PyTorch 版本的 LeRobot 环境
+- **设备管理**：通过直观的界面配置和管理机器人和摄像头
+- **数据录制**：通过简化的工作流程录制和管理机器人学习数据集
+- **跨平台**：支持 Windows、macOS 和 Linux 的原生桌面应用，以及用于远程服务器的浏览器模式
+
+## 📚 文档
+
+- **[安装指南](docs/wiki/Installation-Guide_zh.md)** - 安装和运行 LeRoPilot
+- **[快速入门](docs/wiki/Quick-Start_zh.md)** - 5 分钟创建您的第一个环境
+- **[常见问题](docs/wiki/FAQ_zh.md)** - 常见问题解答
+- **[English Documentation](docs/wiki/Home.md)** - 英文文档
+
+## 🛠️ 开发
+
+### 前置要求
+
+- Python 3.10 或 3.11
+- Node.js 20+
+- Git
+
+### 搭建开发环境
+
+```bash
+# 克隆仓库
+git clone https://github.com/fengyj/leropilot.git
+cd leropilot
+
+# 安装 Python 依赖
+pip install uv
+uv sync --extra dev
+
+# 安装前端依赖
+cd frontend
+npm install
+cd ..
+```
+
+### 本地运行
+
+**终端 1 - 后端：**
+
+```bash
+python -m leropilot.main --no-browser
+```
+
+**终端 2 - 前端：**
+
+```bash
 cd frontend
 npm run dev
+```
 
-# 终端 3：Electron
+在浏览器中打开 `http://localhost:5173`。
+
+### 构建
+
+**构建前端：**
+
+```bash
+cd frontend
+npm run build
+```
+
+**构建 Python 后端：**
+
+```bash
+python -m PyInstaller --noconfirm --clean build-backend.spec
+```
+
+**构建 Electron 应用：**
+
+```bash
 cd electron
-npm start
+npm install
+npm run build
 ```
 
-### 故障排除
-
-#### WSL / Linux 问题
-
-1. **缺少依赖库（Ubuntu）**：
-   Electron 需要某些 Linux GUI 库，这些库在 WSL 中可能默认未安装。
-
-   **Ubuntu 22.04**：
-
-   ```bash
-   sudo apt-get update
-   sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libasound2 libgbm1 libxss1
-   ```
-
-   **Ubuntu 24.04**（库名带有 `t64` 后缀）：
-
-   ```bash
-   sudo apt-get update
-   sudo apt-get install -y libnss3 libatk-bridge2.0-0t64 libgtk-3-0t64 libasound2t64 libgbm1 libxss1
-   ```
-
-2. **启动时白屏 / 崩溃**：
-   如果你看到白屏或应用崩溃，并且日志显示 `FATAL: This is frequently caused by incorrect permissions on /dev/shm`，这是某些 WSL 环境下 Electron 的已知问题。
-
-   **修复方法**：运行以下命令修复共享内存权限：
-
-   ```bash
-   sudo chmod 1777 /dev/shm
-   ```
-
-   **注意**：执行此命令后，可能需要重启 WSL：
-
-   ```bash
-   wsl --shutdown
-   ```
-
-   然后重新打开 WSL 终端并重试。
-
-3. **窗口不可见**：
-   如果应用正在运行但窗口不可见，请检查日志是否有错误。应用已配置为在 WSL 中自动禁用硬件加速，以防止渲染问题。
-
-### VS Code 调试
-
-- **Python: FastAPI**：启动后端 + 浏览器（推荐用于 WSL）
-- **Electron: All**：启动后端 + Electron（需要 GUI 环境）
-
-## 配置
-
-应用数据与日志默认位于 `~/.leropilot/`：
-
-- `~/.leropilot/config.yaml` — 配置
-- `~/.leropilot/logs/` — 日志
-
-示例 `config.yaml`：
-
-```yaml
-server:
-  port: 8000
-  host: 127.0.0.1
-  auto_open_browser: true
-paths:
-  data_dir: ~/.leropilot
-```
-
-### 端口配置
-
-默认端口为 **8000**。如需使用其他端口：
+### 测试
 
 ```bash
-# 桌面模式（Electron）
-./LeRoPilot --port 9000
+# 运行 Python 测试
+pytest
 
-# 浏览器模式（Python）
-python -m leropilot.main --port 9000
+# 运行前端测试
+cd frontend
+npm test
 
-# 或使用环境变量
-export LEROPILOT_SERVER_PORT=9000
+# 运行代码检查
+./scripts/run-lint.sh
 ```
 
-端口会自动保存到 `~/.leropilot/config.json`。
+## 🤝 贡献
 
-可以通过环境变量（`LEROPILOT_` 前缀）覆盖配置。例如:：
+我们欢迎贡献！请参见我们的[贡献指南](CONTRIBUTING.md)了解以下详情：
 
-```bash
-export LEROPILOT_PORT=9000
-```
+- 行为准则
+- 开发工作流程
+- 拉取请求流程
+- 编码标准
 
-## CI / 发布工作流
+在贡献之前，请签署我们的[贡献者许可协议 (CLA)](cla/CLA.md)。
 
-本项目使用 GitHub Actions 实现 CI、构建与发布。关键工作流：
+## 📄 许可证
 
-- `build-matrix.yml`：在每次 push 时运行，负责构建前端、安装依赖、运行 lint/tests，并在 Linux/Windows/macOS 上打包可执行文件，产物以 artifacts 上传。
-- `publish-release.yml`：当推送 tag（例如 `v0.1.0`）时触发，构建并发布 Release 资产。
-- `cla.yml`：在 PR 中验证是否包含 CLA 签署声明，确保合规。
-- `auto-merge-label.yml`：自动为新建或更新的 PR 添加 `needs-review` 标签以便审查。
+LeRoPilot 采用 **GNU Affero 通用公共许可证 v3.0 (AGPLv3)** 授权。
 
-临时 artifacts 可在 Actions 标签页对应运行中下载；正式的 Release 资产请在 Releases 页面获取。
+这意味着：
 
-## 贡献与 CLA
+- ✅ 您可以使用、修改和分发本软件
+- ✅ 分发时必须公开源代码
+- ✅ 衍生作品必须采用 AGPLv3 许可
+- ✅ 网络使用视为分发（AGPL 要求）
 
-欢迎贡献。提交 PR 前请阅读 `CONTRIBUTING.md` 并签署 CLA（见 `cla/CLA.md`）。在 PR 描述中包含以下行以接受 CLA：
+如需不受 AGPLv3 限制的商业使用，可获得商业许可。详见 [COMMERCIAL.md](COMMERCIAL.md)。
 
-```
-I accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email: <your-email>
-```
+## 🙏 致谢
 
-## 故障排查
+LeRoPilot 基于以下项目构建：
 
-- 无头环境 / WSL：自动打开浏览器可能失败（xdg-open），请手动访问 `http://127.0.0.1:8000`。
-- 权限问题：在 macOS/Linux 上请先运行 `chmod +x ./leropilot`。
-- 端口占用：参见上方**端口配置**部分了解如何更改端口。
-- 跨平台构建失败：请在目标平台或相应 runner 上构建（参见 PyInstaller 注意）。
+- [LeRobot](https://github.com/huggingface/lerobot) - 机器人学习框架
+- [Electron](https://www.electronjs.org/) - 跨平台桌面框架
+- [FastAPI](https://fastapi.tiangolo.com/) - 现代 Python Web 框架
+- [React](https://react.dev/) - UI 库
+- [Vite](https://vitejs.dev/) - 前端构建工具
 
-## 商业授权
+## 📞 联系方式
 
-如需商业许可或企业支持，请参考 `COMMERCIAL.md`。
+- **问题反馈**: [GitHub Issues](https://github.com/fengyj/leropilot/issues)
+- **讨论**: [GitHub Discussions](https://github.com/fengyj/leropilot/discussions)
+- **邮箱**: fengyj@live.com
 
-## 联系方式
+---
 
-- 作者：冯裕坚 (Feng Yu Jian)
-- 邮箱：fengyj@live.com
-
-## 许可
-
-本项目采用 GNU AGPLv3 许可。详见仓库根目录的 `LICENSE` 文件。
-
-感谢使用 LeRoPilot，欢迎报告问题或提交改进建议。
+**[文档](docs/wiki/Home_zh.md)** • **[发布版本](https://github.com/fengyj/leropilot/releases)** • **[贡献](CONTRIBUTING.md)** • **[许可证](LICENSE)**
