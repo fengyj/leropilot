@@ -1,0 +1,172 @@
+{
+  "nav": {
+    "dashboard": "仪表板",
+    "environments": "环境",
+    "devices": "设备",
+    "recording": "录制",
+    "datasets": "数据集",
+    "settings": "设置"
+  },
+  "sidebar": {
+    "activeEnvironment": "当前环境"
+  },
+  "environments": {
+    "title": "环境",
+    "subtitle": "管理您的 LeRobot 环境和依赖项。",
+    "createNew": "创建新环境",
+    "launch": "启动",
+    "shell": "终端",
+    "python": "Python",
+    "pytorch": "PyTorch",
+    "official": "官方",
+    "custom": "自定义",
+    "errorMessage": "缺少依赖项。请运行修复。",
+    "status": {
+      "ready": "就绪",
+      "error": "错误",
+      "installing": "安装中"
+    }
+  },
+  "wizard": {
+    "title": "创建环境",
+    "subtitle": "配置您的新 LeRobot 环境。",
+    "steps": {
+      "source": "来源",
+      "hardware": "硬件",
+      "robots": "机器人",
+      "review": "审查"
+    },
+    "source": {
+      "repoType": "仓库类型",
+      "officialLeRobot": "官方 LeRobot",
+      "huggingFace": "Hugging Face",
+      "customUrl": "自定义 URL",
+      "gitRepository": "Git 仓库",
+      "versionTag": "版本 / 标签",
+      "latestStable": "最新稳定版",
+      "nightly": "每夜构建版"
+    },
+    "hardware": {
+      "detected": "检测到的硬件",
+      "pythonVersion": "Python 版本",
+      "pytorchVersion": "PyTorch 版本",
+      "recommended": "推荐",
+      "cpuOnly": "仅 CPU",
+      "compatibilityNote": "与您的 NVIDIA 驱动程序和 LeRobot v2.0 兼容。"
+    },
+    "robots": {
+      "description": "选择您想要支持的机器人。这将安装额外的依赖项。"
+    },
+    "review": {
+      "summary": "摘要",
+      "repository": "仓库",
+      "python": "Python",
+      "pytorch": "PyTorch",
+      "robots": "机器人",
+      "none": "无",
+      "internetNote": "注意：此过程需要有效的互联网连接来下载依赖项。",
+      "showAdvanced": "显示高级：编辑安装脚本",
+      "hideAdvanced": "隐藏高级：编辑安装脚本",
+      "installScriptComment": "# 生成的安装脚本"
+    },
+    "buttons": {
+      "cancel": "取消",
+      "back": "返回",
+      "next": "下一步",
+      "createEnvironment": "创建环境"
+    }
+  },
+  "language": {
+    "switchTo": "切换语言",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "settings": {
+    "title": "设置",
+    "subtitle": "管理您的应用程序偏好和配置。",
+    "unsavedChanges": "未保存的更改",
+    "appearance": {
+      "title": "外观",
+      "description": "自定义应用程序的外观和感觉。",
+      "theme": "主题",
+      "themeDescription": "选择您喜欢的颜色主题。",
+      "system": "跟随系统",
+      "light": "亮色",
+      "dark": "暗色"
+    },
+    "language": {
+      "title": "语言",
+      "description": "选择您喜欢的语言。",
+      "preferredLanguage": "首选语言"
+    },
+    "paths": {
+      "title": "路径",
+      "description": "配置应用程序数据存储位置。",
+      "dataDir": "根目录",
+      "dataDirDescription": "所有应用程序数据的主目录。",
+      "dataDirLocked": "创建环境后不可更改。",
+      "reposDir": "仓库目录",
+      "environmentsDir": "环境目录",
+      "logsDir": "日志目录",
+      "cacheDir": "缓存目录",
+      "configLocation": "配置文件存储位置："
+    },
+    "tools": {
+      "title": "工具",
+      "description": "配置外部工具来源。",
+      "git": "Git",
+      "uv": "UV 包管理器",
+      "source": "来源",
+      "bundled": "内置",
+      "custom": "自定义路径",
+      "customPath": "可执行文件路径",
+      "customPathPlaceholder": "可执行文件路径 (例如 /usr/bin/git 或 C:\\Program Files\\Git\\bin\\git.exe)",
+      "gitPathPlaceholder": "Git 可执行文件路径 (例如 /usr/bin/git 或 C:\\Program Files\\Git\\bin\\git.exe)",
+      "uvPathPlaceholder": "UV 可执行文件路径 (例如 /home/user/.cargo/bin/uv 或 C:\\Users\\user\\.cargo\\bin\\uv.exe)"
+    },
+    "repositories": {
+      "title": "LeRobot 仓库",
+      "description": "管理 LeRobot 仓库源。",
+      "sources": "仓库源",
+      "addSource": "添加源",
+      "name": "名称",
+      "url": "仓库地址",
+      "default": "默认",
+      "setAsDefault": "设为默认",
+      "actions": "操作"
+    },
+    "pypi": {
+      "title": "PyPI 镜像",
+      "description": "管理 PyPI 镜像源以加快包安装速度。",
+      "mirrors": "镜像源",
+      "addMirror": "添加镜像",
+      "name": "名称",
+      "url": "URL",
+      "default": "默认",
+      "setAsDefault": "设为默认",
+      "actions": "操作"
+    },
+    "advanced": {
+      "title": "高级",
+      "description": "高级配置选项。",
+      "installationTimeout": "安装超时时间（秒）",
+      "installationTimeoutDescription": "工具安装超时时间（秒，默认：3600）",
+      "logLevel": "日志级别",
+      "logLevelDescription": "设置应用程序日志的详细程度",
+      "logLevelInfo": "信息 (默认)",
+      "logLevelDebug": "调试",
+      "logLevelTrace": "追踪"
+    },
+    "buttons": {
+      "save": "保存更改",
+      "reset": "重置为默认值",
+      "cancel": "取消"
+    },
+    "messages": {
+      "saveSuccess": "设置保存成功！",
+      "saveError": "保存设置失败。请重试。",
+      "resetConfirm": "您确定要将所有设置重置为默认值吗？如果存在环境，您的数据目录将被保留。",
+      "dataDirLocked": "创建环境后无法更改数据目录。"
+    }
+  }
+}

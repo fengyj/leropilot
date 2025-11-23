@@ -1,0 +1,485 @@
+# This workflow runs on every push to any branch. It performs a comprehensive
+# build across multiple operating systems (Linux, Windows, macOS) to ensure the
+# application can be packaged correctly. It also runs linting and tests.
+# The resulting binaries are uploaded as artifacts for testing purposes.
+name: Build and Test Matrix
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  package-pyinstaller:
+    name: Package PyInstaller on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+          # Verify frontend build output
+          if [ ! -d src/leropilot/static ]; then
+            echo "Frontend build failed - static directory not found"
+            exit 1
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv sync --extra dev
+
+      - name: Run lint
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if uv run ruff --version > /dev/null 2>&1; then
+            uv run ruff check src
+          else
+            echo "ruff not available; skipping lint."
+          fi
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [ -f pytest.ini ] || [ -d tests ]; then
+            uv run python -m pytest -q
+          else
+            echo "No tests detected; skipping pytest."
+          fi
+
+      - name: Diagnostic info
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python --version
+          uv run python --version
+          uv run pyinstaller --version || true
+          ls -la
+
+      - name: Generate build.spec if missing
+        shell: bash
+        run: |
+          if [ ! -f build.spec ]; then
+            printf '%s\n' \
+              '# -*- mode: python ; coding: utf-8 -*-' \
+              '' \
+              'block_cipher = None' \
+              '' \
+              'a = Analysis(' \
+              "    ['src/leropilot/main.py']," \
+              '    pathex=[],' \
+              '    binaries=[],' \
+              '    datas=[' \
+              "        ('src/leropilot/static', 'leropilot/static')," \
+              '    ],' \
+              '    hiddenimports=[],' \
+              '    hookspath=[],' \
+              '    hooksconfig={},' \
+              '    runtime_hooks=[],' \
+              "    excludes=['torch', 'tensorflow', 'matplotlib', 'pytest']," \
+              '    win_no_prefer_redirects=False,' \
+              '    win_private_assemblies=False,' \
+              '    cipher=block_cipher,' \
+              '    noarchive=False,' \
+              ')' \
+              '' \
+              'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)' \
+              '' \
+              'exe = EXE(' \
+              '    pyz,' \
+              '    a.scripts,' \
+              '    a.binaries,' \
+              '    a.zipfiles,' \
+              '    a.datas,' \
+              '    [],' \
+              "    name='leropilot'," \
+              '    debug=False,' \
+              '    bootloader_ignore_signals=False,' \
+              '    strip=False,' \
+              '    upx=True,' \
+              '    upx_exclude=[],' \
+              '    runtime_tmpdir=None,' \
+              '    console=True,' \
+              '    disable_windowed_traceback=False,' \
+              '    argv_emulation=False,' \
+              '    target_arch=None,' \
+              '    codesign_identity=None,' \
+              '    entitlements_file=None,' \
+              ')' > build.spec
+          fi
+
+      - name: PyInstaller build
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv run python -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p release
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp dist/leropilot.exe release/leropilot-pyinstaller-${{ github.run_id }}-win.exe || true
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            cp -r dist/leropilot release/leropilot-pyinstaller-${{ github.run_id }}-mac || true
+          else
+            cp dist/leropilot release/leropilot-pyinstaller-${{ github.run_id }}-linux || true
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leropilot-pyinstaller-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_number }}
+          path: release/
+          retention-days: 7
+
+  package-electron:
+    name: Package Electron on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package.json
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+          # Verify frontend build output
+          if [ ! -d src/leropilot/static ]; then
+            echo "Frontend build failed - static directory not found"
+            exit 1
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv sync --extra dev
+
+      - name: Generate backend-only build spec
+        shell: bash
+        run: |
+          cat > build-backend.spec << 'EOF'
+          # -*- mode: python ; coding: utf-8 -*-
+          block_cipher = None
+
+          a = Analysis(
+              ['src/leropilot/main.py'],
+              pathex=[],
+              binaries=[],
+              datas=[('src/leropilot/static', 'leropilot/static')],
+              hiddenimports=[],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=['torch', 'tensorflow', 'matplotlib', 'pytest'],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
+
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+          exe = EXE(
+              pyz,
+              a.scripts,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              [],
+              name='leropilot-backend',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              runtime_tmpdir=None,
+              console=True,
+              disable_windowed_traceback=False,
+              argv_emulation=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+          )
+          EOF
+
+      - name: Build Python backend
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv run python -m PyInstaller --noconfirm --clean --log-level=INFO build-backend.spec
+          mkdir -p dist/python
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp dist/leropilot-backend.exe dist/python/
+          else
+            cp dist/leropilot-backend dist/python/
+          fi
+          ls -la dist/python
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: electron/package.json
+
+      - name: Install Electron dependencies
+        shell: bash
+        run: |
+          cd electron
+          npm install
+
+      - name: Prepare Electron resources
+        shell: bash
+        run: |
+          echo "Copying Python backend to electron/python..."
+          mkdir -p electron/python
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp dist/python/leropilot-backend.exe electron/python/
+          else
+            cp dist/python/leropilot-backend electron/python/
+          fi
+          ls -la electron/python/
+
+      - name: Set artifact naming variables
+        shell: bash
+        run: |
+          # Determine OS suffix
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            OS_SUFFIX="win-x64"
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            OS_SUFFIX="linux"
+          else
+            OS_SUFFIX="macos"
+          fi
+
+          # Determine version suffix
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION_SUFFIX="${{ github.ref_name }}" # e.g., v0.1.0
+            # Remove 'v' prefix if present for consistency
+            VERSION_SUFFIX=${VERSION_SUFFIX#v}
+          else
+            VERSION_SUFFIX="latest-${{ github.run_number }}"
+          fi
+
+          echo "ARTIFACT_NAME_PREFIX=leropilot-${OS_SUFFIX}" >> $GITHUB_ENV
+          echo "ARTIFACT_VERSION_SUFFIX=${VERSION_SUFFIX}" >> $GITHUB_ENV
+
+          echo "Artifact Name Prefix: leropilot-${OS_SUFFIX}"
+          echo "Artifact Version Suffix: ${VERSION_SUFFIX}"
+
+      - name: Build Electron app
+        shell: bash
+        run: |
+          cd electron
+          npm install
+          npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_NAME_PREFIX: ${{ env.ARTIFACT_NAME_PREFIX }}
+          ARTIFACT_VERSION_SUFFIX: ${{ env.ARTIFACT_VERSION_SUFFIX }}
+
+      - name: Verify Electron build output
+        shell: bash
+        run: |
+          echo "=== Verifying Electron build output ==="
+          echo "Listing electron/dist contents:"
+          ls -la electron/dist/ || echo "electron/dist not found!"
+          echo ""
+          echo "Checking for win-unpacked directory:"
+          ls -la electron/dist/win-unpacked/ || ls -la electron/dist/linux-unpacked/ || ls -la electron/dist/mac/ || echo "No unpacked directory found"
+          echo ""
+          echo "Listing resources directory:"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ls -la electron/dist/win-unpacked/resources/ || echo "No resources directory"
+            ls -la electron/dist/win-unpacked/resources/python/ || echo "No python resources directory"
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            ls -la electron/dist/linux-unpacked/resources/ || echo "No resources directory"
+          else
+            ls -la electron/dist/mac/*/Contents/Resources/ || echo "No resources directory"
+          fi
+          echo ""
+          echo "Searching for packaged Python backend in resources:"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            find electron/dist/win-unpacked/resources -name "python" -type d || echo "No python directory in resources"
+            find electron/dist/win-unpacked/resources/python -name "*.exe" 2>/dev/null || echo "No backend exe in resources/python"
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            find electron/dist/linux-unpacked/resources -name "python" -type d || echo "No python directory in resources"
+            find electron/dist/linux-unpacked/resources/python -name "leropilot-backend" 2>/dev/null || echo "No backend in resources/python"
+          else
+            find electron/dist/mac -name "python" -type d || echo "No python directory in resources"
+          fi
+
+      - name: Inspect Windows Installer
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "=== Inspecting Windows Installer ==="
+          INSTALLER_PATH=$(find electron/dist -name "*setup*.exe" | head -n 1)
+          if [[ -f "$INSTALLER_PATH" ]]; then
+            echo "Installer found at: $INSTALLER_PATH"
+            echo "Listing contents using 7z:"
+            7z l "$INSTALLER_PATH" || echo "Failed to list installer contents"
+          else
+            echo "No installer found to inspect"
+          fi
+
+      # Upload to GitHub Releases (for release events)
+      - name: Upload to Release - Windows Setup
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*setup*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - Windows Portable
+        if: github.event_name == 'release' && matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*portable*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - Linux AppImage
+        if: github.event_name == 'release' && matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - Linux Tarball
+        if: github.event_name == 'release' && matrix.os == 'ubuntu-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - macOS DMG
+        if: github.event_name == 'release' && matrix.os == 'macos-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Release - macOS Zip
+        if: github.event_name == 'release' && matrix.os == 'macos-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron/dist/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload as Artifacts (for non-release events like workflow_dispatch)
+      - name: Upload Windows Setup
+        if: github.event_name != 'release' && matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-setup-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*setup*.exe
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 0
+
+      - name: Upload Windows Portable
+        if: github.event_name != 'release' && matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-portable-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*portable*.exe
+          retention-days: 3
+          if-no-files-found: warn
+          compression-level: 0
+
+      - name: Upload Linux AppImage
+        if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-appimage-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*.AppImage
+          retention-days: 3
+          if-no-files-found: warn
+
+      - name: Upload Linux Tarball
+        if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-targz-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*.tar.gz
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Upload macOS DMG
+        if: github.event_name != 'release' && matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-dmg-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*.dmg
+          retention-days: 3
+          if-no-files-found: warn
+
+      - name: Upload macOS Zip
+        if: github.event_name != 'release' && matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME_PREFIX }}-zip-${{ env.ARTIFACT_VERSION_SUFFIX }}
+          path: electron/dist/*.zip
+          retention-days: 3
+          if-no-files-found: warn

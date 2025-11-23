@@ -1,0 +1,27 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/wiki/**"
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write # Required to push to wiki repository
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync to Wiki
+        uses: Andrew-Chen-Wang/github-wiki-action@v4
+        with:
+          path: docs/wiki/
+          token: ${{ secrets.GITHUB_TOKEN }}

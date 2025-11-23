@@ -1,0 +1,50 @@
+{
+  "appId": "com.leropilot.app",
+  "productName": "LeRoPilot",
+  "files": [
+    "main.js",
+    "preload.js",
+    "icon.png"
+  ],
+  "extraResources": [
+    {
+      "from": "python",
+      "to": "python"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "artifactName": "${env.ARTIFACT_NAME_PREFIX}-setup-${env.ARTIFACT_VERSION_SUFFIX}.${ext}"
+  },
+  "portable": {
+    "artifactName": "${env.ARTIFACT_NAME_PREFIX}-portable-${env.ARTIFACT_VERSION_SUFFIX}.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage", "tar.gz"],
+    "icon": "icon.png",
+    "category": "Development",
+    "artifactName": "${env.ARTIFACT_NAME_PREFIX}-${env.ARTIFACT_VERSION_SUFFIX}.${ext}"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "icon.png",
+    "category": "public.app-category.developer-tools",
+    "artifactName": "${env.ARTIFACT_NAME_PREFIX}-${env.ARTIFACT_VERSION_SUFFIX}.${ext}"
+  }
+}

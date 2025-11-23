@@ -1,0 +1,47 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        files: \.py$
+        pass_filenames: false
+
+      - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        files: \.py$
+        pass_filenames: false
+
+      - id: mypy
+        name: mypy
+        entry: uv run mypy .
+        language: system
+        files: \.py$
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: bash -c "cd frontend && npm run lint"
+        language: system
+        files: \.(js|ts|jsx|tsx)$
+        pass_filenames: false
+
+      - id: prettier
+        name: prettier
+        entry: bash -c "cd frontend && npm run format"
+        language: system
+        files: \.(js|ts|jsx|tsx|json|css|scss|md)$
+        pass_filenames: false

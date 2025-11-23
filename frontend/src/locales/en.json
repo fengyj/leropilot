@@ -1,0 +1,172 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "environments": "Environments",
+    "devices": "Devices",
+    "recording": "Recording",
+    "datasets": "Datasets",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "activeEnvironment": "Active Environment"
+  },
+  "environments": {
+    "title": "Environments",
+    "subtitle": "Manage your LeRobot environments and dependencies.",
+    "createNew": "Create New",
+    "launch": "Launch",
+    "shell": "Shell",
+    "python": "Python",
+    "pytorch": "PyTorch",
+    "official": "Official",
+    "custom": "Custom",
+    "errorMessage": "Missing dependencies. Please run repair.",
+    "status": {
+      "ready": "Ready",
+      "error": "Error",
+      "installing": "Installing"
+    }
+  },
+  "wizard": {
+    "title": "Create Environment",
+    "subtitle": "Configure your new LeRobot environment.",
+    "steps": {
+      "source": "Source",
+      "hardware": "Hardware",
+      "robots": "Robots",
+      "review": "Review"
+    },
+    "source": {
+      "repoType": "Repository Type",
+      "officialLeRobot": "Official LeRobot",
+      "huggingFace": "Hugging Face",
+      "customUrl": "Custom URL",
+      "gitRepository": "Git Repository",
+      "versionTag": "Version / Tag",
+      "latestStable": "Latest Stable",
+      "nightly": "Nightly"
+    },
+    "hardware": {
+      "detected": "Hardware Detected",
+      "pythonVersion": "Python Version",
+      "pytorchVersion": "PyTorch Version",
+      "recommended": "Recommended",
+      "cpuOnly": "CPU Only",
+      "compatibilityNote": "Compatible with your NVIDIA Driver and LeRobot v2.0."
+    },
+    "robots": {
+      "description": "Select the robots you want to support. This will install additional dependencies."
+    },
+    "review": {
+      "summary": "Summary",
+      "repository": "Repository",
+      "python": "Python",
+      "pytorch": "PyTorch",
+      "robots": "Robots",
+      "none": "None",
+      "internetNote": "Note: This process requires an active internet connection to download dependencies.",
+      "showAdvanced": "Show Advanced: Edit Install Script",
+      "hideAdvanced": "Hide Advanced: Edit Install Script",
+      "installScriptComment": "# Generated Install Script"
+    },
+    "buttons": {
+      "cancel": "Cancel",
+      "back": "Back",
+      "next": "Next",
+      "createEnvironment": "Create Environment"
+    }
+  },
+  "language": {
+    "switchTo": "Switch Language",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your application preferences and configuration.",
+    "unsavedChanges": "Unsaved Changes",
+    "appearance": {
+      "title": "Appearance",
+      "description": "Customize the look and feel of the application.",
+      "theme": "Theme",
+      "themeDescription": "Select your preferred color theme.",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Choose your preferred language.",
+      "preferredLanguage": "Preferred Language"
+    },
+    "paths": {
+      "title": "Paths",
+      "description": "Configure application data storage locations.",
+      "dataDir": "Root Directory",
+      "dataDirDescription": "Main directory for all application data.",
+      "dataDirLocked": "Cannot be changed after creating environments.",
+      "reposDir": "Repositories Directory",
+      "environmentsDir": "Environments Directory",
+      "logsDir": "Logs Directory",
+      "cacheDir": "Cache Directory",
+      "configLocation": "Configuration file is stored in:"
+    },
+    "tools": {
+      "title": "Tools",
+      "description": "Configure external tool sources.",
+      "git": "Git",
+      "uv": "UV Package Manager",
+      "source": "Source",
+      "bundled": "Bundled",
+      "custom": "Custom Path",
+      "customPath": "Path to executable",
+      "customPathPlaceholder": "Executable Path (e.g., /usr/bin/git or C:\\Program Files\\Git\\bin\\git.exe)",
+      "gitPathPlaceholder": "Git executable path (e.g., /usr/bin/git or C:\\Program Files\\Git\\bin\\git.exe)",
+      "uvPathPlaceholder": "UV executable path (e.g., /home/user/.cargo/bin/uv or C:\\Users\\user\\.cargo\\bin\\uv.exe)"
+    },
+    "repositories": {
+      "title": "LeRobot Repositories",
+      "description": "Manage LeRobot repository sources.",
+      "sources": "Repository Sources",
+      "addSource": "Add Source",
+      "name": "Name",
+      "url": "Repository URL",
+      "default": "Default",
+      "setAsDefault": "Set as Default",
+      "actions": "Actions"
+    },
+    "pypi": {
+      "title": "PyPI Mirrors",
+      "description": "Manage PyPI mirror sources for faster package installation.",
+      "mirrors": "Mirror Sources",
+      "addMirror": "Add Mirror",
+      "name": "Name",
+      "url": "URL",
+      "default": "Default",
+      "setAsDefault": "Set as Default",
+      "actions": "Actions"
+    },
+    "advanced": {
+      "title": "Advanced",
+      "description": "Advanced configuration options.",
+      "installationTimeout": "Installation Timeout (seconds)",
+      "installationTimeoutDescription": "Timeout in seconds for tool installation (default: 3600)",
+      "logLevel": "Log Level",
+      "logLevelDescription": "Set the verbosity of application logs",
+      "logLevelInfo": "Info (Default)",
+      "logLevelDebug": "Debug",
+      "logLevelTrace": "Trace"
+    },
+    "buttons": {
+      "save": "Save Changes",
+      "reset": "Reset to Defaults",
+      "cancel": "Cancel"
+    },
+    "messages": {
+      "saveSuccess": "Settings saved successfully!",
+      "saveError": "Failed to save settings. Please try again.",
+      "resetConfirm": "Are you sure you want to reset all settings to defaults? Your data directory will be preserved if environments exist.",
+      "dataDirLocked": "Data directory cannot be changed after creating environments."
+    }
+  }
+}

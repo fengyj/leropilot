@@ -1,0 +1,160 @@
+# This workflow automates the entire release process.
+# Triggered by pushing a tag in the format 'v*', it builds the application
+# for all target platforms (Linux, Windows, macOS), creates a new GitHub Release,
+# and attaches the final binaries as assets for distribution.
+name: Publish Release (build + attach assets)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend (with retry)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
+          cd frontend
+          retry npm ci
+          retry npm run build
+          cd ..
+          mkdir -p artifact/frontend
+          if [ -d src/leropilot/static ]; then
+            cp -r src/leropilot/static/* artifact/frontend/
+          else
+            echo "No frontend build output found in src/leropilot/static" >&2
+            ls -la src/leropilot/ || true
+            exit 1
+          fi
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.run_number }}
+          path: artifact/frontend/
+
+  build:
+    runs-on: ${{ matrix.os }}
+    needs: build-frontend
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+    outputs:
+      run_id: ${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist-${{ github.run_number }}
+          path: frontend-artifact
+
+      - name: Prepare static files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf src/leropilot/static || true
+          mkdir -p src/leropilot/static
+          cp -r frontend-artifact/* src/leropilot/static/ || true
+          ls -la src/leropilot/static || true
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Python deps (with retry)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          retry() { local n=1; local max=3; local delay=5; until "$@"; do if [ $n -ge $max ]; then return 1; fi; n=$((n+1)); sleep $delay; done }
+          python -m pip install --upgrade pip
+          retry pip install pyinstaller
+
+      - name: Generate build.spec if missing
+        shell: bash
+        run: |
+          if [ ! -f build.spec ]; then
+            printf '%s\n' \              '# -*- mode: python ; coding: utf-8 -*-' \              '' \              'block_cipher = None' \              '' \              'a = Analysis(' \              "    ['src/leropilot/main.py']," \              '    pathex=[],' \              '    binaries=[],' \              '    datas=[' \              "        ('src/leropilot/static', 'leropilot/static')," \              '    ],' \              '    hiddenimports=[],' \              '    hookspath=[],' \              '    hooksconfig={},' \              '    runtime_hooks=[],' \              "    excludes=['torch', 'tensorflow', 'matplotlib', 'pytest']," \              '    win_no_prefer_redirects=False,' \              '    win_private_assemblies=False,' \              '    cipher=block_cipher,' \              '    noarchive=False,' \              ')' \              '' \              'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)' \              '' \              'exe = EXE(' \              '    pyz,' \              '    a.scripts,' \              '    a.binaries,' \              '    a.zipfiles,' \              '    a.datas,' \              '    [],' \              "    name='leropilot'," \              '    debug=False,' \              '    bootloader_ignore_signals=False,' \              '    strip=False,' \              '    upx=True,' \              '    upx_exclude=[],' \              '    runtime_tmpdir=None,' \              '    console=True,' \              '    disable_windowed_traceback=False,' \              '    argv_emulation=False,' \              '    target_arch=None,' \              '    codesign_identity=None,' \              '    entitlements_file=None,' \              ')' > build.spec
+          fi
+
+      - name: PyInstaller build
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            py -3 -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
+          else
+            pyinstaller --noconfirm --clean --log-level=INFO build.spec
+          fi
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p release
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp dist/leropilot.exe release/leropilot-${{ github.ref_name }}-win.exe || true
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            cp -r dist/leropilot release/leropilot-${{ github.ref_name }}-mac || true
+          else
+            cp dist/leropilot release/leropilot-${{ github.ref_name }}-linux || true
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: leropilot-${{ matrix.os }}-${{ github.ref_name }}-${{ github.run_number }}
+          path: release/
+
+  create_release:
+    name: Create GitHub Release and attach assets
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            Release ${{ github.ref_name }}
+
+            ## Downloads
+            Download the appropriate binary for your platform below.
+
+            Generated by GitHub Actions run ${{ github.run_number }}
+          files: artifacts/**/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

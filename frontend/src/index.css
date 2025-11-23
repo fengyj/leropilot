@@ -1,0 +1,228 @@
+@import 'tailwindcss';
+
+/* Configure dark mode to use class strategy */
+@variant dark (&:is(.dark *));
+
+@theme {
+  /* Zinc Color System (more neutral than Slate) */
+  --color-zinc-950: #09090b;
+  --color-zinc-900: #18181b;
+  --color-zinc-800: #27272a;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-600: #52525b;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-50: #fafafa;
+
+  --color-blue-950: #172554;
+  --color-blue-900: #1e3a8a;
+  --color-blue-800: #1e40af;
+  --color-blue-700: #1d4ed8;
+  --color-blue-600: #2563eb;
+  --color-blue-500: #3b82f6;
+  --color-blue-400: #60a5fa;
+  --color-blue-300: #93c5fd;
+  --color-blue-200: #bfdbfe;
+  --color-blue-100: #dbeafe;
+  --color-blue-50: #eff6ff;
+
+  --color-green-600: #16a34a;
+  --color-green-500: #22c55e;
+  --color-green-400: #4ade80;
+  --color-green-200: #bbf7d0;
+  --color-green-100: #dcfce7;
+  --color-green-50: #f0fdf4;
+
+  --color-amber-900: #78350f;
+  --color-amber-700: #b45309;
+  --color-amber-600: #d97706;
+  --color-amber-500: #f59e0b;
+  --color-amber-400: #fbbf24;
+  --color-amber-200: #fde68a;
+  --color-amber-100: #fef3c7;
+  --color-amber-50: #fffbeb;
+
+  --color-red-900: #7f1d1d;
+  --color-red-700: #b91c1c;
+  --color-red-600: #dc2626;
+  --color-red-500: #ef4444;
+  --color-red-400: #f87171;
+  --color-red-200: #fecaca;
+  --color-red-100: #fee2e2;
+  --color-red-50: #fef2f2;
+
+  /* Semantic Colors */
+  --color-surface-primary: var(--bg-primary);
+  --color-surface-secondary: var(--bg-secondary);
+  --color-surface-tertiary: var(--bg-tertiary);
+  --color-surface-card: var(--bg-card);
+
+  --color-content-primary: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-content-tertiary: var(--text-tertiary);
+
+  --color-border-default: var(--border-primary);
+  --color-border-subtle: var(--border-secondary);
+
+  /* Status Colors */
+  --color-success-surface: var(--bg-success);
+  --color-success-content: var(--text-success);
+  --color-success-border: var(--border-success);
+  --color-success-icon: var(--icon-success);
+
+  --color-error-surface: var(--bg-error);
+  --color-error-content: var(--text-error);
+  --color-error-border: var(--border-error);
+  --color-error-icon: var(--icon-error);
+
+  --color-warning-surface: var(--bg-warning);
+  --color-warning-content: var(--text-warning);
+  --color-warning-border: var(--border-warning);
+  --color-warning-icon: var(--icon-warning);
+
+  --color-info-surface: var(--bg-info);
+  --color-info-content: var(--text-info);
+  --color-info-border: var(--border-info);
+  --color-info-icon: var(--icon-info);
+
+  /* Fonts */
+  /*
+   * Font Stack Strategy:
+   * 1. English UI Fonts (Inter, Segoe UI, Roboto, etc.) - for better English rendering
+   * 2. Chinese UI Fonts (PingFang, Hiragino, YaHei) - for Chinese characters
+   * 3. Fallbacks
+   */
+  --font-sans:
+    'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  --font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+}
+
+/* Dark theme (default) */
+:root,
+:root.dark,
+[data-theme='dark'] {
+  --bg-primary: var(--color-zinc-950);
+  --bg-secondary: var(--color-zinc-900);
+  --bg-tertiary: var(--color-zinc-800);
+  --bg-card: rgba(24, 24, 27, 0.5);
+  --text-primary: var(--color-zinc-200);
+  --text-secondary: var(--color-zinc-400);
+  --text-tertiary: var(--color-zinc-500);
+  --border-primary: var(--color-zinc-800);
+  --border-secondary: var(--color-zinc-700);
+
+  /* Status - Dark */
+  --bg-success: rgba(20, 83, 45, 0.2);
+  --text-success: var(--color-green-100);
+  --border-success: rgba(20, 83, 45, 0.5);
+  --icon-success: var(--color-green-500);
+
+  --bg-error: rgba(127, 29, 29, 0.2);
+  --text-error: var(--color-red-100);
+  --border-error: rgba(127, 29, 29, 0.5);
+  --icon-error: var(--color-red-500);
+
+  --bg-warning: rgba(120, 53, 15, 0.2);
+  --text-warning: var(--color-amber-100);
+  --border-warning: rgba(120, 53, 15, 0.5);
+  --icon-warning: var(--color-amber-500);
+
+  --bg-info: rgba(30, 58, 138, 0.2);
+  --text-info: var(--color-blue-100);
+  --border-info: rgba(30, 58, 138, 0.5);
+  --icon-info: var(--color-blue-500);
+}
+
+/* Light theme */
+:root.light,
+[data-theme='light'] {
+  --bg-primary: var(--color-zinc-50);
+  --bg-secondary: #ffffff;
+  --bg-tertiary: var(--color-zinc-100);
+  --bg-card: #ffffff;
+  --text-primary: var(--color-zinc-800);
+  --text-secondary: var(--color-zinc-600);
+  --text-tertiary: var(--color-zinc-500);
+  --border-primary: var(--color-zinc-200);
+  --border-secondary: var(--color-zinc-300);
+
+  /* Status - Light */
+  --bg-success: var(--color-green-50);
+  --text-success: var(--color-green-900);
+  --border-success: var(--color-green-200);
+  --icon-success: var(--color-green-600);
+
+  --bg-error: var(--color-red-50);
+  --text-error: var(--color-red-900);
+  --border-error: var(--color-red-200);
+  --icon-error: var(--color-red-600);
+
+  --bg-warning: var(--color-amber-50);
+  --text-warning: var(--color-amber-900);
+  --border-warning: var(--color-amber-200);
+  --icon-warning: var(--color-amber-600);
+
+  --bg-info: var(--color-blue-50);
+  --text-info: var(--color-blue-900);
+  --border-info: var(--color-blue-200);
+  --icon-info: var(--color-blue-600);
+}
+
+/* Apply theme to body */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar Styling */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-700);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-600);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-zinc-700) transparent;
+}
+
+/* Light theme scrollbar */
+:root.light ::-webkit-scrollbar-thumb,
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-300);
+}
+
+:root.light ::-webkit-scrollbar-thumb:hover,
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-400);
+}
+
+:root.light *,
+[data-theme='light'] * {
+  scrollbar-color: var(--color-zinc-300) transparent;
+}

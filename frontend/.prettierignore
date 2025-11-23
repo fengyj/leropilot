@@ -1,0 +1,6 @@
+node_modules
+dist
+build
+public
+src/leropilot/static
+*.min.js

@@ -1,0 +1,29 @@
+# This workflow enforces the Contributor License Agreement (CLA).
+# It checks that every pull request description contains a valid CLA signature
+# before the PR can be merged. This is a mandatory check for all contributions.
+name: CLA Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check-cla:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check PR body for CLA acceptance
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request
+            const body = pr && pr.body ? pr.body : ''
+            const accepted = /I accept the CLA \(Contributor License Agreement\)/i.test(body)
+            if (!accepted) {
+              core.setFailed('CLA signature not found in PR description. Please include the line:\n\nI accept the CLA (Contributor License Agreement). Name: <Your Full Name>, Email: <your-email>')
+            } else {
+              console.log('CLA signature found.')
+            }
