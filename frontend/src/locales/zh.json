@@ -31,49 +31,108 @@
     "title": "创建环境",
     "subtitle": "配置您的新 LeRobot 环境。",
     "steps": {
-      "source": "来源",
+      "repo": "仓库",
+      "version": "版本",
       "hardware": "硬件",
-      "robots": "机器人",
+      "extras": "组件",
+      "name": "命名",
       "review": "审查"
     },
-    "source": {
-      "repoType": "仓库类型",
-      "officialLeRobot": "官方 LeRobot",
-      "huggingFace": "Hugging Face",
-      "customUrl": "自定义 URL",
-      "gitRepository": "Git 仓库",
-      "versionTag": "版本 / 标签",
-      "latestStable": "最新稳定版",
-      "nightly": "每夜构建版"
+    "repoSelection": {
+      "title": "选择仓库",
+      "subtitle": "选择您的环境源代码仓库。",
+      "official": "官方",
+      "downloaded": "已下载",
+      "notDownloaded": "未下载",
+      "updated": "更新于",
+      "addCustom": "想要添加新仓库？去",
+      "settingsLink": "设置 > 仓库"
     },
-    "hardware": {
-      "detected": "检测到的硬件",
-      "pythonVersion": "Python 版本",
-      "pytorchVersion": "PyTorch 版本",
-      "recommended": "推荐",
-      "cpuOnly": "仅 CPU",
-      "compatibilityNote": "与您的 NVIDIA 驱动程序和 LeRobot v2.0 兼容。"
+    "versionSelection": {
+      "title": "选择版本",
+      "subtitle": "选择 LeRobot 版本标签或分支。",
+      "released": "发布于"
     },
-    "robots": {
-      "description": "选择您想要支持的机器人。这将安装额外的依赖项。"
+    "hardwareSelection": {
+      "title": "硬件加速",
+      "subtitle": "配置 PyTorch 加速设置。",
+      "detected": "系统检测",
+      "gpu": "显卡",
+      "driver": "驱动",
+      "auto": "自动检测 (推荐)",
+      "cpu": "仅 CPU (无加速)",
+      "best": "最佳"
+    },
+    "extrasSelection": {
+      "title": "可选组件",
+      "subtitle": "选择要安装的额外组件。",
+      "categories": {
+        "robots": "机器人支持",
+        "simulation": "仿真环境",
+        "other": "其他工具"
+      }
+    },
+    "nameConfig": {
+      "title": "环境名称",
+      "subtitle": "配置环境的标识名称。",
+      "internalName": "内部名称 (ID)",
+      "internalNameHelp": "仅允许字母、数字、点、横线和下划线。",
+      "friendlyName": "显示名称",
+      "friendlyNameHelp": "在环境列表中显示的名称。"
     },
     "review": {
-      "summary": "摘要",
+      "title": "审查与创建",
+      "subtitle": "在创建之前检查您的配置。",
+      "summary": "配置摘要",
       "repository": "仓库",
       "python": "Python",
       "pytorch": "PyTorch",
-      "robots": "机器人",
+      "hardware": "硬件",
+      "extras": "组件",
       "none": "无",
-      "internetNote": "注意：此过程需要有效的互联网连接来下载依赖项。",
-      "showAdvanced": "显示高级：编辑安装脚本",
-      "hideAdvanced": "隐藏高级：编辑安装脚本",
-      "installScriptComment": "# 生成的安装脚本"
+      "internetWarning": "注意：此过程需要有效的互联网连接来下载依赖项 (~2GB)。",
+      "advancedMode": "高级模式：自定义安装脚本",
+      "customize": "自定义",
+      "advancedWarning": "警告：修改命令可能会导致安装失败。请谨慎操作。"
+    },
+    "advanced": {
+      "title": "高级安装",
+      "subtitle": "自定义安装步骤和命令",
+      "command": "命令",
+      "output": "输出",
+      "run": "运行",
+      "logs": "日志",
+      "waiting": "等待执行...",
+      "addStep": "添加步骤",
+      "stepName": "步骤名称",
+      "stepNamePlaceholder": "例如：安装依赖"
+    },
+    "installation": {
+      "title": "正在安装环境",
+      "subtitle": "正在设置 {{envName}}。请勿关闭此窗口。",
+      "progress": "总进度",
+      "steps": "安装步骤",
+      "logs": "控制台输出",
+      "waitingLogs": "等待日志...",
+      "retry": "重试",
+      "reinstall": "重新安装",
+      "installing": "安装中...",
+      "cancelConfirm": "确定要取消安装吗？",
+      "stepsList": {
+        "git": "克隆代码仓库",
+        "venv": "创建虚拟环境",
+        "torch": "安装 PyTorch",
+        "lerobot": "安装 LeRobot",
+        "extras": "安装额外组件"
+      }
     },
     "buttons": {
       "cancel": "取消",
-      "back": "返回",
+      "back": "上一步",
       "next": "下一步",
-      "createEnvironment": "创建环境"
+      "create": "创建环境",
+      "done": "完成",
+      "close": "关闭"
     }
   },
   "language": {

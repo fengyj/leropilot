@@ -1,0 +1,76 @@
+# LeRobot 版本元数据
+# 用于环境创建功能，定义不同版本的安装要求和差异
+
+versions:
+  # v0.4.x 系列
+  v0.4.1:
+    release_date: "2024-11-10"
+    python_version: "3.10+"
+    pytorch_version: "2.2+"
+    ffmpeg_version: "7.x"
+    ffmpeg_fallback: "7.1.1"
+    requires_libsvtav1: true
+    installation_notes: |
+      - Python 3.10+ required
+      - PyTorch 2.2+ required
+      - FFmpeg 7.x with libsvtav1 encoder recommended
+      - If libsvtav1 not available, use FFmpeg 7.1.1
+
+  v0.4.0:
+    release_date: "2024-10-24"
+    python_version: "3.10+"
+    pytorch_version: "2.2+"
+    ffmpeg_version: "7.x"
+    ffmpeg_fallback: "7.1.1"
+    requires_libsvtav1: true
+    installation_notes: |
+      - Major update with Dataset v3.0
+      - New VLA models (PI0.5, GR00T N1.5)
+      - LIBERO and Meta-World simulation support
+      - Same requirements as v0.4.1
+
+  # v0.3.x 系列
+  v0.3.3:
+    release_date: "2024-09-xx" # 需要确认准确日期
+    python_version: "3.10+"
+    pytorch_version: "2.2+" # 从 pyproject.toml 确认
+    ffmpeg_version: "7.x" # 需要从文档确认
+    ffmpeg_fallback: "7.1.1"
+    requires_libsvtav1: true
+    installation_notes: |
+      - Stable release
+      - Python 3.10+ required
+      - PyTorch 2.2+ required (从 dependencies 确认)
+      - FFmpeg requirements same as v0.4.x
+
+  # 主分支（开发版本）
+  main:
+    release_date: null
+    python_version: "3.10+"
+    pytorch_version: "2.2+"
+    ffmpeg_version: "7.x"
+    ffmpeg_fallback: "7.1.1"
+    requires_libsvtav1: true
+    installation_notes: |
+      - Development branch
+      - May have unstable features
+      - Requirements follow latest release (v0.4.x)
+
+# 版本映射规则
+version_mapping:
+  # Tag 模式匹配
+  patterns:
+    - pattern: "^v0\\.4\\."
+      base_version: "v0.4.1"
+    - pattern: "^v0\\.3\\."
+      base_version: "v0.3.3"
+
+  # 分支映射
+  branches:
+    main: "main"
+    master: "main"
+    dev: "main"
+    # 其他分支默认使用 main 配置
+
+# 最低支持版本
+minimum_supported_version: "v0.3.3"

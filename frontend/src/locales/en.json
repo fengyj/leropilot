@@ -31,49 +31,94 @@
     "title": "Create Environment",
     "subtitle": "Configure your new LeRobot environment.",
     "steps": {
-      "source": "Source",
+      "repo": "Repository",
+      "version": "Version",
       "hardware": "Hardware",
-      "robots": "Robots",
+      "extras": "Extras",
+      "name": "Name",
       "review": "Review"
     },
-    "source": {
-      "repoType": "Repository Type",
-      "officialLeRobot": "Official LeRobot",
-      "huggingFace": "Hugging Face",
-      "customUrl": "Custom URL",
-      "gitRepository": "Git Repository",
-      "versionTag": "Version / Tag",
-      "latestStable": "Latest Stable",
-      "nightly": "Nightly"
+    "repo": {
+      "title": "Select Repository",
+      "description": "Choose the LeRobot repository source",
+      "official": "Official Repository",
+      "custom": "Custom Repository"
+    },
+    "version": {
+      "title": "Select Version",
+      "description": "Choose LeRobot version"
     },
     "hardware": {
-      "detected": "Hardware Detected",
+      "title": "Hardware Configuration",
+      "description": "Configure Python and CUDA versions",
       "pythonVersion": "Python Version",
-      "pytorchVersion": "PyTorch Version",
-      "recommended": "Recommended",
-      "cpuOnly": "CPU Only",
-      "compatibilityNote": "Compatible with your NVIDIA Driver and LeRobot v2.0."
+      "cudaVersion": "CUDA Version",
+      "auto": "Auto Detect",
+      "cpu": "CPU Only"
     },
-    "robots": {
-      "description": "Select the robots you want to support. This will install additional dependencies."
+    "extras": {
+      "title": "Extra Components",
+      "description": "Select additional robot support packages",
+      "robots": "Robots",
+      "tools": "Tools"
+    },
+    "name": {
+      "title": "Environment Name",
+      "description": "Set environment name and identifier",
+      "friendlyName": "Friendly Name",
+      "friendlyNamePlaceholder": "e.g., My LeRobot Environment",
+      "envId": "Environment ID",
+      "envIdPlaceholder": "e.g., lerobot-v0.4.1-cuda121",
+      "autoGenerate": "Auto-generate from friendly name"
     },
     "review": {
-      "summary": "Summary",
+      "title": "Review Configuration",
+      "description": "Confirm your environment settings",
       "repository": "Repository",
+      "version": "Version",
       "python": "Python",
-      "pytorch": "PyTorch",
-      "robots": "Robots",
-      "none": "None",
-      "internetNote": "Note: This process requires an active internet connection to download dependencies.",
-      "showAdvanced": "Show Advanced: Edit Install Script",
-      "hideAdvanced": "Hide Advanced: Edit Install Script",
-      "installScriptComment": "# Generated Install Script"
+      "cuda": "CUDA",
+      "extras": "Extras",
+      "envName": "Environment Name",
+      "customize": "Customize >"
     },
     "buttons": {
       "cancel": "Cancel",
       "back": "Back",
       "next": "Next",
-      "createEnvironment": "Create Environment"
+      "create": "Create",
+      "done": "Done"
+    },
+    "advanced": {
+      "title": "Advanced Installation",
+      "subtitle": "Customize installation steps and commands",
+      "command": "Command",
+      "output": "Output",
+      "run": "Run",
+      "logs": "Logs",
+      "waiting": "Waiting for execution...",
+      "addStep": "Add Step",
+      "stepName": "Step Name",
+      "stepNamePlaceholder": "e.g., Install Dependencies"
+    },
+    "installation": {
+      "title": "Installing Environment",
+      "subtitle": "Setting up {{envName}}. Please do not close this window.",
+      "progress": "Overall Progress",
+      "steps": "Installation Steps",
+      "logs": "Console Output",
+      "waitingLogs": "Waiting for logs...",
+      "retry": "Retry",
+      "reinstall": "Reinstall",
+      "installing": "Installing...",
+      "cancelConfirm": "Are you sure you want to cancel the installation?",
+      "stepsList": {
+        "git": "Clone Repository",
+        "venv": "Create Virtual Environment",
+        "torch": "Install PyTorch",
+        "lerobot": "Install LeRobot",
+        "extras": "Install Extras"
+      }
     }
   },
   "language": {

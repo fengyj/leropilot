@@ -1,43 +1,50 @@
 import { create } from 'zustand';
 
+interface WizardConfig {
+  repositoryId: string;
+  lerobotVersion: string;
+  pythonVersion: string;
+  cudaVersion: string;
+  extras: string[];
+  envName: string;
+  friendlyName: string;
+}
+
+export interface AdvancedStep {
+  id: string;
+  name: string;
+  command: string;
+  status: 'pending' | 'running' | 'success' | 'error';
+  logs: string[];
+}
+
 interface WizardState {
   step: number;
-  config: {
-    repoType: 'official' | 'custom';
-    repoUrl: string;
-    version: string;
-    pythonVersion: string;
-    torchVersion: string;
-    selectedRobots: string[];
-  };
+  config: WizardConfig;
+  customSteps: AdvancedStep[];
   setStep: (step: number) => void;
-  updateConfig: (updates: Partial<WizardState['config']>) => void;
+  updateConfig: (updates: Partial<WizardConfig>) => void;
+  setCustomSteps: (steps: AdvancedStep[]) => void;
   reset: () => void;
 }
 
+const INITIAL_CONFIG: WizardConfig = {
+  repositoryId: 'official',
+  lerobotVersion: 'v0.4.1',
+  pythonVersion: '3.10',
+  cudaVersion: 'auto',
+  extras: [],
+  envName: '',
+  friendlyName: '',
+};
+
 export const useWizardStore = create<WizardState>((set) => ({
   step: 1,
-  config: {
-    repoType: 'official',
-    repoUrl: 'https://github.com/huggingface/lerobot',
-    version: 'v2.0',
-    pythonVersion: '3.10',
-    torchVersion: '2.1.2+cu121',
-    selectedRobots: [],
-  },
+  config: INITIAL_CONFIG,
+  customSteps: [],
   setStep: (step) => set({ step }),
   updateConfig: (updates) =>
     set((state) => ({ config: { ...state.config, ...updates } })),
-  reset: () =>
-    set({
-      step: 1,
-      config: {
-        repoType: 'official',
-        repoUrl: 'https://github.com/huggingface/lerobot',
-        version: 'v2.0',
-        pythonVersion: '3.10',
-        torchVersion: '2.1.2+cu121',
-        selectedRobots: [],
-      },
-    }),
+  setCustomSteps: (steps) => set({ customSteps: steps }),
+  reset: () => set({ step: 1, config: INITIAL_CONFIG, customSteps: [] }),
 }));
