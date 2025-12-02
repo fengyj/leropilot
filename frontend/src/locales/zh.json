@@ -1,4 +1,11 @@
 {
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "delete": "删除",
+    "yes": "是",
+    "no": "否"
+  },
   "nav": {
     "dashboard": "仪表板",
     "environments": "环境",
@@ -14,6 +21,7 @@
     "title": "环境",
     "subtitle": "管理您的 LeRobot 环境和依赖项。",
     "createNew": "创建新环境",
+    "noEnvironments": "未找到环境。请创建一个新环境以开始使用。",
     "launch": "启动",
     "shell": "终端",
     "python": "Python",
@@ -51,7 +59,8 @@
     "versionSelection": {
       "title": "选择版本",
       "subtitle": "选择 LeRobot 版本标签或分支。",
-      "released": "发布于"
+      "released": "发布于",
+      "stable": "稳定版"
     },
     "hardwareSelection": {
       "title": "硬件加速",
@@ -61,14 +70,27 @@
       "driver": "驱动",
       "auto": "自动检测 (推荐)",
       "cpu": "仅 CPU (无加速)",
-      "best": "最佳"
+      "best": "最佳",
+      "recommended": "推荐",
+      "compatibilityNote": "我们会根据您的硬件自动选择最兼容的 PyTorch 和加速库（CUDA/ROCm）版本。",
+      "cpuWarning": "在 CPU 上运行训练和推理会明显变慢。",
+      "unknown": "未知",
+      "cpuOnly": "仅 CPU",
+      "nvidiaGpu": "NVIDIA 显卡",
+      "amdGpu": "AMD 显卡",
+      "appleSilicon": "Apple Silicon"
     },
     "extrasSelection": {
       "title": "可选组件",
       "subtitle": "选择要安装的额外组件。",
+      "all": "安装所有组件",
+      "allDescription": "自动安装所有可用的额外组件（推荐用于完整体验）。",
       "categories": {
         "robots": "机器人支持",
         "simulation": "仿真环境",
+        "policies": "策略模型",
+        "features": "功能特性",
+        "motors": "电机驱动",
         "other": "其他工具"
       }
     },
@@ -78,7 +100,9 @@
       "internalName": "内部名称 (ID)",
       "internalNameHelp": "仅允许字母、数字、点、横线和下划线。",
       "friendlyName": "显示名称",
-      "friendlyNameHelp": "在环境列表中显示的名称。"
+      "friendlyNameHelp": "在环境列表中显示的名称。",
+      "duplicateError": "环境名称已存在，请选择其他名称。",
+      "formatError": "内部名称仅允许小写字母、数字、点、横线和下划线。"
     },
     "review": {
       "title": "审查与创建",
@@ -181,7 +205,13 @@
       "customPath": "可执行文件路径",
       "customPathPlaceholder": "可执行文件路径 (例如 /usr/bin/git 或 C:\\Program Files\\Git\\bin\\git.exe)",
       "gitPathPlaceholder": "Git 可执行文件路径 (例如 /usr/bin/git 或 C:\\Program Files\\Git\\bin\\git.exe)",
-      "uvPathPlaceholder": "UV 可执行文件路径 (例如 /home/user/.cargo/bin/uv 或 C:\\Users\\user\\.cargo\\bin\\uv.exe)"
+      "uvPathPlaceholder": "UV 可执行文件路径 (例如 /home/user/.cargo/bin/uv 或 C:\\Users\\user\\.cargo\\bin\\uv.exe)",
+      "bundledInstalled": "检测到系统 Git",
+      "bundledNotInstalled": "未找到系统 Git",
+      "bundledDescription": "使用系统安装的 Git。",
+      "downloadAndInstall": "下载并安装",
+      "autoDetect": "自动检测系统 Git",
+      "notInstalled": "未安装"
     },
     "repositories": {
       "title": "LeRobot 仓库",
@@ -192,18 +222,21 @@
       "url": "仓库地址",
       "default": "默认",
       "setAsDefault": "设为默认",
-      "actions": "操作"
+      "actions": "操作",
+      "deleteConfirm": "您确定要删除仓库 \"{{name}}\" 吗？"
     },
     "pypi": {
       "title": "PyPI 镜像",
-      "description": "管理 PyPI 镜像源以加快包安装速度。",
-      "mirrors": "镜像源",
+      "description": "管理 PyPI 镜像源以加快包安装速度。启用一个镜像使用它，或保持全部禁用以使用官方 PyPI。",
+      "currentMirror": "当前镜像",
+      "usingOfficial": "使用官方 PyPI（未启用镜像）",
       "addMirror": "添加镜像",
       "name": "名称",
       "url": "URL",
-      "default": "默认",
-      "setAsDefault": "设为默认",
-      "actions": "操作"
+      "enable": "启用",
+      "disable": "禁用",
+      "delete": "删除",
+      "deleteConfirm": "您确定要删除 PyPI 镜像 \"{{name}}\" 吗？"
     },
     "advanced": {
       "title": "高级",
@@ -227,5 +260,16 @@
       "resetConfirm": "您确定要将所有设置重置为默认值吗？如果存在环境，您的数据目录将被保留。",
       "dataDirLocked": "创建环境后无法更改数据目录。"
     }
+  },
+  "repositoryStatus": {
+    "download": "下载",
+    "update": "更新",
+    "downloading": "下载中...",
+    "updating": "更新中...",
+    "checking": "检查中...",
+    "error": "错误",
+    "retry": "重试",
+    "upToDate": "已是最新",
+    "updatedAt": "更新于 {{date}}"
   }
 }

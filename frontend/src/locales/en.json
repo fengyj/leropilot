@@ -1,4 +1,11 @@
 {
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "yes": "Yes",
+    "no": "No"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "environments": "Environments",
@@ -14,6 +21,7 @@
     "title": "Environments",
     "subtitle": "Manage your LeRobot environments and dependencies.",
     "createNew": "Create New",
+    "noEnvironments": "No environments found. Create one to get started.",
     "launch": "Launch",
     "shell": "Shell",
     "python": "Python",
@@ -38,56 +46,86 @@
       "name": "Name",
       "review": "Review"
     },
-    "repo": {
+    "repoSelection": {
       "title": "Select Repository",
-      "description": "Choose the LeRobot repository source",
-      "official": "Official Repository",
-      "custom": "Custom Repository"
+      "subtitle": "Choose your environment source code repository.",
+      "official": "Official",
+      "downloaded": "Downloaded",
+      "notDownloaded": "Not Downloaded",
+      "updated": "Updated",
+      "addCustom": "Want to add a new repository? Go to",
+      "settingsLink": "Settings > Repositories"
     },
-    "version": {
+    "versionSelection": {
       "title": "Select Version",
-      "description": "Choose LeRobot version"
+      "subtitle": "Choose LeRobot version tag or branch.",
+      "released": "Released",
+      "stable": "Stable"
     },
-    "hardware": {
-      "title": "Hardware Configuration",
-      "description": "Configure Python and CUDA versions",
-      "pythonVersion": "Python Version",
-      "cudaVersion": "CUDA Version",
-      "auto": "Auto Detect",
-      "cpu": "CPU Only"
+    "hardwareSelection": {
+      "title": "Hardware Acceleration",
+      "subtitle": "Configure PyTorch acceleration settings.",
+      "detected": "Detected",
+      "gpu": "GPU",
+      "driver": "Driver",
+      "auto": "Auto Detect (Recommended)",
+      "cpu": "CPU Only (No Acceleration)",
+      "best": "Best",
+      "recommended": "Recommended",
+      "compatibilityNote": "We will automatically select the most compatible PyTorch and acceleration library (CUDA/ROCm) versions for your hardware.",
+      "cpuWarning": "Running on CPU will be significantly slower for training and inference.",
+      "unknown": "Unknown",
+      "cpuOnly": "CPU Only",
+      "nvidiaGpu": "NVIDIA GPU",
+      "amdGpu": "AMD GPU",
+      "appleSilicon": "Apple Silicon"
     },
-    "extras": {
-      "title": "Extra Components",
-      "description": "Select additional robot support packages",
-      "robots": "Robots",
-      "tools": "Tools"
+    "extrasSelection": {
+      "title": "Optional Components",
+      "subtitle": "Select additional components to install.",
+      "all": "Install All Components",
+      "allDescription": "Automatically install all available extra components (recommended for full experience).",
+      "categories": {
+        "robots": "Robot Support",
+        "simulation": "Simulation Environments",
+        "policies": "Policies & Models",
+        "features": "Features",
+        "motors": "Motor Drivers",
+        "other": "Other Tools"
+      }
     },
-    "name": {
+    "nameConfig": {
       "title": "Environment Name",
-      "description": "Set environment name and identifier",
-      "friendlyName": "Friendly Name",
-      "friendlyNamePlaceholder": "e.g., My LeRobot Environment",
-      "envId": "Environment ID",
-      "envIdPlaceholder": "e.g., lerobot-v0.4.1-cuda121",
-      "autoGenerate": "Auto-generate from friendly name"
+      "subtitle": "Configure environment identifier.",
+      "internalName": "Internal Name (ID)",
+      "internalNameHelp": "Only letters, numbers, dots, dashes, and underscores allowed.",
+      "friendlyName": "Display Name",
+      "friendlyNameHelp": "Name shown in the environment list.",
+      "duplicateError": "Environment name already exists. Please choose another one.",
+      "formatError": "Internal name can only contain lowercase letters, numbers, dots, dashes, and underscores."
     },
     "review": {
-      "title": "Review Configuration",
-      "description": "Confirm your environment settings",
+      "title": "Review & Create",
+      "subtitle": "Review your configuration before creation.",
+      "summary": "Configuration Summary",
       "repository": "Repository",
-      "version": "Version",
       "python": "Python",
-      "cuda": "CUDA",
-      "extras": "Extras",
-      "envName": "Environment Name",
-      "customize": "Customize >"
+      "pytorch": "PyTorch",
+      "hardware": "Hardware",
+      "extras": "Components",
+      "none": "None",
+      "internetWarning": "Note: This process requires an active internet connection to download dependencies (~2GB).",
+      "advancedMode": "Advanced Mode: Custom Installation Script",
+      "customize": "Customize",
+      "advancedWarning": "Warning: Modifying commands may cause installation failure. Proceed with caution."
     },
     "buttons": {
       "cancel": "Cancel",
       "back": "Back",
       "next": "Next",
-      "create": "Create",
-      "done": "Done"
+      "create": "Create Environment",
+      "done": "Done",
+      "close": "Close"
     },
     "advanced": {
       "title": "Advanced Installation",
@@ -167,7 +205,13 @@
       "customPath": "Path to executable",
       "customPathPlaceholder": "Executable Path (e.g., /usr/bin/git or C:\\Program Files\\Git\\bin\\git.exe)",
       "gitPathPlaceholder": "Git executable path (e.g., /usr/bin/git or C:\\Program Files\\Git\\bin\\git.exe)",
-      "uvPathPlaceholder": "UV executable path (e.g., /home/user/.cargo/bin/uv or C:\\Users\\user\\.cargo\\bin\\uv.exe)"
+      "uvPathPlaceholder": "UV executable path (e.g., /home/user/.cargo/bin/uv or C:\\Users\\user\\.cargo\\bin\\uv.exe)",
+      "bundledInstalled": "System Git detected",
+      "bundledNotInstalled": "System Git not found",
+      "bundledDescription": "Use the Git installed on your system.",
+      "downloadAndInstall": "Download & Install",
+      "autoDetect": "Auto-detect system Git",
+      "notInstalled": "Not Installed"
     },
     "repositories": {
       "title": "LeRobot Repositories",
@@ -178,18 +222,21 @@
       "url": "Repository URL",
       "default": "Default",
       "setAsDefault": "Set as Default",
-      "actions": "Actions"
+      "actions": "Actions",
+      "deleteConfirm": "Are you sure you want to delete the repository \"{{name}}\"?"
     },
     "pypi": {
       "title": "PyPI Mirrors",
-      "description": "Manage PyPI mirror sources for faster package installation.",
-      "mirrors": "Mirror Sources",
+      "description": "Manage PyPI mirror sources for faster package installation. Enable one mirror to use it, or keep all disabled to use official PyPI.",
+      "currentMirror": "Current Mirror",
+      "usingOfficial": "Using Official PyPI (no mirror enabled)",
       "addMirror": "Add Mirror",
       "name": "Name",
       "url": "URL",
-      "default": "Default",
-      "setAsDefault": "Set as Default",
-      "actions": "Actions"
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete",
+      "deleteConfirm": "Are you sure you want to delete the PyPI mirror \"{{name}}\"?"
     },
     "advanced": {
       "title": "Advanced",
@@ -213,5 +260,16 @@
       "resetConfirm": "Are you sure you want to reset all settings to defaults? Your data directory will be preserved if environments exist.",
       "dataDirLocked": "Data directory cannot be changed after creating environments."
     }
+  },
+  "repositoryStatus": {
+    "download": "Download",
+    "update": "Update",
+    "downloading": "Downloading...",
+    "updating": "Updating...",
+    "checking": "Checking...",
+    "error": "Error",
+    "retry": "Retry",
+    "upToDate": "Up to date",
+    "updatedAt": "Updated {{date}}"
   }
 }

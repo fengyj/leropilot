@@ -68,7 +68,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadConfigTheme = async () => {
       try {
-        const response = await fetch('/api/config');
+        const response = await fetch('/api/app-config');
         if (response.ok) {
           const config = await response.json();
           const configTheme = config.ui.theme || 'system';

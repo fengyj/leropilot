@@ -6,7 +6,38 @@ import { useWizardStore } from '../../../stores/environment-wizard-store';
 export function StepReview() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { config } = useWizardStore();
+  const { config, detectedHardware } = useWizardStore();
+
+  const getHardwareDisplay = () => {
+    if (config.cudaVersion === 'cpu') {
+      return 'CPU';
+    }
+
+    if (config.rocmVersion) {
+      return `ROCm ${config.rocmVersion}`;
+    }
+
+    if (config.cudaVersion && config.cudaVersion !== 'auto') {
+      return `CUDA ${config.cudaVersion}`;
+    }
+
+    if (config.cudaVersion === 'auto') {
+      if (!detectedHardware) return 'Auto';
+
+      if (detectedHardware.has_nvidia_gpu) {
+        return `CUDA ${detectedHardware.detected_cuda || 'Detected'}`;
+      }
+      if (detectedHardware.has_amd_gpu) {
+        return `ROCm ${detectedHardware.detected_rocm || 'Detected'}`;
+      }
+      if (detectedHardware.is_apple_silicon) {
+        return 'Metal (Apple Silicon)';
+      }
+      return 'CPU';
+    }
+
+    return `CUDA ${config.cudaVersion}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -34,11 +65,11 @@ export function StepReview() {
 
           <div className="text-content-tertiary">{t('wizard.review.repository')}</div>
           <div className="text-content-primary">
-            {config.repositoryId} ({config.lerobotVersion})
+            {config.repositoryName} ({config.lerobotVersion})
           </div>
 
           <div className="text-content-tertiary">{t('wizard.review.hardware')}</div>
-          <div className="text-content-primary">{config.cudaVersion}</div>
+          <div className="text-content-primary">{getHardwareDisplay()}</div>
 
           <div className="text-content-tertiary">{t('wizard.review.python')}</div>
           <div className="text-content-primary">{config.pythonVersion}</div>

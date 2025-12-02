@@ -16,10 +16,10 @@ import { StepNameConfig } from '../components/environments/wizard/step-name-conf
 import { StepReview } from '../components/environments/wizard/step-review';
 
 export function EnvironmentWizard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { step, setStep, reset } = useWizardStore();
+  const { step, setStep, reset, config } = useWizardStore();
 
   const STEPS = [
     { id: 1, title: t('wizard.steps.repo'), component: StepRepoSelection },
@@ -30,13 +30,40 @@ export function EnvironmentWizard() {
     { id: 6, title: t('wizard.steps.review'), component: StepReview },
   ];
 
-  // Initialize step from URL on mount
+  // Validation logic for each step
+  const isStepValid = () => {
+    switch (step) {
+      case 1: // Repo
+        return !!config.repositoryId;
+      case 2: // Version
+        return !!config.lerobotVersion;
+      case 3: // Compute
+        return (
+          !!config.torchVersion && !!config.cudaVersion && config.cudaVersion !== 'auto'
+        );
+      case 4: // Extras
+        return true;
+      case 5: // Name
+        // Check for empty and valid format (lowercase alphanumeric, dot, dash, underscore)
+        return (
+          !!config.friendlyName &&
+          !!config.envName &&
+          /^[a-z0-9._-]+$/.test(config.envName)
+        );
+      default:
+        return true;
+    }
+  };
+
+  // Initialize step from URL on mount and handle browser navigation
   useEffect(() => {
     const stepParam = searchParams.get('step');
     if (stepParam) {
       const stepNum = parseInt(stepParam, 10);
       if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= STEPS.length) {
-        setStep(stepNum);
+        if (stepNum !== step) {
+          setStep(stepNum);
+        }
       } else {
         setSearchParams({ step: '1' }, { replace: true });
         setStep(1);
@@ -45,7 +72,7 @@ export function EnvironmentWizard() {
       setSearchParams({ step: String(step) }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   // Update URL when step changes (from user interaction)
   useEffect(() => {
@@ -56,13 +83,72 @@ export function EnvironmentWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < STEPS.length) {
       setStep(step + 1);
     } else {
-      // Navigate to installation page
-      // Note: reset() will be called when user returns to wizard or when installation completes
-      navigate('/environments/install');
+      // Create environment and navigate to installation page
+      try {
+        // Resolve hardware accelerator version
+        let resolvedCudaVersion: string | undefined =
+          config.cudaVersion === 'auto' ? undefined : config.cudaVersion;
+        let resolvedRocmVersion: string | undefined = config.rocmVersion;
+
+        // If auto (shouldn't happen with new UI but for safety), fallback to detection
+        // Note: detectedHardware is not available here, so we'll skip this for now
+
+        // If CPU selected explicitly
+        if (config.cudaVersion === 'cpu') {
+          resolvedCudaVersion = undefined;
+          resolvedRocmVersion = undefined;
+        }
+
+        const newEnvId = crypto.randomUUID();
+
+        const envConfig = {
+          id: newEnvId,
+          name: config.envName,
+          display_name: config.friendlyName,
+          repo_id: config.repositoryId,
+          repo_url: config.repositoryUrl,
+          ref: config.lerobotVersion,
+          python_version: config.pythonVersion,
+          torch_version: config.torchVersion || '',
+          torchvision_version: config.torchvisionVersion,
+          torchaudio_version: config.torchaudioVersion,
+          cuda_version: resolvedCudaVersion,
+          rocm_version: resolvedRocmVersion,
+          extras: config.extras,
+          status: 'pending',
+        };
+
+        const currentLang = i18n.language.split('-')[0]; // e.g., 'zh-CN' -> 'zh'
+
+        // Generate idempotency key to prevent duplicate creation
+        const idempotencyKey = crypto.randomUUID();
+
+        // Create environment
+        const response = await fetch(`/api/environments/create?lang=${currentLang}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify({
+            env_config: envConfig,
+            custom_steps: null, // No custom steps from wizard
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to create environment');
+
+        // Navigate to v2 installation page with the new envId
+        navigate(`/environments/${newEnvId}/install`);
+      } catch (error) {
+        console.error('Failed to create environment:', error);
+        // For now, just log the error. In a real app, you'd show a toast or error message
+        alert('Failed to create environment. Please try again.');
+      }
     }
   };
 
@@ -126,7 +212,7 @@ export function EnvironmentWizard() {
           <Button variant="ghost" onClick={handleBack}>
             {step === 1 ? t('wizard.buttons.cancel') : t('wizard.buttons.back')}
           </Button>
-          <Button onClick={handleNext}>
+          <Button onClick={handleNext} disabled={!isStepValid()}>
             {step === STEPS.length
               ? t('wizard.buttons.create')
               : t('wizard.buttons.next')}

@@ -28,6 +28,9 @@ vi.mock('lucide-react', () => ({
   Sun: () => <div>Sun Icon</div>,
   Moon: () => <div>Moon Icon</div>,
   Monitor: () => <div>Monitor Icon</div>,
+  Download: () => <div>Download Icon</div>,
+  RefreshCw: () => <div>Refresh Icon</div>,
+  Loader2: () => <div>Loader Icon</div>,
 }));
 
 const mockConfig = {
@@ -98,7 +101,7 @@ describe('SettingsPage', () => {
           json: async () => mockConfig,
         } as Response);
       }
-      if (url === '/api/config/has-environments') {
+      if (url === '/api/environments/has-environments') {
         return Promise.resolve({
           ok: true,
           json: async () => ({ has_environments: false }),
@@ -144,7 +147,7 @@ describe('SettingsPage', () => {
         if (url === '/api/config') {
           return Promise.reject(new Error('Network error'));
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
@@ -172,7 +175,10 @@ describe('SettingsPage', () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/config/has-environments');
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/environments/has-environments',
+          expect.any(Object),
+        );
       });
     });
   });
@@ -262,7 +268,7 @@ describe('SettingsPage', () => {
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
@@ -309,7 +315,7 @@ describe('SettingsPage', () => {
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
@@ -350,7 +356,7 @@ describe('SettingsPage', () => {
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
@@ -396,7 +402,7 @@ describe('SettingsPage', () => {
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
@@ -458,7 +464,7 @@ describe('SettingsPage', () => {
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: true }),

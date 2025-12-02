@@ -1,17 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  Play,
-  RotateCcw,
-  Terminal,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Circle,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { useWizardStore } from '../stores/environment-wizard-store';
@@ -20,107 +10,110 @@ import { cn } from '../utils/cn';
 interface AdvancedStep {
   id: string;
   name: string;
-  command: string;
+  comment: string | null;
+  commands: string[];
   status: 'pending' | 'running' | 'success' | 'error';
   logs: string[];
 }
 
-import { CodeEditor, LogViewer } from '../components/code-editor';
+import { CodeEditor } from '../components/code-editor';
 
 export function AdvancedInstallationPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { config, setCustomSteps } = useWizardStore();
+  const [steps, setSteps] = useState<AdvancedStep[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
 
-  // Generate initial steps from config
-  const initialSteps: AdvancedStep[] = useMemo(
-    () => [
-      {
-        id: 'git',
-        name: `Clone Repository (${config.repositoryId})`,
-        command: `git clone ${config.repositoryId === 'official' ? 'https://github.com/huggingface/lerobot' : '...'} lerobot\ncd lerobot && git checkout ${config.lerobotVersion}`,
-        status: 'pending',
-        logs: [],
-      },
-      {
-        id: 'venv',
-        name: `Create Virtual Environment (Python ${config.pythonVersion})`,
-        command: `uv venv .venv --python ${config.pythonVersion}\nsource .venv/bin/activate`,
-        status: 'pending',
-        logs: [],
-      },
-      {
-        id: 'torch',
-        name: `Install PyTorch (${config.cudaVersion})`,
-        command: `uv pip install torch torchvision --index-url https://download.pytorch.org/whl/${config.cudaVersion === 'auto' ? 'cu121' : config.cudaVersion}`,
-        status: 'pending',
-        logs: [],
-      },
-      {
-        id: 'lerobot',
-        name: 'Install LeRobot & Extras',
-        command: `uv pip install -e .[${config.extras.join(',')}]`,
-        status: 'pending',
-        logs: [],
-      },
-    ],
-    [
-      config.repositoryId,
-      config.lerobotVersion,
-      config.pythonVersion,
-      config.cudaVersion,
-      config.extras,
-    ],
-  );
+  useEffect(() => {
+    const abortController = new AbortController();
 
-  const [steps, setSteps] = useState<AdvancedStep[]>(initialSteps);
-  const [expandedStep, setExpandedStep] = useState<string | null>(
-    initialSteps[0]?.id || null,
-  );
+    const fetchSteps = async () => {
+      setLoading(true);
+      try {
+        // Construct EnvironmentConfig using stored repository URL
+        const envConfig = {
+          id: config.envName || 'new-env',
+          name: config.envName || 'lerobot-env',
+          display_name: config.friendlyName || 'LeRobot Environment',
+          repo_id: config.repositoryId,
+          repo_url: config.repositoryUrl,
+          ref: config.lerobotVersion,
+          python_version: config.pythonVersion,
+          torch_version: '2.4.0', // Default placeholder, backend handles actual version
+          cuda_version: config.cudaVersion === 'auto' ? null : config.cudaVersion,
+          extras: config.extras,
+          status: 'pending',
+        };
+
+        // 3. Generate steps from backend (with current language)
+        const currentLang = i18n.language.split('-')[0]; // e.g., 'zh-CN' -> 'zh'
+        const stepsResponse = await fetch(
+          `/api/environments/generate-steps?lang=${encodeURIComponent(currentLang)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ env_config: envConfig }),
+            signal: abortController.signal,
+          },
+        );
+
+        if (!stepsResponse.ok) throw new Error('Failed to generate steps');
+        const data = await stepsResponse.json();
+
+        // Map backend steps to frontend model
+        const mappedSteps: AdvancedStep[] = data.steps.map(
+          (s: {
+            id: string;
+            name: string;
+            comment: string | null;
+            commands: string[];
+          }) => ({
+            id: s.id,
+            name: s.name,
+            comment: s.comment,
+            commands: s.commands,
+            status: 'pending',
+            logs: [],
+          }),
+        );
+
+        setSteps(mappedSteps);
+        if (mappedSteps.length > 0) {
+          setExpandedStep(mappedSteps[0].id);
+        }
+      } catch (error) {
+        // Ignore AbortError - this is expected when component unmounts
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        console.error('Failed to load installation steps:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSteps();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [config, i18n.language]);
 
   const handleCommandChange = (id: string, newCommand: string) => {
-    setSteps(steps.map((s) => (s.id === id ? { ...s, command: newCommand } : s)));
-  };
-
-  const runStep = async (id: string) => {
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: 'running', logs: [] } : s)),
-    );
-    setExpandedStep(id);
-
-    // Simulate execution
-    const step = steps.find((s) => s.id === id);
-    if (!step) return;
-
-    const lines = step.command.split('\n');
-    for (const line of lines) {
-      await new Promise((r) => setTimeout(r, 800));
-      setSteps((prev) =>
-        prev.map((s) => {
-          if (s.id === id) {
-            return { ...s, logs: [...s.logs, `> ${line}`, '... done'] };
-          }
-          return s;
-        }),
-      );
-    }
-
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: 'success' } : s)),
-    );
-
-    // Auto expand next
-    const index = steps.findIndex((s) => s.id === id);
-    if (index < steps.length - 1) {
-      setExpandedStep(steps[index + 1].id);
-    }
-  };
-
-  const resetStep = (id: string) => {
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: 'pending', logs: [] } : s)),
+    setSteps(
+      steps.map((s) => (s.id === id ? { ...s, commands: newCommand.split('\n') } : s)),
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="text-content-tertiary h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -155,47 +148,12 @@ export function AdvancedInstallationPage() {
                 className="border-border-default bg-surface-secondary/50 hover:bg-surface-secondary flex cursor-pointer items-center justify-between border-b p-4 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  {step.status === 'pending' && (
-                    <Circle className="text-content-tertiary h-5 w-5" />
-                  )}
-                  {step.status === 'running' && (
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                  )}
-                  {step.status === 'success' && (
-                    <CheckCircle2 className="text-success-icon h-5 w-5" />
-                  )}
-                  {step.status === 'error' && (
-                    <XCircle className="text-error-icon h-5 w-5" />
-                  )}
-
                   <span className="text-content-primary font-medium">
                     {index + 1}. {step.name}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {step.status !== 'running' && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => runStep(step.id)}
-                        className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20"
-                      >
-                        <Play className="mr-1 h-3 w-3" />
-                        {t('wizard.advanced.run')}
-                      </Button>
-                      {step.status !== 'pending' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => resetStep(step.id)}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </>
-                  )}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -213,26 +171,25 @@ export function AdvancedInstallationPage() {
               {isExpanded && (
                 <CardContent className="p-0">
                   <div className="divide-border-default grid grid-cols-1 divide-y">
+                    {/* Comment */}
+                    {step.comment && (
+                      <div className="bg-surface-tertiary/50 border-border-default border-b p-4">
+                        <p className="text-content-secondary text-sm leading-relaxed">
+                          {step.comment}
+                        </p>
+                      </div>
+                    )}
                     {/* Editor */}
                     <div className="p-4">
                       <div className="text-content-tertiary mb-2 flex items-center justify-between text-xs">
                         <span>{t('wizard.advanced.command')}</span>
                       </div>
                       <CodeEditor
-                        value={step.command}
+                        value={step.commands.join('\n')}
                         onChange={(value) => handleCommandChange(step.id, value)}
                         language="shell"
-                        readOnly={step.status === 'running'}
+                        readOnly={false}
                       />
-                    </div>
-
-                    {/* Logs */}
-                    <div className="p-4">
-                      <div className="text-content-tertiary mb-2 flex items-center gap-2 text-xs">
-                        <Terminal className="h-3 w-3" />
-                        <span>{t('wizard.advanced.output')}</span>
-                      </div>
-                      <LogViewer logs={step.logs} autoScroll={true} />
                     </div>
                   </div>
                 </CardContent>

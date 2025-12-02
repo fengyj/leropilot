@@ -1,0 +1,309 @@
+{
+  "steps": {
+    "checkout_version": {
+      "name": {
+        "en": "Checkout Version",
+        "zh": "切换版本"
+      },
+      "comment": {
+        "en": "Switch to the selected version",
+        "zh": "切换到选定的版本"
+      }
+    },
+    "create_venv": {
+      "name": {
+        "en": "Create Virtual Environment",
+        "zh": "创建虚拟环境"
+      },
+      "comment": {
+        "en": "Create isolated Python environment",
+        "zh": "创建隔离的 Python 环境"
+      }
+    },
+    "ensure_ffmpeg": {
+      "name": {
+        "en": "Ensure FFmpeg",
+        "zh": "确保 FFmpeg"
+      },
+      "comment": {
+        "en": "Download and install FFmpeg to virtual environment (cached for faster setup)",
+        "zh": "下载并安装 FFmpeg 到虚拟环境（使用缓存加速）"
+      }
+    },
+    "install_pytorch": {
+      "name": {
+        "en": "Install PyTorch",
+        "zh": "安装 PyTorch"
+      },
+      "comment": {
+        "en": "Install deep learning framework",
+        "zh": "安装深度学习框架"
+      }
+    },
+    "install_lerobot": {
+      "name": {
+        "en": "Install LeRobot",
+        "zh": "安装 LeRobot"
+      },
+      "comment": {
+        "en": "Install LeRobot and selected robot support",
+        "zh": "安装 LeRobot 及选定的机器人支持"
+      }
+    }
+  },
+  "git": {
+    "downloading": {
+      "en": "Downloading Git...",
+      "zh": "正在下载 Git..."
+    },
+    "extracting": {
+      "en": "Extracting Git...",
+      "zh": "正在解压 Git..."
+    },
+    "installed": {
+      "en": "Git installed successfully",
+      "zh": "Git 安装成功"
+    },
+    "downloading_progress": {
+      "en": "Downloading Git: {percent}%",
+      "zh": "下载 Git: {percent}%"
+    }
+  },
+  "extras": {
+    "dynamixel": {
+      "name": {
+        "en": "Dynamixel",
+        "zh": "Dynamixel"
+      },
+      "description": {
+        "en": "Support for Dynamixel servo motors",
+        "zh": "Dynamixel 舵机支持"
+      },
+      "category": "motors"
+    },
+    "feetech": {
+      "name": {
+        "en": "Feetech",
+        "zh": "Feetech"
+      },
+      "description": {
+        "en": "Support for Feetech servo motors",
+        "zh": "Feetech 舵机支持"
+      },
+      "category": "motors"
+    },
+    "gamepad": {
+      "name": {
+        "en": "Gamepad",
+        "zh": "游戏手柄"
+      },
+      "description": {
+        "en": "Gamepad teleoperation support",
+        "zh": "游戏手柄遥控支持"
+      },
+      "category": "robots"
+    },
+    "hopejr": {
+      "name": {
+        "en": "HopeJr",
+        "zh": "HopeJr"
+      },
+      "description": {
+        "en": "Support for HopeJr robot platform",
+        "zh": "HopeJr 机器人平台支持"
+      },
+      "category": "robots"
+    },
+    "lekiwi": {
+      "name": {
+        "en": "LeKiwi",
+        "zh": "LeKiwi"
+      },
+      "description": {
+        "en": "Support for LeKiwi robot platform",
+        "zh": "LeKiwi 机器人平台支持"
+      },
+      "category": "robots"
+    },
+    "reachy2": {
+      "name": {
+        "en": "Reachy 2",
+        "zh": "Reachy 2"
+      },
+      "description": {
+        "en": "Support for Reachy 2 humanoid robot",
+        "zh": "Reachy 2 人形机器人支持"
+      },
+      "category": "robots"
+    },
+    "kinematics": {
+      "name": {
+        "en": "Kinematics",
+        "zh": "运动学"
+      },
+      "description": {
+        "en": "Inverse kinematics computation support",
+        "zh": "逆运动学计算支持"
+      },
+      "category": "robots"
+    },
+    "intelrealsense": {
+      "name": {
+        "en": "Intel RealSense",
+        "zh": "Intel RealSense"
+      },
+      "description": {
+        "en": "Support for Intel RealSense cameras",
+        "zh": "Intel RealSense 相机支持"
+      },
+      "category": "robots"
+    },
+    "phone": {
+      "name": {
+        "en": "Phone",
+        "zh": "手机"
+      },
+      "description": {
+        "en": "Mobile phone teleoperation support",
+        "zh": "手机遥控支持"
+      },
+      "category": "robots"
+    },
+    "pi": {
+      "name": {
+        "en": "π₀ (Pi Zero)",
+        "zh": "π₀ (Pi Zero)"
+      },
+      "description": {
+        "en": "Physical Intelligence π₀ policy support",
+        "zh": "Physical Intelligence π₀ 策略支持"
+      },
+      "category": "policies"
+    },
+    "smolvla": {
+      "name": {
+        "en": "SmolVLA",
+        "zh": "SmolVLA"
+      },
+      "description": {
+        "en": "SmolVLA vision-language-action policy support",
+        "zh": "SmolVLA 视觉-语言-动作策略支持"
+      },
+      "category": "policies"
+    },
+    "groot": {
+      "name": {
+        "en": "Gr00t",
+        "zh": "Gr00t"
+      },
+      "description": {
+        "en": "NVIDIA Gr00t foundation model support",
+        "zh": "NVIDIA Gr00t 基础模型支持"
+      },
+      "category": "policies"
+    },
+    "hilserl": {
+      "name": {
+        "en": "HilSeRL",
+        "zh": "HilSeRL"
+      },
+      "description": {
+        "en": "Human-in-the-Loop Self-supervised RL support",
+        "zh": "人机协同自监督强化学习支持"
+      },
+      "category": "policies"
+    },
+    "async": {
+      "name": {
+        "en": "Async",
+        "zh": "异步"
+      },
+      "description": {
+        "en": "Asynchronous inference and control support",
+        "zh": "异步推理和控制支持"
+      },
+      "category": "features"
+    },
+    "aloha": {
+      "name": {
+        "en": "Aloha",
+        "zh": "Aloha"
+      },
+      "description": {
+        "en": "Aloha robot simulation environment",
+        "zh": "Aloha 机器人仿真环境"
+      },
+      "category": "simulation"
+    },
+    "pusht": {
+      "name": {
+        "en": "PushT",
+        "zh": "PushT"
+      },
+      "description": {
+        "en": "PushT 2D manipulation simulation",
+        "zh": "PushT 二维操作仿真"
+      },
+      "category": "simulation"
+    },
+    "xarm": {
+      "name": {
+        "en": "xArm",
+        "zh": "xArm"
+      },
+      "description": {
+        "en": "UFACTORY xArm simulation environment",
+        "zh": "UFACTORY xArm 仿真环境"
+      },
+      "category": "simulation"
+    },
+    "libero": {
+      "name": {
+        "en": "LIBERO",
+        "zh": "LIBERO"
+      },
+      "description": {
+        "en": "LIBERO benchmark simulation environments",
+        "zh": "LIBERO 基准测试仿真环境"
+      },
+      "category": "simulation"
+    },
+    "metaworld": {
+      "name": {
+        "en": "Meta-World",
+        "zh": "Meta-World"
+      },
+      "description": {
+        "en": "Meta-World multi-task benchmark",
+        "zh": "Meta-World 多任务基准测试"
+      },
+      "category": "simulation"
+    }
+  },
+  "categories": {
+    "robots": {
+      "en": "Robot Support",
+      "zh": "机器人支持"
+    },
+    "simulation": {
+      "en": "Simulation Environments",
+      "zh": "仿真环境"
+    },
+    "policies": {
+      "en": "Policies & Models",
+      "zh": "策略模型"
+    },
+    "features": {
+      "en": "Features",
+      "zh": "功能特性"
+    },
+    "motors": {
+      "en": "Motor Drivers",
+      "zh": "电机驱动"
+    },
+    "other": {
+      "en": "Other Tools",
+      "zh": "其他工具"
+    }
+  }
+}

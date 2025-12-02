@@ -10,9 +10,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from leropilot import __version__
-from leropilot.config import get_config
 from leropilot.logger import get_logger
-from leropilot.routers import config as config_router
+from leropilot.middleware import IdempotencyMiddleware
+from leropilot.routers import app_config_api as config_router
+from leropilot.routers import environments_api as environments_router
+from leropilot.routers import repositories_api as repositories_router
+from leropilot.routers import tools_api as tools_router
+from leropilot.routers import web_sockets_api as terminal_router
+
+from .core.app_config import get_config
 
 logger = get_logger(__name__)
 
@@ -27,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(title="LeRoPilot", lifespan=lifespan)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,6 +41,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Idempotency middleware (after CORS)
+app.add_middleware(IdempotencyMiddleware, ttl_hours=24)
 
 
 @app.api_route("/api/hello", methods=["GET", "HEAD"])
@@ -44,6 +54,10 @@ async def hello() -> dict[str, str]:
 
 # Register routers
 app.include_router(config_router.router)
+app.include_router(environments_router.router)
+app.include_router(repositories_router.router)
+app.include_router(terminal_router.router)
+app.include_router(tools_router.router)
 
 
 def get_static_dir() -> Path:
@@ -92,7 +106,7 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
     import threading
     import webbrowser
 
-    from leropilot.config import get_config, save_config
+    from .core.app_config import get_config, save_config
 
     config = get_config()
 

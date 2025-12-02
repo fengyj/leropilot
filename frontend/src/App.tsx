@@ -34,6 +34,10 @@ function App() {
             element={<EnvironmentInstallationPage />}
           />
           <Route
+            path="environments/:envId/install"
+            element={<EnvironmentInstallationPage />}
+          />
+          <Route
             path="environments/advanced-install"
             element={<AdvancedInstallationPage />}
           />

@@ -1,13 +1,57 @@
-import { Check, Download } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useWizardStore } from '../../../stores/environment-wizard-store';
 import { cn } from '../../../utils/cn';
-import { MOCK_REPOS } from './mock-data';
+import { RepositoryStatusButton } from '../../repository-status-button';
+import { useEffect, useState } from 'react';
+
+interface Repository {
+  id: string;
+  name: string;
+  url: string;
+  is_default: boolean;
+}
 
 export function StepRepoSelection() {
   const { t } = useTranslation();
   const { config, updateConfig } = useWizardStore();
+  const [repos, setRepos] = useState<Repository[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRepos = async () => {
+      try {
+        const response = await fetch('/api/repositories');
+        if (response.ok) {
+          const data = await response.json();
+          setRepos(data);
+          // Set default repo if none selected
+          if (!config.repositoryId && data.length > 0) {
+            const defaultRepo = data.find((r: Repository) => r.is_default) || data[0];
+            updateConfig({
+              repositoryId: defaultRepo.id,
+              repositoryName: defaultRepo.name,
+              repositoryUrl: defaultRepo.url,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch repositories:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRepos();
+  }, [config.repositoryId, updateConfig]);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="text-content-tertiary h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -21,12 +65,23 @@ export function StepRepoSelection() {
       </div>
 
       <div className="grid gap-4">
-        {MOCK_REPOS.map((repo) => (
+        {repos.map((repo) => (
           <div
             key={repo.id}
-            onClick={() => updateConfig({ repositoryId: repo.id })}
+            onClick={() =>
+              updateConfig({
+                repositoryId: repo.id,
+                repositoryName: repo.name,
+                repositoryUrl: repo.url,
+              })
+            }
             onKeyDown={(e) =>
-              e.key === 'Enter' && updateConfig({ repositoryId: repo.id })
+              e.key === 'Enter' &&
+              updateConfig({
+                repositoryId: repo.id,
+                repositoryName: repo.name,
+                repositoryUrl: repo.url,
+              })
             }
             role="button"
             tabIndex={0}
@@ -40,7 +95,7 @@ export function StepRepoSelection() {
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-content-primary font-medium">{repo.name}</span>
-                {repo.id === 'official' && (
+                {repo.is_default && (
                   <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 uppercase dark:bg-blue-900/30 dark:text-blue-300">
                     {t('wizard.repoSelection.official')}
                   </span>
@@ -48,24 +103,15 @@ export function StepRepoSelection() {
               </div>
               <p className="text-content-tertiary text-sm">{repo.url}</p>
 
-              <div className="flex items-center gap-4 pt-2 text-xs">
-                {repo.isDownloaded ? (
-                  <span className="text-success-content flex items-center gap-1">
-                    <Check className="h-3 w-3" />
-                    {t('wizard.repoSelection.downloaded')}
-                  </span>
-                ) : (
-                  <span className="text-content-tertiary flex items-center gap-1">
-                    <Download className="h-3 w-3" />
-                    {t('wizard.repoSelection.notDownloaded')}
-                  </span>
-                )}
-                {repo.lastUpdated && (
-                  <span className="text-content-tertiary">
-                    {t('wizard.repoSelection.updated')}:{' '}
-                    {new Date(repo.lastUpdated).toLocaleDateString()}
-                  </span>
-                )}
+              <div className="pt-2">
+                <RepositoryStatusButton
+                  repoId={repo.id}
+                  repoName={repo.name}
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0 text-xs hover:bg-transparent"
+                  showLabel={true}
+                />
               </div>
             </div>
 

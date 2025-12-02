@@ -19,6 +19,7 @@ interface CodeEditorProps {
 export function CodeEditor({
   value,
   onChange,
+  language,
   readOnly = false,
   height,
   minHeight,
@@ -50,10 +51,11 @@ export function CodeEditor({
     return () => observer.disconnect();
   }, []);
 
-  const extensions = [
-    javascript(), // Using javascript for shell syntax (close enough)
-    EditorView.lineWrapping,
-  ];
+  const extensions = [EditorView.lineWrapping];
+
+  if (language === 'javascript') {
+    extensions.push(javascript());
+  }
 
   if (readOnly) {
     extensions.push(EditorView.editable.of(false));

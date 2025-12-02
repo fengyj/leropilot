@@ -10,11 +10,15 @@ import {
   Sun,
   Moon,
   Monitor,
+  XCircle,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { cn } from '../utils/cn';
 import { useTheme } from '../contexts/theme-context';
+import { RepositoryStatusButton } from '../components/repository-status-button';
 
 interface ToolSource {
   type: 'bundled' | 'custom';
@@ -22,6 +26,7 @@ interface ToolSource {
 }
 
 interface RepositorySource {
+  id: string;
   name: string;
   url: string;
   is_default: boolean;
@@ -30,7 +35,7 @@ interface RepositorySource {
 interface PyPIMirror {
   name: string;
   url: string;
-  is_default: boolean;
+  enabled: boolean; // Only one mirror can be enabled at a time
 }
 
 interface AppConfig {
@@ -52,19 +57,12 @@ interface AppConfig {
   };
   tools: {
     git: ToolSource;
-    uv: ToolSource;
   };
   repositories: {
     lerobot_sources: RepositorySource[];
-    default_branch: string;
-    default_version: string;
   };
   pypi: {
     mirrors: PyPIMirror[];
-  };
-  huggingface: {
-    token: string;
-    cache_dir: string;
   };
   advanced: {
     installation_timeout: number;
@@ -90,8 +88,31 @@ export function SettingsPage() {
     text: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Force re-render when language changes
-  const [, setForceRender] = useState(0);
+  const [gitPathError, setGitPathError] = useState<string | null>(null);
+  const [gitPathValidation, setGitPathValidation] = useState<string | null>(null);
+  const [gitPathValidating, setGitPathValidating] = useState(false);
+  const [bundledGitStatus, setBundledGitStatus] = useState<{
+    installed: boolean;
+    version?: string;
+    path?: string;
+    message?: string;
+    error?: string;
+  } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'default';
+  } | null>(null);
+  const [bundledGitDownloadProgress, setBundledGitDownloadProgress] = useState<{
+    message: string;
+    progress: number;
+  } | null>(null);
+  const [configPath, setConfigPath] = useState<string | null>(null);
+
+  // Track last validated Git path to avoid unnecessary validations
+  const lastValidatedGitPath = useRef<string | null>(null);
 
   // Store cleanup state in ref to avoid dependency issues
   const cleanupStateRef = useRef<{
@@ -109,38 +130,59 @@ export function SettingsPage() {
     // Remove i18n ref update
   }, [setAppTheme]);
 
-  const loadConfig = useCallback(async () => {
-    try {
-      const response = await fetch('/api/config');
-      if (!response.ok)
-        throw new Error(`Failed to load config: ${response.statusText}`);
-      const data = await response.json();
-      setConfig(data);
-      setSavedConfig(data); // Store the saved config for comparison
-    } catch (error) {
-      console.error('Error loading config:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error loading config');
-      setMessage({ type: 'error', text: t('settings.messages.saveError') });
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  const loadConfig = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const response = await fetch('/api/app-config', { signal });
+        if (!response.ok)
+          throw new Error(`Failed to load config: ${response.statusText}`);
+        const data = await response.json();
+        setConfig(data);
+        setConfigPath(data.paths.data_dir); // Set config path from config data
+        setSavedConfig(data); // Store the saved config for comparison
+      } catch (error) {
+        // Ignore AbortError - this is expected when component unmounts
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        console.error('Error loading config:', error);
+        setError(
+          error instanceof Error ? error.message : 'Unknown error loading config',
+        );
+        setMessage({ type: 'error', text: t('settings.messages.saveError') });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
-  const checkEnvironments = useCallback(async () => {
+  const checkEnvironments = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch('/api/config/has-environments');
+      const response = await fetch('/api/environments/has-environments', { signal });
       if (!response.ok) throw new Error('Failed to check environments');
       const data = await response.json();
       setHasEnvironments(data.has_environments);
     } catch (error) {
+      // Ignore AbortError - this is expected when component unmounts
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to check environments:', error);
     }
   }, []);
 
   useEffect(() => {
-    loadConfig();
-    checkEnvironments();
+    const abortController = new AbortController();
+    loadConfig(abortController.signal);
+    checkEnvironments(abortController.signal);
 
+    return () => {
+      abortController.abort();
+    };
+  }, [loadConfig, checkEnvironments]);
+
+  useEffect(() => {
     // Cleanup: revert theme and language on unmount if not saved
     return () => {
       const { savedConfig, currentConfig } = cleanupStateRef.current;
@@ -153,7 +195,7 @@ export function SettingsPage() {
         }
       }
     };
-  }, [loadConfig, checkEnvironments, i18n]);
+  }, [i18n]); // Only run cleanup on unmount
 
   // Update cleanup state ref when config or savedConfig changes
   useEffect(() => {
@@ -172,34 +214,121 @@ export function SettingsPage() {
 
   // Live preview: Apply language changes immediately
   useEffect(() => {
-    const applyLanguageChange = async () => {
-      const targetLang = config?.ui.preferred_language;
-      if (!targetLang) return;
+    const targetLang = config?.ui.preferred_language;
+    if (!targetLang || i18n.language === targetLang) return;
 
-      const currentLang = i18n.language;
-      const resolvedLang = i18n.resolvedLanguage;
+    i18n
+      .changeLanguage(targetLang)
+      .catch((error) => console.error('Failed to change language:', error));
+  }, [config?.ui.preferred_language, i18n]);
 
-      // If we are already on the target language (or a variant of it), do nothing
-      if (
-        currentLang === targetLang ||
-        currentLang.startsWith(targetLang + '-') ||
-        resolvedLang === targetLang ||
-        resolvedLang?.startsWith(targetLang + '-')
-      ) {
-        return;
-      }
+  // Check bundled git status
+  useEffect(() => {
+    if (config?.tools.git.type !== 'bundled') {
+      setBundledGitStatus(null);
+      return;
+    }
 
+    const abortController = new AbortController();
+
+    fetch('/api/tools/git/bundled/status', {
+      signal: abortController.signal,
+    })
+      .then((res) => res.json())
+      .then((data) => setBundledGitStatus(data))
+      .catch((err) => {
+        // Ignore AbortError - this is expected when component unmounts
+        if (err.name === 'AbortError') {
+          return;
+        }
+        console.error('Failed to check bundled git:', err);
+      });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [config?.tools.git.type]);
+
+  // Validate custom Git path on page load
+  useEffect(() => {
+    const validateGitPath = async (path: string) => {
+      if (!path) return;
+
+      // Skip if already validated this path
+      if (path === lastValidatedGitPath.current) return;
+
+      lastValidatedGitPath.current = path;
+      setGitPathValidating(true);
       try {
-        await i18n.changeLanguage(targetLang);
-        // Force re-render to update the UI
-        setForceRender((prev) => prev + 1);
-      } catch (error) {
-        console.error('Failed to change language:', error);
+        const response = await fetch('/api/tools/git/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path }),
+        });
+        const data = await response.json();
+        if (!data.valid) {
+          setGitPathError(data.error);
+          setGitPathValidation(null);
+        } else {
+          setGitPathError(null);
+          setGitPathValidation(data.version);
+        }
+      } catch (err) {
+        console.error('Failed to validate git path:', err);
+      } finally {
+        setGitPathValidating(false);
       }
     };
 
-    applyLanguageChange();
-  }, [config?.ui.preferred_language, i18n.language, i18n.resolvedLanguage, i18n]);
+    if (config?.tools.git.type === 'custom' && config.tools.git.custom_path) {
+      validateGitPath(config.tools.git.custom_path);
+    }
+  }, [config?.tools.git.type, config?.tools.git.custom_path]);
+
+  const handleDownloadBundledGit = async () => {
+    setBundledGitDownloadProgress({ message: 'Starting download...', progress: 0 });
+    try {
+      const eventSource = new EventSource('/api/tools/git/bundled/download');
+
+      eventSource.onmessage = (event) => {
+        if (event.data === 'DONE') {
+          eventSource.close();
+          setBundledGitDownloadProgress(null);
+          // Refresh status
+          fetch('/api/tools/git/bundled/status')
+            .then((res) => res.json())
+            .then((data) => setBundledGitStatus(data));
+          // Reload config to reflect changes
+          loadConfig();
+          return;
+        }
+
+        if (event.data.startsWith('ERROR:')) {
+          eventSource.close();
+          setBundledGitDownloadProgress(null);
+          setMessage({ type: 'error', text: event.data.substring(7) });
+          return;
+        }
+
+        try {
+          const data = JSON.parse(event.data);
+          setBundledGitDownloadProgress(data);
+        } catch (e) {
+          console.error('Failed to parse progress:', e);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setBundledGitDownloadProgress(null);
+        setMessage({ type: 'error', text: 'Connection lost during download' });
+      };
+    } catch (err) {
+      console.error('Failed to start download:', err);
+      setBundledGitDownloadProgress(null);
+      setMessage({ type: 'error', text: 'Failed to start download' });
+    }
+  };
 
   // Helper to check if a specific section has unsaved changes
   const hasUnsavedChanges = (section: 'theme' | 'language') => {
@@ -220,7 +349,7 @@ export function SettingsPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/config', {
+      const response = await fetch('/api/app-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -258,10 +387,11 @@ export function SettingsPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/config/reset', { method: 'POST' });
+      const response = await fetch('/api/app-config/reset', { method: 'POST' });
       if (!response.ok) throw new Error('Failed to reset config');
       const data = await response.json();
       setConfig(data);
+      setConfigPath(data.paths.data_dir); // Set config path from reset config data
       setMessage({ type: 'success', text: t('settings.messages.saveSuccess') });
     } catch {
       setMessage({ type: 'error', text: t('settings.messages.saveError') });
@@ -282,7 +412,7 @@ export function SettingsPage() {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4">
         <div className="text-error-icon">Error loading settings: {error}</div>
-        <Button onClick={loadConfig}>Retry</Button>
+        <Button onClick={() => loadConfig()}>Retry</Button>
       </div>
     );
   }
@@ -431,51 +561,64 @@ export function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Data Directory */}
-          <div>
-            <label className="text-content-primary text-sm font-medium">
-              {t('settings.paths.dataDir')}
-            </label>
-            <p className="text-content-secondary mb-2 text-xs">
-              {t('settings.paths.dataDirDescription')}
-              {hasEnvironments && ` ${t('settings.paths.dataDirLocked')}`}
-            </p>
-            <input
-              type="text"
-              className={cn(
-                'w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none',
-                hasEnvironments
-                  ? 'border-border-default bg-surface-tertiary text-content-tertiary cursor-not-allowed opacity-60'
-                  : 'border-border-default bg-surface-secondary text-content-primary',
-              )}
-              value={config.paths.data_dir}
-              onChange={(e) =>
-                setConfig({
-                  ...config,
-                  paths: { ...config.paths, data_dir: e.target.value },
-                })
-              }
-              disabled={hasEnvironments}
-            />
-          </div>
-
-          {/* Read-only paths */}
-          {(['repos_dir', 'environments_dir', 'logs_dir', 'cache_dir'] as const).map(
-            (pathKey) => (
-              <div key={pathKey}>
-                <label className="text-content-primary text-sm font-medium">
-                  {t(`settings.paths.${toCamelCase(pathKey)}`)}
+          {/* Paths Section */}
+          {/* Paths Section */}
+          <section className="space-y-4">
+            <div className="space-y-4">
+              {/* Data Dir */}
+              <div className="space-y-2">
+                <label className="text-content-secondary text-sm font-medium">
+                  {t('settings.paths.dataDir')}
                 </label>
-                <input
-                  type="text"
-                  className="border-border-default bg-surface-tertiary text-content-tertiary mt-2 w-full cursor-not-allowed rounded-md border px-3 py-2"
-                  value={config.paths[pathKey] || ''}
-                  disabled
-                  readOnly
-                />
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    value={config.paths.data_dir}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        paths: { ...config.paths, data_dir: e.target.value },
+                      })
+                    }
+                    disabled={hasEnvironments}
+                  />
+                  <p className="text-content-tertiary text-xs">
+                    {t('settings.paths.dataDirDescription')}
+                  </p>
+                  {hasEnvironments && (
+                    <p className="text-warning-content text-xs">
+                      {t('settings.paths.dataDirLocked')}
+                    </p>
+                  )}
+                </div>
               </div>
-            ),
-          )}
+
+              {/* Read-only Paths */}
+              {(
+                ['repos_dir', 'environments_dir', 'logs_dir', 'cache_dir'] as const
+              ).map((pathKey) => (
+                <div key={pathKey} className="space-y-2">
+                  <label className="text-content-secondary text-sm font-medium">
+                    {t(`settings.paths.${toCamelCase(pathKey)}` as string)}
+                  </label>
+                  <input
+                    type="text"
+                    className="border-border-default bg-surface-tertiary text-content-secondary w-full cursor-not-allowed rounded-md border px-3 py-2 text-sm focus:outline-none"
+                    value={config.paths[pathKey] || ''}
+                    readOnly
+                  />
+                </div>
+              ))}
+
+              <div className="bg-surface-secondary rounded-md p-3">
+                <p className="text-content-secondary text-xs">
+                  {t('settings.paths.configLocation')}{' '}
+                  <span className="font-mono">{configPath}</span>
+                </p>
+              </div>
+            </div>
+          </section>
         </CardContent>
       </Card>
 
@@ -490,74 +633,235 @@ export function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {(['git', 'uv'] as const).map((tool) => (
-            <div key={tool} className="space-y-3">
-              <label className="text-content-primary text-sm font-medium">
-                {t(`settings.tools.${tool}`)}
-              </label>
+          <div className="space-y-3">
+            <label className="text-content-primary text-sm font-medium">
+              {t('settings.tools.source')}
+            </label>
 
-              {/* Source selection */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() =>
-                    setConfig({
-                      ...config,
-                      tools: {
-                        ...config.tools,
-                        [tool]: { type: 'bundled', custom_path: '' },
-                      },
-                    })
-                  }
-                  className={cn(
-                    'flex-1 rounded-md border p-3 transition-all',
-                    config.tools[tool].type === 'bundled'
-                      ? 'border-blue-600 bg-blue-600/10 text-blue-500'
-                      : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
-                  )}
-                >
-                  {t('settings.tools.bundled')}
-                </button>
-                <button
-                  onClick={() =>
-                    setConfig({
-                      ...config,
-                      tools: {
-                        ...config.tools,
-                        [tool]: { ...config.tools[tool], type: 'custom' },
-                      },
-                    })
-                  }
-                  className={cn(
-                    'flex-1 rounded-md border p-3 transition-all',
-                    config.tools[tool].type === 'custom'
-                      ? 'border-blue-600 bg-blue-600/10 text-blue-500'
-                      : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
-                  )}
-                >
-                  {t('settings.tools.custom')}
-                </button>
-              </div>
-
-              {/* Custom path input */}
-              {config.tools[tool].type === 'custom' && (
-                <input
-                  type="text"
-                  placeholder={t(`settings.tools.${tool}PathPlaceholder`)}
-                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  value={config.tools[tool].custom_path || ''}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      tools: {
-                        ...config.tools,
-                        [tool]: { ...config.tools[tool], custom_path: e.target.value },
-                      },
-                    })
-                  }
-                />
-              )}
+            {/* Source selection */}
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setConfig({
+                    ...config,
+                    tools: {
+                      ...config.tools,
+                      git: { ...config.tools.git, type: 'bundled' },
+                    },
+                  })
+                }
+                className={cn(
+                  'flex-1 rounded-md border p-3 transition-all',
+                  config.tools.git.type === 'bundled'
+                    ? 'border-blue-600 bg-blue-600/10 text-blue-500'
+                    : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
+                )}
+              >
+                {t('settings.tools.bundled')}
+              </button>
+              <button
+                onClick={() =>
+                  setConfig({
+                    ...config,
+                    tools: {
+                      ...config.tools,
+                      git: { ...config.tools.git, type: 'custom' },
+                    },
+                  })
+                }
+                className={cn(
+                  'flex-1 rounded-md border p-3 transition-all',
+                  config.tools.git.type === 'custom'
+                    ? 'border-blue-600 bg-blue-600/10 text-blue-500'
+                    : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
+                )}
+              >
+                {t('settings.tools.custom')}
+              </button>
             </div>
-          ))}
+
+            {/* Bundled Git Status */}
+            {config.tools.git.type === 'bundled' && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    readOnly
+                    className={cn(
+                      'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:outline-none',
+                      bundledGitStatus?.installed
+                        ? 'border-green-500'
+                        : 'border-amber-500',
+                    )}
+                    value={
+                      bundledGitStatus?.installed
+                        ? bundledGitStatus.path ||
+                          bundledGitStatus.version ||
+                          t('settings.tools.bundledInstalled')
+                        : t('settings.tools.notInstalled')
+                    }
+                  />
+                  {/* Status Icon */}
+                  <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                    {bundledGitStatus?.installed ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Download Button */}
+                {!bundledGitStatus?.installed && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadBundledGit}
+                    disabled={!!bundledGitDownloadProgress}
+                    className="mt-2 flex items-center gap-2 text-sm text-blue-500 hover:underline disabled:opacity-50"
+                  >
+                    {bundledGitDownloadProgress ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {bundledGitDownloadProgress.message}
+                      </>
+                    ) : (
+                      t('settings.tools.downloadAndInstall')
+                    )}
+                  </button>
+                )}
+
+                {/* Error Message */}
+                {bundledGitStatus?.error && (
+                  <p className="text-error-content mt-1 text-xs">
+                    {bundledGitStatus.error}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Custom path input */}
+            {config.tools.git.type === 'custom' && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={t('settings.tools.gitPathPlaceholder')}
+                    className={cn(
+                      'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:border-blue-500 focus:outline-none',
+                      gitPathError && 'border-error-border focus:border-error-border',
+                      !gitPathError &&
+                        config.tools.git.custom_path &&
+                        'border-green-500',
+                    )}
+                    value={config.tools.git.custom_path || ''}
+                    onChange={(e) => {
+                      setConfig({
+                        ...config,
+                        tools: {
+                          ...config.tools,
+                          git: { ...config.tools.git, custom_path: e.target.value },
+                        },
+                      });
+                      // Clear validation state when user types
+                      setGitPathError(null);
+                      setGitPathValidation(null);
+                    }}
+                    onBlur={async (e) => {
+                      const path = e.target.value;
+                      if (!path) return;
+
+                      // Skip if already validated this path
+                      if (path === lastValidatedGitPath.current) return;
+
+                      lastValidatedGitPath.current = path;
+                      setGitPathValidating(true);
+                      try {
+                        const response = await fetch('/api/tools/git/validate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ path }),
+                        });
+                        const data = await response.json();
+                        if (!data.valid) {
+                          setGitPathError(data.error);
+                          setGitPathValidation(null);
+                        } else {
+                          setGitPathError(null);
+                          setGitPathValidation(data.version);
+                        }
+                      } catch (err) {
+                        console.error('Failed to validate git path:', err);
+                      } finally {
+                        setGitPathValidating(false);
+                      }
+                    }}
+                  />
+                  {/* Validation icon */}
+                  <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                    {gitPathValidating ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    ) : gitPathError ? (
+                      <div className="group relative">
+                        <XCircle className="h-4 w-4 text-red-500" />
+                        <div className="absolute top-6 right-0 z-10 hidden w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg group-hover:block">
+                          {gitPathError}
+                        </div>
+                      </div>
+                    ) : gitPathValidation ? (
+                      <div className="group relative">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <div className="absolute top-6 right-0 z-10 hidden rounded-md bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+                          {gitPathValidation}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                {/* Auto-detect button */}
+                {!config.tools.git.custom_path && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setGitPathValidating(true);
+                      try {
+                        const response = await fetch('/api/tools/git/validate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ path: 'git' }),
+                        });
+                        const data = await response.json();
+                        if (data.valid) {
+                          // Get the actual path using 'which git'
+                          const whichResponse = await fetch('/api/tools/git/which');
+                          const whichData = await whichResponse.json();
+                          if (whichData.path) {
+                            setConfig({
+                              ...config,
+                              tools: {
+                                ...config.tools,
+                                git: {
+                                  ...config.tools.git,
+                                  custom_path: whichData.path,
+                                },
+                              },
+                            });
+                            setGitPathValidation(data.version);
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Failed to auto-detect git:', err);
+                      } finally {
+                        setGitPathValidating(false);
+                      }
+                    }}
+                    className="mt-2 text-sm text-blue-500 hover:underline"
+                  >
+                    {t('settings.tools.autoDetect')}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -576,94 +880,134 @@ export function SettingsPage() {
             {config.repositories.lerobot_sources.map((source, index) => (
               <div
                 key={index}
-                className="border-border-default bg-surface-tertiary flex items-start gap-2 rounded-md border p-3"
+                className="group border-border-default bg-surface-tertiary rounded-md border p-3"
               >
-                <div className="flex-1 space-y-2">
-                  <input
-                    type="text"
-                    placeholder={t('settings.repositories.name')}
-                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-                    value={source.name}
-                    onChange={(e) => {
-                      const newSources = [...config.repositories.lerobot_sources];
-                      newSources[index] = { ...source, name: e.target.value };
-                      setConfig({
-                        ...config,
-                        repositories: {
-                          ...config.repositories,
-                          lerobot_sources: newSources,
-                        },
-                      });
-                    }}
-                    disabled={source.is_default}
-                  />
-                  <input
-                    type="text"
-                    placeholder={t('settings.repositories.url')}
-                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-                    value={source.url}
-                    onChange={(e) => {
-                      const newSources = [...config.repositories.lerobot_sources];
-                      newSources[index] = { ...source, url: e.target.value };
-                      setConfig({
-                        ...config,
-                        repositories: {
-                          ...config.repositories,
-                          lerobot_sources: newSources,
-                        },
-                      });
-                    }}
-                    disabled={source.is_default}
-                  />
-                  {source.is_default && (
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 ring-inset dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30">
-                      {t('settings.repositories.default')}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {!source.is_default && (
-                    <div className="flex gap-2">
+                {/* Name input */}
+                <input
+                  type="text"
+                  placeholder={t('settings.repositories.name')}
+                  className="border-border-default bg-surface-secondary text-content-primary mb-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                  value={source.name}
+                  onChange={(e) => {
+                    const newSources = [...config.repositories.lerobot_sources];
+                    newSources[index] = { ...source, name: e.target.value };
+                    setConfig({
+                      ...config,
+                      repositories: {
+                        ...config.repositories,
+                        lerobot_sources: newSources,
+                      },
+                    });
+                  }}
+                  disabled={source.is_default}
+                />
+
+                {/* URL input */}
+                <input
+                  type="text"
+                  placeholder={t('settings.repositories.url')}
+                  className="border-border-default bg-surface-secondary text-content-primary mb-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                  value={source.url}
+                  onChange={(e) => {
+                    const newSources = [...config.repositories.lerobot_sources];
+                    newSources[index] = { ...source, url: e.target.value };
+                    setConfig({
+                      ...config,
+                      repositories: {
+                        ...config.repositories,
+                        lerobot_sources: newSources,
+                      },
+                    });
+                  }}
+                  disabled={source.is_default}
+                />
+
+                {/* All action buttons, badges, and status in one row below URL */}
+                <div className="flex items-center justify-between gap-2">
+                  {/* Left side: Default badge and action buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* Default badge - only show if is_default */}
+                    {source.is_default && (
+                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 ring-inset dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30">
+                        {t('settings.repositories.default')}
+                      </span>
+                    )}
+
+                    {/* Set as default button - only show if not default and repo is saved */}
+                    {!source.is_default &&
+                      savedConfig?.repositories.lerobot_sources.some(
+                        (s) => s.id === source.id,
+                      ) &&
+                      source.url && (
+                        <button
+                          onClick={() => {
+                            const newSources = config.repositories.lerobot_sources.map(
+                              (s, i) => ({
+                                ...s,
+                                is_default: i === index,
+                              }),
+                            );
+                            setConfig({
+                              ...config,
+                              repositories: {
+                                ...config.repositories,
+                                lerobot_sources: newSources,
+                              },
+                            });
+                          }}
+                          className="border-border-default bg-surface-tertiary text-content-secondary hover:bg-surface-secondary hover:text-content-primary h-9 rounded-md border p-2 text-xs"
+                          title={t('settings.repositories.setAsDefault')}
+                        >
+                          {t('settings.repositories.setAsDefault')}
+                        </button>
+                      )}
+
+                    {/* Delete button - only show if not default */}
+                    {!source.is_default && (
                       <button
                         onClick={() => {
-                          const newSources = config.repositories.lerobot_sources.map(
-                            (s, i) => ({
-                              ...s,
-                              is_default: i === index,
+                          setConfirmDialog({
+                            isOpen: true,
+                            title: t('common.delete'),
+                            message: t('settings.repositories.deleteConfirm', {
+                              name: source.name,
                             }),
-                          );
-                          setConfig({
-                            ...config,
-                            repositories: {
-                              ...config.repositories,
-                              lerobot_sources: newSources,
+                            onConfirm: () => {
+                              const newSources =
+                                config.repositories.lerobot_sources.filter(
+                                  (_, i) => i !== index,
+                                );
+                              setConfig({
+                                ...config,
+                                repositories: {
+                                  ...config.repositories,
+                                  lerobot_sources: newSources,
+                                },
+                              });
+                              setConfirmDialog(null);
                             },
+                            variant: 'danger',
                           });
                         }}
-                        className="border-border-default bg-surface-tertiary text-content-secondary hover:bg-surface-secondary hover:text-content-primary rounded-md border p-2 text-xs"
-                        title={t('settings.repositories.setAsDefault')}
-                      >
-                        {t('settings.repositories.setAsDefault')}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const newSources = config.repositories.lerobot_sources.filter(
-                            (_, i) => i !== index,
-                          );
-                          setConfig({
-                            ...config,
-                            repositories: {
-                              ...config.repositories,
-                              lerobot_sources: newSources,
-                            },
-                          });
-                        }}
-                        className="border-border-default bg-surface-tertiary text-error-icon hover:border-error-border hover:bg-error-surface rounded-md border p-2"
+                        className="border-border-default bg-surface-tertiary text-error-icon hover:border-error-border hover:bg-error-surface h-9 rounded-md border p-2 opacity-0 transition-opacity group-hover:opacity-100"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Right side: Download/Update button */}
+                  {savedConfig?.repositories.lerobot_sources.some(
+                    (s) => s.id === source.id,
+                  ) &&
+                    source.url && (
+                      <RepositoryStatusButton
+                        repoId={source.id}
+                        repoName={source.name}
+                        variant="link"
+                        size="sm"
+                      />
+                    )}
                 </div>
               </div>
             ))}
@@ -671,9 +1015,11 @@ export function SettingsPage() {
           <Button
             variant="secondary"
             onClick={() => {
+              // Generate UUID for new repository
+              const newId = crypto.randomUUID();
               const newSources = [
                 ...config.repositories.lerobot_sources,
-                { name: 'Custom', url: '', is_default: false },
+                { id: newId, name: 'Custom', url: '', is_default: false },
               ];
               setConfig({
                 ...config,
@@ -698,68 +1044,100 @@ export function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Current status */}
+          <div className="rounded-md bg-blue-50 p-3 text-sm dark:bg-blue-900/20">
+            <div className="font-medium text-blue-700 dark:text-blue-300">
+              {config.pypi.mirrors.some((m) => m.enabled)
+                ? `${t('settings.pypi.currentMirror')}: ${config.pypi.mirrors.find((m) => m.enabled)?.name}`
+                : t('settings.pypi.usingOfficial')}
+            </div>
+          </div>
+
+          {/* Mirror List */}
           <div className="space-y-2">
             {config.pypi.mirrors.map((mirror, index) => (
               <div
                 key={index}
-                className="border-border-default bg-surface-tertiary flex items-start gap-2 rounded-md border p-3"
+                className={cn(
+                  'group border-border-default rounded-md border p-3 transition-all',
+                  mirror.enabled
+                    ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+                    : 'bg-surface-tertiary',
+                )}
               >
-                <div className="flex-1 space-y-2">
-                  <input
-                    type="text"
-                    placeholder={t('settings.pypi.name')}
-                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
-                    value={mirror.name}
-                    onChange={(e) => {
-                      const newMirrors = [...config.pypi.mirrors];
-                      newMirrors[index] = { ...mirror, name: e.target.value };
-                      setConfig({
-                        ...config,
-                        pypi: { ...config.pypi, mirrors: newMirrors },
-                      });
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder={t('settings.pypi.url')}
-                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
-                    value={mirror.url}
-                    onChange={(e) => {
-                      const newMirrors = [...config.pypi.mirrors];
-                      newMirrors[index] = { ...mirror, url: e.target.value };
-                      setConfig({
-                        ...config,
-                        pypi: { ...config.pypi, mirrors: newMirrors },
-                      });
-                    }}
-                  />
-                  {mirror.is_default && (
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-700/10 ring-inset dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30">
-                      {t('settings.pypi.default')}
-                    </span>
+                <input
+                  type="text"
+                  placeholder={t('settings.pypi.name')}
+                  className="border-border-default bg-surface-secondary text-content-primary mb-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  value={mirror.name}
+                  onChange={(e) => {
+                    const newMirrors = [...config.pypi.mirrors];
+                    newMirrors[index] = { ...mirror, name: e.target.value };
+                    setConfig({
+                      ...config,
+                      pypi: { ...config.pypi, mirrors: newMirrors },
+                    });
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder={t('settings.pypi.url')}
+                  className="border-border-default bg-surface-secondary text-content-primary mb-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  value={mirror.url}
+                  onChange={(e) => {
+                    const newMirrors = [...config.pypi.mirrors];
+                    newMirrors[index] = { ...mirror, url: e.target.value };
+                    setConfig({
+                      ...config,
+                      pypi: { ...config.pypi, mirrors: newMirrors },
+                    });
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  {/* Enable/Disable button */}
+                  {mirror.enabled ? (
+                    <button
+                      onClick={() => {
+                        // Disable this mirror (return to official PyPI)
+                        const newMirrors = [...config.pypi.mirrors];
+                        newMirrors[index] = { ...mirror, enabled: false };
+                        setConfig({
+                          ...config,
+                          pypi: { ...config.pypi, mirrors: newMirrors },
+                        });
+                      }}
+                      className="rounded-md border border-blue-600 bg-blue-600 px-3 py-2 text-xs font-medium whitespace-nowrap text-white hover:bg-blue-700"
+                    >
+                      {t('settings.pypi.disable')}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        // Enable this mirror, disable all others
+                        const newMirrors = config.pypi.mirrors.map((m, i) => ({
+                          ...m,
+                          enabled: i === index,
+                        }));
+                        setConfig({
+                          ...config,
+                          pypi: { ...config.pypi, mirrors: newMirrors },
+                        });
+                      }}
+                      className="border-border-default bg-surface-tertiary text-content-secondary hover:bg-surface-secondary hover:text-content-primary rounded-md border px-3 py-2 text-xs font-medium whitespace-nowrap"
+                    >
+                      {t('settings.pypi.enable')}
+                    </button>
                   )}
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {!mirror.is_default && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const newMirrors = config.pypi.mirrors.map((m, i) => ({
-                            ...m,
-                            is_default: i === index,
-                          }));
-                          setConfig({
-                            ...config,
-                            pypi: { ...config.pypi, mirrors: newMirrors },
-                          });
-                        }}
-                        className="border-border-default bg-surface-tertiary text-content-secondary hover:bg-surface-secondary hover:text-content-primary rounded-md border p-2 text-xs"
-                        title={t('settings.pypi.setAsDefault')}
-                      >
-                        {t('settings.pypi.setAsDefault')}
-                      </button>
-                      <button
-                        onClick={() => {
+                  {/* Delete button */}
+                  <button
+                    onClick={() => {
+                      setConfirmDialog({
+                        isOpen: true,
+                        title: t('common.delete'),
+                        message: t('settings.pypi.deleteConfirm', {
+                          name: mirror.name,
+                        }),
+                        onConfirm: () => {
                           const newMirrors = config.pypi.mirrors.filter(
                             (_, i) => i !== index,
                           );
@@ -767,13 +1145,16 @@ export function SettingsPage() {
                             ...config,
                             pypi: { ...config.pypi, mirrors: newMirrors },
                           });
-                        }}
-                        className="border-border-default bg-surface-tertiary text-error-icon hover:border-error-border hover:bg-error-surface rounded-md border p-2"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+                          setConfirmDialog(null);
+                        },
+                        variant: 'danger',
+                      });
+                    }}
+                    className="border-border-default bg-surface-tertiary text-error-icon hover:border-error-border hover:bg-error-surface rounded-md border p-2 opacity-0 transition-opacity group-hover:opacity-100"
+                    title={t('settings.pypi.delete')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -783,7 +1164,7 @@ export function SettingsPage() {
             onClick={() => {
               const newMirrors = [
                 ...config.pypi.mirrors,
-                { name: 'Custom Mirror', url: '', is_default: false },
+                { name: 'Custom Mirror', url: '', enabled: false },
               ];
               setConfig({ ...config, pypi: { ...config.pypi, mirrors: newMirrors } });
             }}
@@ -867,6 +1248,16 @@ export function SettingsPage() {
           {saving ? 'Saving...' : t('settings.buttons.save')}
         </Button>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog?.isOpen || false}
+        title={confirmDialog?.title || ''}
+        message={confirmDialog?.message || ''}
+        onConfirm={confirmDialog?.onConfirm || (() => {})}
+        onCancel={() => setConfirmDialog(null)}
+        variant={confirmDialog?.variant}
+      />
     </div>
   );
 }

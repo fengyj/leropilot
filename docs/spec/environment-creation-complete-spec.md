@@ -53,15 +53,13 @@ This document provides a comprehensive specification for the LeRobot environment
 
 **Path**: `/environments/new` → Step 6 → "Customize >" → `/environments/advanced` → `/environments/install`
 
-1. **Advanced Installation Page**
+1. **Advanced Installation Page (Editor)**
 
    - Shows pre-generated installation steps based on wizard config
    - Each step has:
      - Editable command (shell script with syntax highlighting)
-     - Run button (for testing individual steps)
-     - Expandable output panel
    - User can modify commands before installation
-   - "Create" button saves custom steps and navigates to installation
+   - "Create" button saves custom steps and navigates to installation runner
 
 2. **Installation with Custom Steps**
    - Uses custom commands from Advanced mode
@@ -135,6 +133,7 @@ interface LogViewerProps {
 ```typescript
 interface WizardConfig {
   repositoryId: string;
+  repositoryName: string;
   lerobotVersion: string;
   pythonVersion: string;
   cudaVersion: string;
@@ -146,7 +145,8 @@ interface WizardConfig {
 interface AdvancedStep {
   id: string;
   name: string;
-  command: string;
+  comment: string | null;
+  commands: string[];
   status: "pending" | "running" | "success" | "error";
   logs: string[];
 }
@@ -360,9 +360,19 @@ Response: InstallStep[]
 
 #### 6. Create Environment
 
+**Standard Mode**:
+
 ```
 POST /api/environments/create
-Body: { config: WizardConfig, customSteps?: AdvancedStep[] }
+Body: WizardConfig
+Response: { installationId: string }
+```
+
+**Advanced Mode**:
+
+```
+POST /api/environments/create-advanced
+Body: { env_config: WizardConfig, custom_steps: AdvancedStep[] }
 Response: { installationId: string }
 ```
 
@@ -467,7 +477,8 @@ class Extra:
 class InstallStep:
     id: str
     name: str
-    command: str
+    comment: str | None
+    commands: List[str]
     status: str  # pending, running, success, error
     logs: List[str]
     start_time: Optional[datetime]
