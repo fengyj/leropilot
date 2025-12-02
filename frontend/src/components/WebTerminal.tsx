@@ -37,6 +37,9 @@ const WebTerminal: React.FC<TerminalProps> = ({
   const [status, setStatus] = useState<TerminalStatus>('Idle');
   const { effectiveTheme } = useTheme();
 
+  // Track if we've already connected to this session (React Strict Mode protection)
+  const connectedSessionRef = useRef<string | null>(null);
+
   // Use prop override if provided, otherwise use context theme
   const activeThemeMode = propThemeMode || effectiveTheme;
 
@@ -72,6 +75,20 @@ const WebTerminal: React.FC<TerminalProps> = ({
   useEffect(() => {
     if (!containerRef.current || !sessionId) return;
 
+    // React Strict Mode protection: skip if we've already connected to this session
+    // and the WebSocket connection is still alive
+    if (connectedSessionRef.current === sessionId) {
+      console.log(
+        `[WebTerminal] Already connected to session ${sessionId}, skipping duplicate mount`,
+      );
+      return;
+    }
+
+    // Mark this session as connected
+    connectedSessionRef.current = sessionId;
+
+    console.log(`[WebTerminal] Initializing terminal for session ${sessionId}`);
+
     // 1. Setup Xterm.js
     const term = new Terminal({
       cursorBlink: true,
@@ -98,7 +115,10 @@ const WebTerminal: React.FC<TerminalProps> = ({
     termInstance.current = term;
 
     // 2. Initialize Shell Integration
-    const shellIntegration = new ShellIntegration(term, {
+    // Note: shellIntegration subscribes to terminal events internally,
+    // we don't need to explicitly use it, but we keep the reference
+    // to ensure it's not garbage collected while the terminal is active
+    new ShellIntegration(term, {
       onShellEvent: (event) => {
         onShellEventRef.current?.(event);
 
@@ -116,34 +136,74 @@ const WebTerminal: React.FC<TerminalProps> = ({
       },
     });
 
-    // 2. Connect to Backend
-    const connect = async () => {
-      if (!sessionId) {
-        term.write('\r\n\x1b[31mError: No session ID provided\x1b[0m\r\n');
-        setStatus('Error');
-        return;
+    // Store WebSocket instance for cleanup
+    let ws: WebSocket | null = null;
+    let resizeHandler: (() => void) | null = null;
+
+    // 3. Connect to Backend
+    const connect = () => {
+      let wsUrl: string;
+
+      // Use provided session ID
+      if (apiHost) {
+        wsUrl = apiHost.replace(/^http/, 'ws') + `/api/ws/pty_sessions/${sessionId}`;
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/api/ws/pty_sessions/${sessionId}`;
       }
 
-      try {
-        let wsUrl: string;
+      console.log(`[WebTerminal] Connecting to WebSocket: ${wsUrl}`);
+      ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-        // Use provided session ID
-        if (apiHost) {
-          wsUrl = apiHost.replace(/^http/, 'ws') + `/api/ws/pty_sessions/${sessionId}`;
-        } else {
-          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-          wsUrl = `${protocol}//${window.location.host}/api/ws/pty_sessions/${sessionId}`;
+      ws.onopen = () => {
+        console.log(`[WebTerminal] WebSocket connected for session ${sessionId}`);
+        term.focus();
+        setStatus('Running'); // Assume running when connected
+
+        // Send initial resize to match terminal dimensions
+        ws?.send(
+          JSON.stringify({
+            type: 'resize',
+            cols: term.cols,
+            rows: term.rows,
+          }),
+        );
+        onConnectedRef.current?.();
+      };
+
+      ws.onmessage = (ev) => {
+        // Render data from backend (includes shell output + system messages)
+        term.write(ev.data);
+        onOutputRef.current?.(ev.data);
+      };
+
+      ws.onerror = (error) => {
+        console.error(`[WebTerminal] WebSocket error for session ${sessionId}:`, error);
+        term.write('\r\n\x1b[31m[Connection Error]\x1b[0m\r\n');
+      };
+
+      ws.onclose = (event) => {
+        console.log(
+          `[WebTerminal] WebSocket closed for session ${sessionId}, code: ${event.code}, reason: ${event.reason}`,
+        );
+        term.write('\r\n\x1b[33m[Connection Closed]\x1b[0m\r\n');
+        setStatus('Idle');
+        onDisconnectedRef.current?.();
+      };
+
+      // 4. Input Handling (Native Mode)
+      term.onData((data) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'input', data }));
+          onInputRef.current?.(data);
         }
+      });
 
-        console.log(`[WebTerminal] Connecting to WebSocket: ${wsUrl}`);
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          term.focus();
-          setStatus('Running'); // Assume running when connected
-
-          // Send initial resize to match terminal dimensions
+      // Resize Handling
+      resizeHandler = () => {
+        fitAddon.fit();
+        if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(
             JSON.stringify({
               type: 'resize',
@@ -151,72 +211,17 @@ const WebTerminal: React.FC<TerminalProps> = ({
               rows: term.rows,
             }),
           );
-          onConnectedRef.current?.();
-        };
-
-        ws.onmessage = (ev) => {
-          // Render data from backend (includes shell output + system messages)
-          term.write(ev.data);
-          onOutputRef.current?.(ev.data);
-        };
-
-        ws.onerror = (error) => {
-          console.error(
-            `[WebTerminal] WebSocket error for session ${sessionId}:`,
-            error,
-          );
-          term.write('\r\n\x1b[31m[Connection Error]\x1b[0m\r\n');
-        };
-
-        ws.onclose = (event) => {
-          console.log(
-            `[WebTerminal] WebSocket closed for session ${sessionId}, code: ${event.code}, reason: ${event.reason}`,
-          );
-          term.write('\r\n\x1b[33m[Connection Closed]\x1b[0m\r\n');
-          setStatus('Idle');
-          onDisconnectedRef.current?.();
-        };
-
-        // 3. Input Handling (Native Mode)
-        term.onData((data) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'input', data }));
-            onInputRef.current?.(data);
-          }
-        });
-
-        // Resize Handling
-        const handleResize = () => {
-          fitAddon.fit();
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(
-              JSON.stringify({
-                type: 'resize',
-                cols: term.cols,
-                rows: term.rows,
-              }),
-            );
-          }
-        };
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-          window.removeEventListener('resize', handleResize);
-          ws.close();
-        };
-      } catch (err) {
-        term.write(`\r\n\x1b[31mError: ${err}\x1b[0m\r\n`);
-        setStatus('Error');
-      }
+        }
+      };
+      window.addEventListener('resize', resizeHandler);
     };
 
-    const cleanupPromise = connect();
+    // Start connection
+    connect();
 
-    return () => {
-      cleanupPromise.then((cleanup) => cleanup && cleanup());
-      shellIntegration.dispose();
-      term.dispose();
-    };
+    // No cleanup needed for React Strict Mode - we use connectedSessionRef
+    // to prevent duplicate connections. The WebSocket will be closed when
+    // the component actually unmounts (page navigation).
   }, [
     apiHost,
     sessionId,

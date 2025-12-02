@@ -14,6 +14,10 @@ interface WizardConfig {
   extras: string[];
   envName: string;
   friendlyName: string;
+  /** Tracks whether user has manually modified the name (to avoid overwriting user changes when regenerating defaults) */
+  isNameUserModified: boolean;
+  /** Stores the version key used when the name was last auto-generated */
+  lastGeneratedVersionKey: string;
 }
 
 export interface AdvancedStep {
@@ -58,6 +62,8 @@ const INITIAL_CONFIG: WizardConfig = {
   extras: [],
   envName: '',
   friendlyName: '',
+  isNameUserModified: false,
+  lastGeneratedVersionKey: '',
 };
 
 export const useWizardStore = create<WizardState>((set) => ({

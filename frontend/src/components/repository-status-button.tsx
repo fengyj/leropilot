@@ -59,13 +59,14 @@ export function RepositoryStatusButton({
           setHasUpdates(data.has_updates || false);
           onStatusChange?.(data);
         }
+        setIsChecking(false);
       } catch (err) {
         // Ignore AbortError - this is expected when component unmounts
         if (err instanceof Error && err.name === 'AbortError') {
+          // Don't set isChecking to false here - the component may be remounting (React StrictMode)
           return;
         }
         console.error('Failed to check repository status:', err);
-      } finally {
         setIsChecking(false);
       }
     },
@@ -74,12 +75,37 @@ export function RepositoryStatusButton({
 
   useEffect(() => {
     const abortController = new AbortController();
-    checkStatus(abortController.signal);
+
+    // Create a wrapper to handle initial checking
+    const initializeStatus = async () => {
+      if (!repoId) return;
+      try {
+        const normalizedId = repoId.toLowerCase().replace(/ /g, '_');
+        const response = await fetch(`/api/repositories/${normalizedId}/status`, {
+          signal: abortController.signal,
+        });
+        if (response.ok) {
+          const data: RepositoryStatus = await response.json();
+          setIsDownloaded(data.is_downloaded);
+          setLastUpdatedTime(data.last_updated);
+          setHasUpdates(data.has_updates || false);
+          onStatusChange?.(data);
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.error('Failed to check repository status:', err);
+        }
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    initializeStatus();
 
     return () => {
       abortController.abort();
     };
-  }, [checkStatus]);
+  }, [repoId, onStatusChange]);
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering parent click events (e.g. in selection cards)

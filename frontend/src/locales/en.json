@@ -29,6 +29,9 @@
     "official": "Official",
     "custom": "Custom",
     "errorMessage": "Missing dependencies. Please run repair.",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete Environment",
+    "deleteConfirmMessage": "Are you sure you want to delete this environment? This action cannot be undone.",
     "status": {
       "ready": "Ready",
       "error": "Error",
@@ -156,7 +159,17 @@
         "torch": "Install PyTorch",
         "lerobot": "Install LeRobot",
         "extras": "Install Extras"
-      }
+      },
+      "pageTitle": "Environment Installation",
+      "pageSubtitle": "Installing environment: {{envName}}",
+      "terminal": "Terminal",
+      "runningStep": "Running: {{stepName}}",
+      "preparingSteps": "Preparing installation steps...",
+      "noEnvIdError": "No environment ID provided",
+      "errorTitle": "Installation Error",
+      "done": "Done",
+      "cancel": "Cancel",
+      "running": "Running"
     }
   },
   "language": {

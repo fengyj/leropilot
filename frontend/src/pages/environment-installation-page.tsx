@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import WebTerminal from '../components/WebTerminal';
 import { type ShellEvent, SHELL_EVENT_TYPES } from '../components/ShellIntegration';
 import { Button } from '../components/ui/button';
@@ -33,8 +34,10 @@ interface NextStep {
 export function EnvironmentInstallationPage() {
   const { envId } = useParams<{ envId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [ptySessionId, setPtySessionId] = useState<string>('');
+  const [envName, setEnvName] = useState<string>('');
   const [steps, setSteps] = useState<InstallStep[]>([]);
   const [installState, setInstallState] = useState<InstallState>({
     isExecuting: false,
@@ -48,15 +51,38 @@ export function EnvironmentInstallationPage() {
   const [waitingForPrompt, setWaitingForPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // React Strict Mode protection: prevent double initialization
+  const hasStartedRef = useRef(false);
+
+  // Refs to access latest values in callbacks
+  const waitingForPromptRef = useRef(waitingForPrompt);
+  const firstCommandRef = useRef(firstCommand);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    waitingForPromptRef.current = waitingForPrompt;
+  }, [waitingForPrompt]);
+
+  useEffect(() => {
+    firstCommandRef.current = firstCommand;
+  }, [firstCommand]);
+
   // 1. Start installation
   useEffect(() => {
     if (!envId) {
-      setError('No environment ID provided');
+      setError(t('wizard.installation.noEnvIdError'));
       setInstallState((prev) => ({ ...prev, status: 'failed' }));
       return;
     }
 
-    const abortController = new AbortController();
+    // React Strict Mode protection: skip if already started
+    if (hasStartedRef.current) {
+      console.log(
+        `[Installation] Already started for env: ${envId}, skipping duplicate`,
+      );
+      return;
+    }
+    hasStartedRef.current = true;
 
     const startInstallation = async () => {
       try {
@@ -64,16 +90,14 @@ export function EnvironmentInstallationPage() {
         const response = await fetch(`/api/environments/${envId}/installation/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: abortController.signal,
         });
 
         if (!response.ok) {
           throw new Error('Failed to start installation');
         }
 
-        const { session_id, plan } = await response.json();
+        const { session_id, plan, env_name } = await response.json();
         console.log(`[Installation] Received session_id: ${session_id}`);
-        setPtySessionId(session_id);
 
         // Extract steps from plan
         const steps: InstallStep[] = plan.steps.map(
@@ -83,11 +107,10 @@ export function EnvironmentInstallationPage() {
             status: index === 0 ? 'running' : 'pending',
           }),
         );
-        setSteps(steps);
 
         // Get first command from first step
         const firstStep = plan.steps[0];
-        const firstCommand = {
+        const firstCommandData = {
           step_id: firstStep.id,
           step_index: 0,
           total_steps: plan.steps.length,
@@ -95,9 +118,20 @@ export function EnvironmentInstallationPage() {
           command: firstStep.commands[0] || '',
           name: firstStep.name,
         };
-        setFirstCommand(firstCommand);
-        setWaitingForPrompt(true); // Wait for initial prompt to execute first command
 
+        // IMPORTANT: Update refs BEFORE setting ptySessionId
+        // because setPtySessionId triggers re-render and WebTerminal mount
+        firstCommandRef.current = firstCommandData;
+        waitingForPromptRef.current = true;
+        console.log(
+          `[Installation] Refs set: waitingForPrompt=true, firstCommand=${firstCommandData.step_id}`,
+        );
+
+        // Now set all states - React may batch these
+        setEnvName(env_name || envId || '');
+        setSteps(steps);
+        setFirstCommand(firstCommandData);
+        setWaitingForPrompt(true);
         setInstallState({
           isExecuting: false,
           currentStepId: firstStep.id,
@@ -106,11 +140,10 @@ export function EnvironmentInstallationPage() {
           totalSteps: plan.steps.length,
           status: 'running',
         });
+
+        // Set ptySessionId LAST - this triggers WebTerminal to mount
+        setPtySessionId(session_id);
       } catch (err) {
-        // Ignore AbortError - this is expected when component unmounts
-        if (err instanceof Error && err.name === 'AbortError') {
-          return;
-        }
         setError(err instanceof Error ? err.message : 'Unknown error');
         setInstallState((prev) => ({ ...prev, status: 'failed' }));
       }
@@ -118,11 +151,8 @@ export function EnvironmentInstallationPage() {
 
     startInstallation();
 
-    return () => {
-      abortController.abort();
-      // Don't reset ref here - let the check in startInstallation handle it
-    };
-  }, [envId]);
+    // No cleanup needed - we use hasStartedRef to prevent duplicate calls
+  }, [envId, t]);
 
   // 2. Execute command
   const executeCommand = async (stepId: string, commandIndex: number) => {
@@ -131,7 +161,10 @@ export function EnvironmentInstallationPage() {
     const executionId = `${envId}:${crypto.randomUUID()}`; // Include envId prefix for cache cleanup
 
     try {
-      await fetch(`/api/environments/${envId}/installation/execute`, {
+      console.log(
+        `[Installation] Executing command: step=${stepId}, commandIndex=${commandIndex}, executionId=${executionId}`,
+      );
+      const response = await fetch(`/api/environments/${envId}/installation/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,8 +174,18 @@ export function EnvironmentInstallationPage() {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(
+          `Execute command failed: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const result = await response.json();
+      console.log(`[Installation] Execute command response:`, result);
+
       setInstallState((prev) => ({ ...prev, isExecuting: true }));
     } catch (err) {
+      console.error('[Installation] Execute command error:', err);
       setError(err instanceof Error ? err.message : 'Failed to execute command');
     }
   };
@@ -173,6 +216,9 @@ export function EnvironmentInstallationPage() {
         !!firstCommand,
       );
       if (waitingForPrompt) {
+        // Update refs immediately
+        waitingForPromptRef.current = false;
+        firstCommandRef.current = null;
         setWaitingForPrompt(false);
         if (firstCommand) {
           console.log('[Shell Event] Executing first command:', firstCommand.step_id);
@@ -311,9 +357,11 @@ export function EnvironmentInstallationPage() {
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div className="space-y-2">
         <h1 className="text-content-primary text-2xl font-bold">
-          Environment Installation
+          {t('wizard.installation.pageTitle')}
         </h1>
-        <p className="text-content-secondary">Installing environment: {envId}</p>
+        <p className="text-content-secondary">
+          {t('wizard.installation.pageSubtitle', { envName: envName || envId })}
+        </p>
       </div>
 
       {/* Step Progress Indicator */}
@@ -323,7 +371,7 @@ export function EnvironmentInstallationPage() {
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
               <span className="text-content-secondary">
-                Preparing installation steps...
+                {t('wizard.installation.preparingSteps')}
               </span>
             </div>
           </div>
@@ -401,18 +449,32 @@ export function EnvironmentInstallationPage() {
               <div className="h-3 w-3 rounded-full bg-green-500" />
             </div>
             <span className="text-content-primary ml-2 text-sm font-medium">
-              Terminal
+              {t('wizard.installation.terminal')}
             </span>
           </div>
-          {runningStep && (
-            <span className="text-content-secondary text-xs">
-              Running: {runningStep.name}
-            </span>
-          )}
+          <div className="flex items-center gap-4">
+            {runningStep && (
+              <span className="text-content-secondary text-xs">
+                {t('wizard.installation.runningStep', { stepName: runningStep.name })}
+              </span>
+            )}
+            {installState.status === 'running' && (
+              <span className="flex items-center gap-1.5 text-xs text-green-600">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                {t('wizard.installation.running')}
+              </span>
+            )}
+          </div>
         </div>
         <div className="h-[500px] w-full bg-[#1e1e1e]">
           {ptySessionId ? (
-            <WebTerminal sessionId={ptySessionId} onShellEvent={handleShellEvent} />
+            <WebTerminal
+              sessionId={ptySessionId}
+              onShellEvent={handleShellEvent}
+              onConnected={() => {
+                console.log('[Installation] WebTerminal connected');
+              }}
+            />
           ) : (
             <div className="flex h-full items-center justify-center">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
@@ -428,7 +490,7 @@ export function EnvironmentInstallationPage() {
             <XCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
             <div className="flex-1">
               <h3 className="font-medium text-red-900 dark:text-red-100">
-                Installation Error
+                {t('wizard.installation.errorTitle')}
               </h3>
               <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
             </div>
@@ -437,30 +499,28 @@ export function EnvironmentInstallationPage() {
       )}
 
       {/* Footer Actions */}
-      <div className="bg-card border-t px-6 py-4">
-        <div className="flex justify-end gap-3">
-          {installState.status === 'success' ? (
-            <Button
-              onClick={handleBackToList}
-              className="bg-success-surface text-success-content hover:bg-success-surface/90"
-            >
-              Done
+      <div className="border-border-default flex justify-end gap-3 border-t p-6">
+        {installState.status === 'success' ? (
+          <Button
+            onClick={handleBackToList}
+            className="bg-success-surface text-success-content hover:bg-success-surface/90"
+          >
+            {t('wizard.installation.done')}
+          </Button>
+        ) : installState.status === 'failed' ? (
+          <>
+            <Button variant="secondary" onClick={handleBackToList}>
+              {t('wizard.installation.cancel')}
             </Button>
-          ) : installState.status === 'failed' ? (
-            <>
-              <Button variant="secondary" onClick={handleBackToList}>
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={handleRetry}>
-                Retry
-              </Button>
-            </>
-          ) : (
-            <Button variant="secondary" disabled>
-              Installing...
+            <Button variant="danger" onClick={handleRetry}>
+              {t('wizard.installation.retry')}
             </Button>
-          )}
-        </div>
+          </>
+        ) : (
+          <Button variant="secondary" disabled>
+            {t('wizard.installation.installing')}
+          </Button>
+        )}
       </div>
     </div>
   );

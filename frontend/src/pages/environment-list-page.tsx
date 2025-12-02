@@ -2,7 +2,8 @@ import {
   Plus,
   Play,
   Terminal,
-  Settings,
+  MoreVertical,
+  Trash2,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -11,6 +12,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/button';
+import { DropdownMenu } from '../components/ui/dropdown-menu';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import {
   Card,
   CardContent,
@@ -34,6 +37,15 @@ export function EnvironmentListPage() {
   const { t } = useTranslation();
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    envId: string | null;
+    envName: string | null;
+  }>({
+    isOpen: false,
+    envId: null,
+    envName: null,
+  });
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -45,6 +57,10 @@ export function EnvironmentListPage() {
         });
         if (response.ok) {
           const data = await response.json();
+          // Sort by display_name alphabetically
+          data.sort((a: Environment, b: Environment) =>
+            a.display_name.localeCompare(b.display_name),
+          );
           setEnvironments(data);
         }
       } catch (error) {
@@ -65,6 +81,38 @@ export function EnvironmentListPage() {
     };
   }, []);
 
+  const handleDeleteClick = (envId: string, envName: string) => {
+    setDeleteConfirm({
+      isOpen: true,
+      envId,
+      envName,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.envId) return;
+
+    try {
+      const response = await fetch(`/api/environments/${deleteConfirm.envId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove the deleted environment from the list
+        setEnvironments((prev) => prev.filter((env) => env.id !== deleteConfirm.envId));
+        setDeleteConfirm({ isOpen: false, envId: null, envName: null });
+      } else {
+        console.error('Failed to delete environment:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error deleting environment:', error);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, envId: null, envName: null });
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -75,6 +123,17 @@ export function EnvironmentListPage() {
 
   return (
     <div className="flex flex-col space-y-6">
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('environments.deleteConfirmTitle')}
+        message={t('environments.deleteConfirmMessage')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-content-primary text-2xl font-bold tracking-tight">
@@ -111,11 +170,17 @@ export function EnvironmentListPage() {
                     </div>
                   </div>
                   {env.status === 'ready' ? (
-                    <CheckCircle2 className="text-success-icon h-5 w-5" />
+                    <div title={t('environments.status.ready')}>
+                      <CheckCircle2 className="text-success-icon h-5 w-5" />
+                    </div>
                   ) : env.status === 'error' ? (
-                    <AlertCircle className="text-warning-icon h-5 w-5" />
+                    <div title={t('environments.status.error')}>
+                      <AlertCircle className="text-warning-icon h-5 w-5" />
+                    </div>
                   ) : (
-                    <Loader2 className="text-content-tertiary h-5 w-5 animate-spin" />
+                    <div title={t('environments.status.installing')}>
+                      <Loader2 className="text-content-tertiary h-5 w-5 animate-spin" />
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -140,28 +205,44 @@ export function EnvironmentListPage() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="border-border-default grid grid-cols-3 gap-2 border-t p-4">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  disabled={env.status !== 'ready'}
-                >
-                  <Play className="mr-2 h-3 w-3" />
-                  {t('environments.launch')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  disabled={env.status !== 'ready'}
-                >
-                  <Terminal className="mr-2 h-3 w-3" />
-                  {t('environments.shell')}
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full px-0">
-                  <Settings className="h-4 w-4" />
-                </Button>
+              <CardFooter className="border-border-default flex items-center justify-between border-t p-4">
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    disabled={env.status !== 'ready'}
+                  >
+                    <Play className="mr-2 h-3 w-3" />
+                    {t('environments.launch')}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1"
+                    disabled={env.status !== 'ready'}
+                  >
+                    <Terminal className="mr-2 h-3 w-3" />
+                    {t('environments.shell')}
+                  </Button>
+                </div>
+                <DropdownMenu
+                  trigger={
+                    <div className="flex items-center gap-1">
+                      <MoreVertical className="h-4 w-4" />
+                    </div>
+                  }
+                  items={[
+                    {
+                      id: 'delete',
+                      label: t('environments.delete'),
+                      onClick: () => handleDeleteClick(env.id, env.display_name),
+                      variant: 'danger',
+                      icon: <Trash2 className="h-4 w-4" />,
+                    },
+                  ]}
+                  align="right"
+                />
               </CardFooter>
             </Card>
           ))}

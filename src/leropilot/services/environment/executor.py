@@ -67,6 +67,8 @@ class EnvironmentInstallationExecutor:
         logger.info(f"[EnvironmentInstallationExecutor] PTY session created: {self.pty_session.session_id}")
 
         self.installation.session_id = self.pty_session.session_id
+        # Update env_config status to installing
+        self.installation.env_config.status = "installing"
 
         # Write start message (TODO: localization)
         logger.info("[EnvironmentInstallationExecutor] Writing start message to PTY")
@@ -136,6 +138,7 @@ class EnvironmentInstallationExecutor:
         command = step.commands[command_index]
         if command:
             assert self.pty_session is not None
+            # Execute command directly - Shell Integration will report exit code via OSC 633
             self.pty_session.write_command(command)
 
         self._save_state()
@@ -169,6 +172,9 @@ class EnvironmentInstallationExecutor:
 
             assert self.installation is not None
             self.installation.status = "error"
+            # Update env_config status to error
+            self.installation.env_config.status = "error"
+            self.installation.env_config.error_message = f"Step '{step.name}' failed with exit code {exit_code}"
             self._save_state()
 
             return {"status": "failed", "error": error_msg}
@@ -210,6 +216,8 @@ class EnvironmentInstallationExecutor:
         else:
             # All steps completed
             self.installation.status = "success"
+            # Update env_config status to ready
+            self.installation.env_config.status = "ready"
             self.installation.completed_at = datetime.now()
             self._save_state()
 

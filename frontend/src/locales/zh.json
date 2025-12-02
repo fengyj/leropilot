@@ -29,6 +29,9 @@
     "official": "官方",
     "custom": "自定义",
     "errorMessage": "缺少依赖项。请运行修复。",
+    "delete": "删除",
+    "deleteConfirmTitle": "删除环境",
+    "deleteConfirmMessage": "您确定要删除此环境吗？此操作无法撤销。",
     "status": {
       "ready": "就绪",
       "error": "错误",
@@ -148,7 +151,17 @@
         "torch": "安装 PyTorch",
         "lerobot": "安装 LeRobot",
         "extras": "安装额外组件"
-      }
+      },
+      "pageTitle": "环境安装",
+      "pageSubtitle": "正在安装环境：{{envName}}",
+      "terminal": "终端",
+      "runningStep": "正在运行：{{stepName}}",
+      "preparingSteps": "正在准备安装步骤...",
+      "noEnvIdError": "未提供环境 ID",
+      "errorTitle": "安装错误",
+      "done": "完成",
+      "cancel": "取消",
+      "running": "运行中"
     },
     "buttons": {
       "cancel": "取消",

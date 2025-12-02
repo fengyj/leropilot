@@ -69,7 +69,9 @@ export function StepVersionSelection() {
       }
     };
     fetchVersions();
-  }, [config.repositoryId, config.lerobotVersion, config.pythonVersion, updateConfig]);
+    // Only re-fetch when repositoryId changes. Version selection should not trigger re-fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.repositoryId]);
 
   // Compute available options based on selected version
   // computeOptions are not needed in this step; hardware options are handled elsewhere

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWizardStore } from '../../../stores/environment-wizard-store';
 import { cn } from '../../../utils/cn';
@@ -14,8 +14,21 @@ export function StepNameConfig() {
     useWizardStore();
   const [existingEnvs, setExistingEnvs] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [friendlyNameError, setFriendlyNameError] = useState<string | null>(null);
+  const [envNameError, setEnvNameError] = useState<string | null>(null);
   const initializedRef = useRef(false);
+
+  // Create a stable key from version-related config to detect changes
+  const versionKey = useMemo(
+    () =>
+      `${config.repositoryId}-${config.lerobotVersion}-${config.torchVersion}-${config.cudaVersion}`,
+    [
+      config.repositoryId,
+      config.lerobotVersion,
+      config.torchVersion,
+      config.cudaVersion,
+    ],
+  );
 
   // Fetch existing environments and hardware info if missing
   useEffect(() => {
@@ -46,32 +59,36 @@ export function StepNameConfig() {
     fetchData();
   }, [detectedHardware, setDetectedHardware]);
 
-  // Generate default name
+  // Generate default name (on first load or when versions change and user hasn't modified name)
   useEffect(() => {
     if (loading) return;
 
-    // Check if we should skip generation
-    // We skip if already initialized OR if name is already set
-    // BUT we allow re-generation if the current name looks like it's missing torch version (has "-torch-" but we now have a version)
-    const isMissingTorchVersion =
-      config.friendlyName?.includes('-torch-') && config.torchVersion;
+    // Detect if version-related config has changed since last generation
+    // Use lastGeneratedVersionKey from store (persists across component remounts)
+    const versionChanged =
+      config.lastGeneratedVersionKey !== '' &&
+      config.lastGeneratedVersionKey !== versionKey;
 
-    if (
-      (initializedRef.current || config.envName || config.friendlyName) &&
-      !isMissingTorchVersion
-    ) {
-      if (!initializedRef.current) initializedRef.current = true;
+    // Should we regenerate the name?
+    // 1. First time: generate if no name set yet (lastGeneratedVersionKey is empty)
+    // 2. Version changed: only regenerate if user hasn't manually modified the name
+    const shouldGenerate =
+      config.lastGeneratedVersionKey === '' ||
+      (versionChanged && !config.isNameUserModified);
+
+    if (!shouldGenerate) {
+      initializedRef.current = true;
       return;
     }
 
     const repoName = config.repositoryId || 'lerobot';
     const version = (config.lerobotVersion || 'latest').replace(/^v/, '');
 
-    // Extract torch version (e.g. ">=2.2.1" -> "torch2.2", "2.2.1" -> "torch2.2")
+    // Extract torch version (e.g. ">=2.2.1" -> "torch2.2.1", "2.2.1" -> "torch2.2.1")
     let torch = 'torch';
     if (config.torchVersion) {
-      // Match version number, optionally preceded by >= or >
-      const match = config.torchVersion.match(/(?:>=?|^)?(\d+\.\d+)/);
+      // Match version number (major.minor.patch), optionally preceded by >= or >
+      const match = config.torchVersion.match(/(?:>=?|^)?(\d+\.\d+(?:\.\d+)?)/);
       if (match) {
         torch = `torch${match[1]}`;
       }
@@ -117,6 +134,8 @@ export function StepNameConfig() {
     updateConfig({
       friendlyName: name,
       envName: id,
+      isNameUserModified: false, // Reset flag when auto-generating
+      lastGeneratedVersionKey: versionKey, // Store the version key used for this generation
     });
     initializedRef.current = true;
   }, [
@@ -124,50 +143,53 @@ export function StepNameConfig() {
     existingEnvs,
     config.repositoryId,
     config.lerobotVersion,
-    config.envName,
-    config.friendlyName,
     config.cudaVersion,
     config.torchVersion,
+    config.isNameUserModified,
+    config.lastGeneratedVersionKey,
     updateConfig,
     detectedHardware,
+    versionKey,
   ]);
 
-  // Auto-generate ID from friendly name if user is editing
-  // We only do this if the user hasn't manually touched the internal name (hard to track)
-  // Or we just do it always like before, but we need to be careful not to overwrite if user explicitly wants different.
-  // The previous implementation did it always. Let's keep it but make sure it doesn't conflict with the initial setup.
-  // The initial setup sets both. This effect will run after that.
-  useEffect(() => {
-    if (!config.friendlyName || !initializedRef.current) return;
+  // Track if the user is editing envName independently
+  const [isEnvNameIndependent, setIsEnvNameIndependent] = useState(false);
 
-    // Only auto-update if the current envName looks like a slug of the friendlyName (or previous version of it)
-    // Or just keep it simple: always update. The user can edit the internal name *after* editing the friendly name if they want.
-    // But if they edit internal name first, then friendly name, it will overwrite.
-    // A common pattern is: update internal name ONLY IF it matches the slug of the OLD friendly name.
-    // But we don't have old friendly name.
+  // Handle friendlyName change - sync to envName unless user has edited envName independently
+  const handleFriendlyNameChange = (value: string) => {
+    const updates: Partial<typeof config> = {
+      friendlyName: value,
+      isNameUserModified: true,
+    };
 
-    // Let's stick to the previous behavior: derive ID from Friendly Name.
-    // But we need to ensure we don't create a loop or overwrite the unique ID we just generated if it's slightly different.
-
-    const generatedId = config.friendlyName
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, '-')
-      .replace(/^-|-$/g, '');
-
-    // Only update if different AND if the user hasn't manually set a custom ID that is completely different?
-    // For now, let's trust the user will edit Friendly Name first.
-    if (generatedId !== config.envName) {
-      // We don't update here to avoid overwriting the unique ID generated in the first effect
-      // if the slugification is slightly different.
-      // Actually, the first effect sets both.
-      // If I set friendlyName="lerobot-2.0", id="lerobot-2-0".
-      // This effect generates "lerobot-2-0". It matches.
-
-      updateConfig({ envName: generatedId });
+    // Only auto-sync envName if user hasn't edited it independently
+    if (!isEnvNameIndependent) {
+      const generatedId = value
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]+/g, '-')
+        .replace(/^-|-$/g, '');
+      updates.envName = generatedId;
     }
-  }, [config.friendlyName, config.envName, updateConfig]);
+
+    updateConfig(updates);
+  };
+
+  // Handle envName change - mark as independent editing
+  const handleEnvNameChange = (value: string) => {
+    setIsEnvNameIndependent(true);
+    updateConfig({ envName: value, isNameUserModified: true });
+  };
+
+  // Reset isEnvNameIndependent when name is auto-generated
+  useEffect(() => {
+    if (config.lastGeneratedVersionKey === versionKey && !config.isNameUserModified) {
+      setIsEnvNameIndependent(false);
+    }
+  }, [config.lastGeneratedVersionKey, config.isNameUserModified, versionKey]);
 
   const validateName = (name: string, isInternal: boolean = false) => {
+    const setError = isInternal ? setEnvNameError : setFriendlyNameError;
+
     if (!name) {
       setError(null);
       return;
@@ -215,17 +237,20 @@ export function StepNameConfig() {
           <input
             type="text"
             value={config.friendlyName}
-            onChange={(e) => updateConfig({ friendlyName: e.target.value })}
+            onChange={(e) => handleFriendlyNameChange(e.target.value)}
             onBlur={(e) => validateName(e.target.value, false)}
             placeholder="e.g. My LeRobot Project"
             className={cn(
               'border-border-default bg-surface-secondary text-content-primary placeholder:text-content-tertiary w-full rounded-lg border px-4 py-2 transition-colors outline-none focus:border-blue-600',
-              error && 'border-red-500 focus:border-red-500',
+              friendlyNameError && 'border-red-500 focus:border-red-500',
             )}
           />
           <p className="text-content-tertiary text-xs">
             {t('wizard.nameConfig.friendlyNameHelp')}
           </p>
+          {friendlyNameError && (
+            <p className="text-sm text-red-500">{friendlyNameError}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -236,25 +261,20 @@ export function StepNameConfig() {
             <input
               type="text"
               value={config.envName}
-              onChange={(e) => updateConfig({ envName: e.target.value })}
+              onChange={(e) => handleEnvNameChange(e.target.value)}
               onBlur={(e) => validateName(e.target.value, true)}
               placeholder="e.g. my-lerobot-project"
               className={cn(
                 'border-border-default bg-surface-secondary text-content-primary placeholder:text-content-tertiary w-full rounded-lg border px-4 py-2 font-mono text-sm transition-colors outline-none focus:border-blue-600',
-                error && 'border-red-500 focus:border-red-500',
+                envNameError && 'border-red-500 focus:border-red-500',
               )}
             />
           </div>
           <p className="text-content-tertiary text-xs">
             {t('wizard.nameConfig.internalNameHelp')}
           </p>
+          {envNameError && <p className="text-sm text-red-500">{envNameError}</p>}
         </div>
-
-        {error && (
-          <div className="flex items-center gap-2 text-sm text-red-500">
-            <span>{error}</span>
-          </div>
-        )}
       </div>
     </div>
   );

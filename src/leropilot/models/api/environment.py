@@ -29,6 +29,8 @@ class ExtraInfo(BaseModel):
     id: str
     name: str
     description: str
+    category: str = "other"
+    category_label: str = ""
     selected: bool = False
 
 
@@ -89,6 +91,7 @@ class StartInstallationResponse(BaseModel):
 
     session_id: str
     plan: EnvironmentInstallationPlan
+    env_name: str  # Display name of the environment
 
 
 class NextStepInfo(BaseModel):

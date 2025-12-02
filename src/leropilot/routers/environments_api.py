@@ -204,6 +204,8 @@ async def get_available_extras(
             id=extra["id"],
             name=extra["name"],
             description=extra["description"],
+            category=extra["category"],
+            category_label=extra["category_label"],
         )
         for extra in enriched
     ]
@@ -474,7 +476,8 @@ async def start_installation(env_id: str) -> StartInstallationResponse:
             session_id = existing_executor.installation.session_id
             logger.info(f"Returning existing session for env_id {env_id}: session_id={session_id}")
             assert existing_executor.plan is not None
-            return StartInstallationResponse(session_id=session_id, plan=existing_executor.plan)
+            env_name = existing_executor.installation.env_config.display_name
+            return StartInstallationResponse(session_id=session_id, plan=existing_executor.plan, env_name=env_name)
 
         logger.info(f"Creating new installation executor for env_id: {env_id}")
         config = get_config()
@@ -487,8 +490,13 @@ async def start_installation(env_id: str) -> StartInstallationResponse:
         # Store executor for later use
         _active_executors[env_id] = executor
 
+        # Get environment display name
+        env_name = executor.installation.env_config.display_name if executor.installation else env_id
+
         return StartInstallationResponse(
-            session_id=result["session_id"], plan=EnvironmentInstallationPlan(**result["plan"])
+            session_id=result["session_id"],
+            plan=EnvironmentInstallationPlan(**result["plan"]),
+            env_name=env_name,
         )
 
     except ValueError as e:

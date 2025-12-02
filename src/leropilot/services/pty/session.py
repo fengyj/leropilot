@@ -175,12 +175,8 @@ class PtySession:
         """Complete initialization in background thread."""
         import time
 
-        # Inject shell integration scripts
-        # Output during injection will be logged but not queued
-        self._inject_integration_script()
-
-        # Wait for injection commands to complete
-        time.sleep(1.0)
+        # Wait a short time for shell to initialize
+        time.sleep(0.3)
 
         # Clear any data that might have been queued
         while not self._output_queue.empty():
@@ -193,11 +189,15 @@ class PtySession:
         self._initializing = False
         logger.info(f"PTY session {self.session_id} initialization completed, ready for client")
 
+        # Now inject shell integration after client can receive output
+        time.sleep(0.1)
+        self._inject_integration_script()
+
     def _inject_integration_script(self) -> None:
         """Load VS Code Shell Integration scripts"""
         # Determine resource path relative to this file
-        # src/leropilot/services/pty_session.py -> src/leropilot/resources/shells
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # src/leropilot/services/pty/session.py -> src/leropilot/resources/shells
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         script_dir = os.path.join(base_dir, "resources", "shells")
 
         cmd = ""

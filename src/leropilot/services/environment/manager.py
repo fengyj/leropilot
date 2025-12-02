@@ -37,14 +37,27 @@ class EnvironmentManager:
         """
         Save environment configuration to disk.
 
+        Saves to both config.json (for direct access) and updates installation_state.json
+        (if it exists) to keep them in sync.
+
         Args:
             env_config: Environment configuration
         """
         env_dir = self.environments_dir / env_config.id
         config_file = env_dir / "config.json"
+        state_file = env_dir / "installation_state.json"
 
+        # Save to config.json
         with open(config_file, "w", encoding="utf-8") as f:
             json.dump(env_config.model_dump(mode="json"), f, indent=2, ensure_ascii=False)
+
+        # Update installation_state.json if it exists
+        if state_file.exists():
+            with open(state_file, encoding="utf-8") as f:
+                state_data = json.load(f)
+            state_data["env_config"] = env_config.model_dump(mode="json")
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(state_data, f, indent=2, ensure_ascii=False)
 
         logger.info(f"Saved environment config: {config_file}")
 
@@ -52,20 +65,32 @@ class EnvironmentManager:
         """
         Load environment configuration from disk.
 
+        Tries to load from config.json first, then falls back to installation_state.json.
+
         Args:
             env_id: Environment ID
 
         Returns:
             Environment configuration or None if not found
         """
-        config_file = self.environments_dir / env_id / "config.json"
-        if not config_file.exists():
-            return None
+        env_dir = self.environments_dir / env_id
+        config_file = env_dir / "config.json"
+        state_file = env_dir / "installation_state.json"
 
-        with open(config_file, encoding="utf-8") as f:
-            data = json.load(f)
+        # Try config.json first
+        if config_file.exists():
+            with open(config_file, encoding="utf-8") as f:
+                data = json.load(f)
+            return EnvironmentConfig(**data)
 
-        return EnvironmentConfig(**data)
+        # Fall back to installation_state.json
+        if state_file.exists():
+            with open(state_file, encoding="utf-8") as f:
+                state_data = json.load(f)
+            if "env_config" in state_data:
+                return EnvironmentConfig(**state_data["env_config"])
+
+        return None
 
     def list_environments(self) -> list[EnvironmentConfig]:
         """
