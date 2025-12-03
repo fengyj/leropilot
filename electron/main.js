@@ -6,6 +6,7 @@ const fs = require('fs');
 
 let pythonProcess = null;
 let mainWindow = null;
+let splashWindow = null;
 
 // Check if running in WSL
 const isWSL = require('os').release().toLowerCase().includes('microsoft');
@@ -111,14 +112,24 @@ async function startPythonBackend() {
 
   let detectedPort = null;
 
+  // Set environment to disable Python output buffering
+  const env = { ...process.env, PYTHONUNBUFFERED: '1' };
+
   pythonProcess = spawn(pythonPath, args, {
     cwd: process.resourcesPath,
-    stdio: ['ignore', 'pipe', 'pipe'] // Capture stdout and stderr
+    stdio: ['ignore', 'pipe', 'pipe'], // Capture stdout and stderr
+    env: env
   });
+
+  let backendOutput = '';  // Collect output for error reporting
+  let backendExited = false;
+  let backendExitCode = null;
+  let backendError = null;
 
   const handleOutput = (data, source) => {
     const output = data.toString();
     console.log(`[Backend ${source}]`, output);
+    backendOutput += output;  // Collect for error reporting
 
     // Try to extract port from uvicorn output
     // Uvicorn output format: "Uvicorn running on http://127.0.0.1:8000"
@@ -136,6 +147,7 @@ async function startPythonBackend() {
 
   pythonProcess.on('error', (err) => {
     console.error('Failed to start Python backend:', err);
+    backendError = err;
 
     // Check if the error is because the file doesn't exist
     if (err.code === 'ENOENT') {
@@ -146,13 +158,31 @@ async function startPythonBackend() {
 
   pythonProcess.on('exit', (code, signal) => {
     console.log(`Python backend exited with code ${code} and signal ${signal}`);
+    backendExited = true;
+    backendExitCode = code;
   });
 
-  // Wait for port detection or timeout
-  const maxWaitTime = 15000; // Increased to 15 seconds
+  // Wait for port detection or timeout (reduced to 5 seconds)
+  updateSplashStatus('Detecting backend port...');
+  const maxWaitTime = 5000;
   const startTime = Date.now();
-  while (!detectedPort && Date.now() - startTime < maxWaitTime) {
+  while (!detectedPort && !backendExited && Date.now() - startTime < maxWaitTime) {
     await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  // Check if backend crashed during startup
+  if (backendExited) {
+    const errorMsg = backendOutput.length > 500
+      ? '...' + backendOutput.slice(-500)
+      : backendOutput;
+    throw new Error(
+      `Backend process crashed during startup (exit code: ${backendExitCode}).\n\n` +
+      `Output:\n${errorMsg || 'No output captured'}`
+    );
+  }
+
+  if (backendError) {
+    throw new Error(`Failed to start backend: ${backendError.message}`);
   }
 
   if (!detectedPort) {
@@ -165,17 +195,19 @@ async function startPythonBackend() {
   }
 
   // Wait for backend to start
+  updateSplashStatus('Waiting for backend to be ready...');
   console.log(`Waiting for backend to be ready on port ${detectedPort}...`);
   console.log(`Health check URL: http://127.0.0.1:${detectedPort}/api/hello`);
 
   try {
     await waitOn({
       resources: [`http://127.0.0.1:${detectedPort}/api/hello`],
-      timeout: 30000,
-      interval: 1000,
+      timeout: 15000,  // Reduced from 30s to 15s
+      interval: 500,   // Check more frequently
       tcpTimeout: 1000,
-      window: 1000,
+      window: 500,
     });
+    updateSplashStatus('Loading application...');
     console.log(`Python backend is ready on port ${detectedPort}`);
     return detectedPort;
   } catch (err) {
@@ -284,6 +316,103 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Create splash window for startup
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+
+  // Create splash HTML content
+  const splashHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          color: white;
+          border-radius: 12px;
+          user-select: none;
+          -webkit-app-region: drag;
+        }
+        .logo {
+          font-size: 48px;
+          margin-bottom: 20px;
+        }
+        h1 {
+          font-size: 28px;
+          font-weight: 600;
+          margin-bottom: 8px;
+        }
+        .status {
+          font-size: 14px;
+          opacity: 0.9;
+          margin-top: 20px;
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top-color: white;
+          animation: spin 1s ease-in-out infinite;
+          margin-top: 20px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="logo">🤖</div>
+      <h1>LeRoPilot</h1>
+      <div class="spinner"></div>
+      <div class="status" id="status">Starting backend...</div>
+      <script>
+        const { ipcRenderer } = require('electron');
+        ipcRenderer.on('splash-status', (event, message) => {
+          document.getElementById('status').textContent = message;
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
+  splashWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(splashHtml));
+  splashWindow.center();
+  splashWindow.show();
+}
+
+function updateSplashStatus(message) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('splash-status', message);
+  }
+}
+
+function closeSplashWindow() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+    splashWindow = null;
+  }
+}
+
 // Create main window
 function createWindow(backendPort) {
   // Validate backendPort in production mode
@@ -323,6 +452,7 @@ function createWindow(backendPort) {
   mainWindow.loadURL(startUrl);
 
   mainWindow.once('ready-to-show', () => {
+    closeSplashWindow();
     mainWindow.show();
     mainWindow.focus();
   });
@@ -361,12 +491,18 @@ function createWindow(backendPort) {
 app.whenReady().then(async () => {
   createMenu();
 
+  // Show splash screen in production
+  if (app.isPackaged) {
+    createSplashWindow();
+  }
+
   let backendPort;
   try {
     backendPort = await startPythonBackend();
     createWindow(backendPort);
   } catch (err) {
     console.error('Fatal error during startup:', err);
+    closeSplashWindow();
     const { dialog } = require('electron');
     const portMsg = backendPort
       ? `Please check if port ${backendPort} is available or try running with --port <port>.`
