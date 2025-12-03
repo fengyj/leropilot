@@ -120,8 +120,14 @@ class PtySession:
                     logger.error(f"[PTY SPAWN] CWD does not exist: {self.cwd}")
                     raise RuntimeError(f"CWD does not exist: {self.cwd}")
 
-                logger.info(f"[PTY SPAWN] CWD exists and is accessible: {self.cwd}")
-                print(f"[PTY DEBUG] CWD verified: {self.cwd}", flush=True)
+                logger.info(f"[PTY SPAWN] Target CWD: {self.cwd}")
+
+                # WORKAROUND: Spawn cmd.exe in user's home directory instead of target CWD
+                # Some directories cause STATUS_CONTROL_C_EXIT when used as spawn CWD
+                # We'll change to the target directory after cmd.exe is running
+                spawn_cwd = os.path.expanduser("~")
+                logger.info(f"[PTY SPAWN] Using home directory for spawn: {spawn_cwd}")
+                print(f"[PTY DEBUG] Spawning in home dir (will cd later): {spawn_cwd}", flush=True)
 
                 print(f"[PTY DEBUG] Creating Windows PTY with cols={self.cols}, rows={self.rows}", flush=True)
                 logger.info(f"[PTY SPAWN] Creating PTY with dimensions: cols={self.cols}, rows={self.rows}")
@@ -130,14 +136,14 @@ class PtySession:
                 self.pty = PTY(self.cols, self.rows)
                 logger.info("[PTY SPAWN] PTY object created successfully")
 
-                print(f"[PTY DEBUG] Spawning shell: {shell_cmd}, cwd={self.cwd}", flush=True)
-                logger.info(f"[PTY SPAWN] About to spawn: shell={shell_cmd}, cwd={self.cwd}")
+                print(f"[PTY DEBUG] Spawning shell: {shell_cmd}, cwd={spawn_cwd}", flush=True)
+                logger.info(f"[PTY SPAWN] About to spawn: shell={shell_cmd}, cwd={spawn_cwd}")
 
                 # Spawn the shell process
                 # NOTE: cmd.exe runs interactively by default in PTY mode - no /K needed
                 # Adding /K as "cmd.exe /K" causes spawn to fail because winpty treats
                 # it as a single filename, not as separate arguments
-                spawn_result = self.pty.spawn(shell_cmd, cwd=self.cwd)
+                spawn_result = self.pty.spawn(shell_cmd, cwd=spawn_cwd)
                 logger.info(f"[PTY SPAWN] spawn() returned: {spawn_result}")
 
                 if not spawn_result:
@@ -147,6 +153,14 @@ class PtySession:
                 self.pid = self.pty.pid
                 print(f"[PTY DEBUG] Windows PTY spawned: pid={self.pid}, fd={self.fd}", flush=True)
                 logger.info(f"[PTY SPAWN] Spawn successful - pid={self.pid}, fd={self.fd}")
+
+                # WORKAROUND: Since we spawned in home dir, we need to cd to the target CWD
+                if spawn_cwd != self.cwd:
+                    # Use /d to ensure drive change if needed
+                    cd_cmd = f'cd /d "{self.cwd}"'
+                    logger.info(f"[PTY SPAWN] Switching to target CWD: {cd_cmd}")
+                    # We can write directly to the PTY since it's open
+                    self.pty.write(cd_cmd + "\r")
 
                 # Check if process is alive immediately after spawn
                 import time
