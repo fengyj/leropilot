@@ -549,9 +549,43 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('quit', () => {
-  if (pythonProcess) {
-    console.log('Killing Python backend process...');
-    pythonProcess.kill();
-  }
+app.on('before-quit', () => {
+  killPythonBackend();
 });
+
+app.on('quit', () => {
+  killPythonBackend();
+});
+
+function killPythonBackend() {
+  if (pythonProcess && !pythonProcess.killed) {
+    console.log('Killing Python backend process...');
+
+    if (process.platform === 'win32') {
+      // Windows: Use taskkill to forcefully kill the process tree
+      try {
+        require('child_process').execSync(`taskkill /pid ${pythonProcess.pid} /T /F`, {
+          stdio: 'ignore'
+        });
+      } catch (e) {
+        // Process might already be dead
+        console.log('taskkill failed (process may already be terminated):', e.message);
+      }
+    } else {
+      // Unix: Send SIGTERM first, then SIGKILL
+      try {
+        pythonProcess.kill('SIGTERM');
+        // Give it a moment to terminate gracefully
+        setTimeout(() => {
+          if (pythonProcess && !pythonProcess.killed) {
+            pythonProcess.kill('SIGKILL');
+          }
+        }, 1000);
+      } catch (e) {
+        console.log('Failed to kill process:', e.message);
+      }
+    }
+
+    pythonProcess = null;
+  }
+}

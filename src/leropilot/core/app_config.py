@@ -77,6 +77,8 @@ class AppConfigManager:
         # 3. Load preset configuration for first-time users
         if is_first_time:
             config = self._apply_preset_config(config)
+            # Save the preset config so it persists
+            self.save(config)
 
         # 4. Apply environment variable overrides
         config = self._apply_env_overrides(config)
