@@ -107,32 +107,24 @@ class PtySession:
                 if shell_full_path:
                     shell_cmd = shell_full_path
 
-                # Prepare shell arguments
-                # For cmd.exe, use /K to keep the console open after commands execute
-                # This prevents the shell from immediately exiting
-                shell_args = None
-                shell_basename = os.path.basename(shell_cmd).lower()
-                if "cmd.exe" in shell_basename:
-                    shell_args = "/K"  # Keep console open
-                    full_cmd = f"{shell_cmd} {shell_args}"
-                else:
-                    full_cmd = shell_cmd
-
                 print(f"[PTY DEBUG] Creating Windows PTY with cols={self.cols}, rows={self.rows}", flush=True)
                 logger.info(f"Creating Windows PTY with cols={self.cols}, rows={self.rows}")
                 # Create PTY with dimensions (cols, rows)
                 self.pty = PTY(self.cols, self.rows)
 
-                print(f"[PTY DEBUG] Spawning shell: {full_cmd}, cwd={self.cwd}", flush=True)
-                logger.info(f"Spawning shell: {full_cmd}, cwd={self.cwd}")
-                # Spawn the shell process with arguments if applicable
-                if not self.pty.spawn(full_cmd, cwd=self.cwd):
-                    raise RuntimeError(f"Failed to spawn shell: {full_cmd}")
+                print(f"[PTY DEBUG] Spawning shell: {shell_cmd}, cwd={self.cwd}", flush=True)
+                logger.info(f"Spawning shell: {shell_cmd}, cwd={self.cwd}")
+                # Spawn the shell process
+                # NOTE: cmd.exe runs interactively by default in PTY mode - no /K needed
+                # Adding /K as "cmd.exe /K" causes spawn to fail because winpty treats
+                # it as a single filename, not as separate arguments
+                if not self.pty.spawn(shell_cmd, cwd=self.cwd):
+                    raise RuntimeError(f"Failed to spawn shell: {shell_cmd}")
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
                 print(f"[PTY DEBUG] Windows PTY spawned: pid={self.pid}, fd={self.fd}", flush=True)
-                logger.info(f"Windows PTY spawned: shell={full_cmd}, pid={self.pid}, fd={self.fd}")
+                logger.info(f"Windows PTY spawned: shell={shell_cmd}, pid={self.pid}, fd={self.fd}")
 
                 # Check if process is alive immediately after spawn
                 import time
@@ -148,13 +140,12 @@ class PtySession:
             except Exception as e:
                 print(f"[PTY DEBUG] Failed to start PTY: {e}", flush=True)
                 logger.error(f"Failed to start PTY with {self.shell_path}: {e}")
-                # Fallback to cmd.exe with /K argument
+                # Fallback to cmd.exe (without /K argument)
                 self.shell_path = "cmd.exe"
                 shell_full_path = which(self.shell_path) or self.shell_path
                 self.pty = PTY(self.cols, self.rows)
-                fallback_cmd = f"{shell_full_path} /K"
-                if not self.pty.spawn(fallback_cmd, cwd=self.cwd):
-                    raise RuntimeError(f"Failed to spawn fallback shell: {fallback_cmd}") from e
+                if not self.pty.spawn(shell_full_path, cwd=self.cwd):
+                    raise RuntimeError(f"Failed to spawn fallback shell: {shell_full_path}") from e
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
         else:
@@ -403,7 +394,14 @@ class PtySession:
         self.rows = rows
         self.cols = cols
         if IS_WINDOWS and self.pty:
-            self.pty.set_size(cols, rows)
+            # Check if PTY is still alive before attempting resize
+            try:
+                if not self.pty.isalive():
+                    logger.warning(f"Attempted to resize dead PTY session {self.session_id}")
+                    return
+                self.pty.set_size(cols, rows)
+            except Exception as e:
+                logger.warning(f"Failed to resize PTY session {self.session_id}: {e}")
         elif not IS_WINDOWS and self.fd:
             self._resize_linux(rows, cols)
 
