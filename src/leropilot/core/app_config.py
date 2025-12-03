@@ -3,12 +3,24 @@
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, cast
 
 import yaml
 
 from leropilot.models.app_config import AppConfig, PyPIMirror, RepositorySource
+
+
+def _get_resources_dir() -> Path:
+    """Get the resources directory path, compatible with PyInstaller."""
+    if getattr(sys, "frozen", False):
+        # PyInstaller packaged environment
+        base_path = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        return base_path / "leropilot" / "resources"
+    else:
+        # Development environment
+        return Path(__file__).parent.parent / "resources"
 
 
 class AppConfigManager:
@@ -56,7 +68,7 @@ class AppConfigManager:
 
         # 1. Load from YAML file if it exists
         if self.config_path.exists():
-            with open(self.config_path) as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 config_data = yaml.safe_load(f) or {}
 
         # 2. Create config object (applies defaults)
@@ -82,7 +94,7 @@ class AppConfigManager:
         # Convert to dict, converting Path objects to strings
         config_dict = self._config_to_dict(config)
 
-        with open(self.config_path, "w") as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             yaml.dump(config_dict, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
     def _config_to_dict(self, config: AppConfig) -> dict[str, Any]:
@@ -121,11 +133,11 @@ class AppConfigManager:
         """
         try:
             # Load preset configuration file
-            preset_path = Path(__file__).parent.parent / "resources" / "default_config.json"
+            preset_path = _get_resources_dir() / "default_config.json"
             if not preset_path.exists():
                 return config
 
-            with open(preset_path) as f:
+            with open(preset_path, encoding="utf-8") as f:
                 preset_data = json.load(f)
 
             # Apply preset PyPI mirrors (only if user has no mirrors configured)

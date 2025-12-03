@@ -19,6 +19,7 @@ import httpx
 from leropilot.core.app_config import get_config
 from leropilot.core.i18n import I18nService
 from leropilot.logger import get_logger
+from leropilot.utils import get_resources_dir
 from leropilot.utils.subprocess_executor import SubprocessExecutor
 
 logger = get_logger(__name__)
@@ -163,9 +164,8 @@ class GitToolManager:
         tools_dir.mkdir(parents=True, exist_ok=True)
 
         # Load extra dependencies config
-        # Note: Adjust path to resources
-        resources_dir = Path(__file__).parent.parent.parent / "resources"
-        with open(resources_dir / "environment_extra_dependencies.json") as f:
+        resources_dir = get_resources_dir()
+        with open(resources_dir / "environment_extra_dependencies.json", encoding="utf-8") as f:
             deps_config = json.load(f)
 
         system = platform.system().lower()

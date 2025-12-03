@@ -1,7 +1,6 @@
 """Environment creation API endpoints."""
 
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
@@ -40,6 +39,7 @@ from leropilot.services.environment import (
     EnvironmentManager,
     InstallationManager,
 )
+from leropilot.utils import get_resources_dir
 
 from ..core.app_config import get_config
 
@@ -52,7 +52,7 @@ router = APIRouter(prefix="/api/environments", tags=["environments"])
 @lru_cache
 def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, GPUDetector]:
     """Get or initialize services (singleton)."""
-    resources_dir = Path(__file__).parent.parent / "resources"
+    resources_dir = get_resources_dir()
     config_service = EnvironmentInstallationConfigService(resources_dir / "environment_installation_config.json")
     i18n_service = I18nService(resources_dir / "i18n.json")
     gpu_detector = GPUDetector()

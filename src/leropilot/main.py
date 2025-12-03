@@ -1,7 +1,6 @@
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
@@ -17,6 +16,7 @@ from leropilot.routers import environments_api as environments_router
 from leropilot.routers import repositories_api as repositories_router
 from leropilot.routers import tools_api as tools_router
 from leropilot.routers import web_sockets_api as terminal_router
+from leropilot.utils import get_static_dir
 
 from .core.app_config import get_config
 
@@ -64,18 +64,6 @@ app.include_router(environments_router.router)
 app.include_router(repositories_router.router)
 app.include_router(terminal_router.router)
 app.include_router(tools_router.router)
-
-
-def get_static_dir() -> Path:
-    """Get static files directory, compatible with development and PyInstaller packaged environments"""
-    if getattr(sys, "frozen", False):
-        # PyInstaller packaged environment
-        base_path = Path(sys._MEIPASS)  # type: ignore
-        return base_path / "leropilot" / "static"
-    else:
-        # Development environment: src/leropilot/static
-        # __file__ is src/leropilot/main.py
-        return Path(__file__).parent / "static"
 
 
 def serve_static() -> None:
@@ -129,7 +117,6 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
     def open_browser_func() -> None:
         import shutil
         import subprocess
-        import sys
         import time
 
         time.sleep(1.5)

@@ -2,7 +2,6 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -16,6 +15,7 @@ from leropilot.models.api.repository import (
     VersionInfo,
 )
 from leropilot.services.git import GitService, GitToolManager
+from leropilot.utils import get_resources_dir
 
 from ..core.app_config import get_config
 
@@ -33,7 +33,7 @@ def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, G
     global _config_service, _i18n_service, _gpu_detector
 
     if not _config_service:
-        resources_dir = Path(__file__).parent.parent / "resources"
+        resources_dir = get_resources_dir()
         _config_service = EnvironmentInstallationConfigService(resources_dir / "environment_installation_config.json")
         _i18n_service = I18nService(resources_dir / "i18n.json")
         _gpu_detector = GPUDetector()

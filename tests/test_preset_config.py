@@ -48,7 +48,7 @@ def test_preset_config_not_applied_to_existing_users(tmp_path: Path) -> None:
 
     import yaml
 
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(existing_config, f)
 
     # Load config
@@ -67,7 +67,7 @@ def test_preset_config_file_structure() -> None:
 
     assert preset_path.exists(), "Preset config file should exist"
 
-    with open(preset_path) as f:
+    with open(preset_path, encoding="utf-8") as f:
         preset_data = json.load(f)
 
     # Verify structure
