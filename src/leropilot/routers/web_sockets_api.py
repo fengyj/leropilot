@@ -94,7 +94,23 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
     except WebSocketDisconnect:
         logger.info(f"Client disconnected: {session_id}")
     except Exception as e:
-        logger.error(f"WS Loop error: {e}")
+        # Log detailed error information for debugging
+        import platform
+
+        error_type = type(e).__name__
+        error_msg = str(e)
+        logger.error(f"WS Loop error (type={error_type}): {error_msg}")
+
+        # Check if PTY is still alive (Windows-specific check)
+        if platform.system() == "Windows" and hasattr(pty, "pty") and pty.pty:
+            is_alive = pty.pty.isalive()
+            logger.error(f"PTY alive status at error: {is_alive}")
+            if not is_alive and hasattr(pty.pty, "get_exitstatus"):
+                exit_status = pty.pty.get_exitstatus()
+                logger.error(f"PTY exit status: {exit_status}")
+
+        # Re-raise to ensure proper cleanup
+        raise
     finally:
         # Cleanup
         logger.info(f"Starting cleanup for session {session_id}")
