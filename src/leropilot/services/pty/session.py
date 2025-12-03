@@ -185,8 +185,7 @@ class PtySession:
                             is_alive = self.pty.isalive()
                             if read_count <= 5 or consecutive_empty <= 3:
                                 logger.info(
-                                    f"PTY read #{read_count} empty (consecutive={consecutive_empty}), "
-                                    f"isalive={is_alive}"
+                                    f"PTY read #{read_count} empty (consecutive={consecutive_empty}), alive={is_alive}"
                                 )
                             if not is_alive:
                                 # Process exited, but might still have buffered output
