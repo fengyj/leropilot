@@ -153,8 +153,11 @@ class PtySession:
 
     def _read_loop(self) -> None:
         """Background thread: Physical PTY -> Queue"""
+        import time as time_module
+
         logger.info(f"Read loop started for session {self.session_id}")
         read_count = 0
+        consecutive_empty = 0
         while not self._stop_event.is_set():
             try:
                 data = b""
@@ -162,30 +165,43 @@ class PtySession:
                     if self.pty is None:
                         logger.info("PTY is None, breaking read loop")
                         break
-                    # Use low-level PTY.read() which returns a string
-                    # blocking=True to wait for data
+                    # Use low-level PTY.read() with blocking=False and polling
+                    # This avoids issues with blocking reads on Windows
                     try:
                         read_count += 1
-                        if read_count <= 3:
+                        if read_count <= 5:
                             logger.info(f"PTY read attempt #{read_count}, isalive={self.pty.isalive()}")
-                        text = self.pty.read(blocking=True)
+
+                        # Use non-blocking read
+                        text = self.pty.read(blocking=False)
                         if text:
                             data = text.encode("utf-8")
-                            if read_count <= 3:
+                            consecutive_empty = 0
+                            if read_count <= 5:
                                 logger.info(f"PTY read #{read_count} got {len(data)} bytes")
                         else:
-                            # Empty read, check if process is still alive
+                            consecutive_empty += 1
+                            # Check if process is still alive
                             is_alive = self.pty.isalive()
-                            if read_count <= 3:
-                                logger.info(f"PTY read #{read_count} got empty, isalive={is_alive}")
+                            if read_count <= 5 or consecutive_empty <= 3:
+                                logger.info(
+                                    f"PTY read #{read_count} empty (consecutive={consecutive_empty}), "
+                                    f"isalive={is_alive}"
+                                )
                             if not is_alive:
-                                logger.info("PTY process not alive, breaking read loop")
-                                break
+                                # Process exited, but might still have buffered output
+                                # Try a few more reads before giving up
+                                if consecutive_empty > 5:
+                                    logger.info("PTY process not alive and no more data, breaking read loop")
+                                    break
+                            # Sleep briefly to avoid busy-waiting
+                            time_module.sleep(0.05)
                             continue
                     except Exception as e:
                         logger.warning(f"PTY read error: {e}, isalive={self.pty.isalive() if self.pty else 'N/A'}")
                         if "EOF" in str(e) or (self.pty and not self.pty.isalive()):
                             break
+                        time_module.sleep(0.05)
                         continue
                 else:
                     if self.fd is None:
