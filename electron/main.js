@@ -320,7 +320,7 @@ function createMenu() {
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
     width: 400,
-    height: 300,
+    height: 320,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -332,8 +332,15 @@ function createSplashWindow() {
     }
   });
 
-  // Get the icon path
-  const iconPath = path.join(__dirname, 'icon.png').replace(/\\/g, '/');
+  // Read icon and convert to base64
+  const iconPath = path.join(__dirname, 'icon.png');
+  let iconBase64 = '';
+  try {
+    const iconData = fs.readFileSync(iconPath);
+    iconBase64 = iconData.toString('base64');
+  } catch (e) {
+    console.error('Failed to load icon:', e);
+  }
 
   // Create splash HTML content with logo image
   // Color scheme based on logo: orange gradient (#FF8A65 to #F4511E)
@@ -367,7 +374,7 @@ function createSplashWindow() {
         h1 {
           font-size: 28px;
           font-weight: 600;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
           background: linear-gradient(135deg, #FF8A65 0%, #F4511E 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -375,7 +382,7 @@ function createSplashWindow() {
         }
         .status {
           font-size: 14px;
-          margin-top: 20px;
+          margin-top: 16px;
           color: #888;
         }
         .spinner {
@@ -385,7 +392,7 @@ function createSplashWindow() {
           border-radius: 50%;
           border-top-color: #F4511E;
           animation: spin 1s ease-in-out infinite;
-          margin-top: 20px;
+          margin-top: 16px;
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -393,7 +400,7 @@ function createSplashWindow() {
       </style>
     </head>
     <body>
-      <img class="logo" src="file://${iconPath}" alt="LeRoPilot" />
+      ${iconBase64 ? `<img class="logo" src="data:image/png;base64,${iconBase64}" alt="LeRoPilot" />` : ''}
       <h1>LeRoPilot</h1>
       <div class="spinner"></div>
       <div class="status" id="status">Starting backend...</div>
