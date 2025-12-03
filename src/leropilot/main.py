@@ -1,3 +1,4 @@
+import logging
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -18,6 +19,16 @@ from leropilot.routers import repositories_api as repositories_router
 from leropilot.routers import tools_api as tools_router
 from leropilot.routers import web_sockets_api as terminal_router
 from leropilot.utils import get_static_dir
+
+# Configure basic logging early to capture config loading messages
+# Note: This runs after imports, so initial config loading logs may not be visible
+# For debugging config loading, set LEROPILOT_DEBUG=1 environment variable
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
 
 logger = get_logger(__name__)
 

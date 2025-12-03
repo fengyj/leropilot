@@ -66,6 +66,11 @@ class AppConfigManager:
         config_data: dict[str, Any] = {}
         is_first_time = not self.config_path.exists()
 
+        # Debug output for troubleshooting (always visible via print)
+        print(f"[CONFIG] Loading config from: {self.config_path}")
+        print(f"[CONFIG] Config file exists: {self.config_path.exists()}")
+        print(f"[CONFIG] Is first time user: {is_first_time}")
+
         # 1. Load from YAML file if it exists
         if self.config_path.exists():
             with open(self.config_path, encoding="utf-8") as f:
@@ -76,9 +81,17 @@ class AppConfigManager:
 
         # 3. Load preset configuration for first-time users
         if is_first_time:
+            print("[CONFIG] First time user detected, applying preset configuration...")
             config = self._apply_preset_config(config)
             # Save the preset config so it persists
+            print(f"[CONFIG] Saving preset config to: {self.config_path}")
             self.save(config)
+            print("[CONFIG] Preset config saved successfully")
+        else:
+            print(
+                f"[CONFIG] Existing config loaded with {len(config.repositories.lerobot_sources)} repos "
+                f"and {len(config.pypi.mirrors)} mirrors"
+            )
 
         # 4. Apply environment variable overrides
         config = self._apply_env_overrides(config)
@@ -135,12 +148,20 @@ class AppConfigManager:
         """
         try:
             # Load preset configuration file
-            preset_path = _get_resources_dir() / "default_config.json"
+            resources_dir = _get_resources_dir()
+            preset_path = resources_dir / "default_config.json"
+            print(f"[CONFIG] Loading preset config from: {preset_path}")
+            print(f"[CONFIG] Resources dir exists: {resources_dir.exists()}")
+            print(f"[CONFIG] Preset file exists: {preset_path.exists()}")
+
             if not preset_path.exists():
+                print(f"[CONFIG] WARNING: Preset config file not found at: {preset_path}")
                 return config
 
             with open(preset_path, encoding="utf-8") as f:
                 preset_data = json.load(f)
+
+            print(f"[CONFIG] Loaded preset data keys: {list(preset_data.keys())}")
 
             # Apply preset PyPI mirrors (only if user has no mirrors configured)
             if not config.pypi.mirrors and "pypi_mirrors" in preset_data:
@@ -152,8 +173,9 @@ class AppConfigManager:
                     )
                     for m in preset_data["pypi_mirrors"]
                 ]
+                print(f"[CONFIG] Applied {len(config.pypi.mirrors)} preset PyPI mirrors")
 
-            if not config.repositories.lerobot_sources:
+            if not config.repositories.lerobot_sources and "repositories" in preset_data:
                 config.repositories.lerobot_sources = [
                     RepositorySource(
                         id=r["id"],
@@ -163,12 +185,14 @@ class AppConfigManager:
                     )
                     for r in preset_data["repositories"]["lerobot_sources"]
                 ]
+                print(f"[CONFIG] Applied {len(config.repositories.lerobot_sources)} preset repositories")
 
         except Exception as e:
             # Log error but don't fail configuration loading
-            import logging
+            print(f"[CONFIG] ERROR: Failed to load preset configuration: {e}")
+            import traceback
 
-            logging.warning(f"Failed to load preset configuration: {e}")
+            traceback.print_exc()
 
         return config
 
