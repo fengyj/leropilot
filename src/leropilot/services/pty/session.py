@@ -148,13 +148,24 @@ class PtySession:
                 print(f"[PTY DEBUG] Exception during PTY start: {e}\n{error_details}", flush=True)
                 logger.error(f"[PTY SPAWN] Exception during start: {e}\n{error_details}")
 
-                # Fallback to cmd.exe
-                logger.info("[PTY SPAWN] Attempting fallback to cmd.exe")
-                self.shell_path = "cmd.exe"
-                self.pty = PtyProcess.spawn([self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd)
-                self.fd = self.pty.fd
-                self.pid = self.pty.pid
-                logger.info(f"[PTY SPAWN] Fallback spawn successful - pid={self.pid}")
+                # Check if it's a specific winpty error
+                error_type = type(e).__name__
+                logger.error(f"[PTY SPAWN] Exception type: {error_type}")
+
+                # If PtyProcess.spawn() failed, try with explicit error handling
+                try:
+                    # Fallback to cmd.exe
+                    logger.info("[PTY SPAWN] Attempting fallback to cmd.exe")
+                    self.shell_path = "cmd.exe"
+                    logger.info(f"[PTY SPAWN] Fallback spawn with cwd={self.cwd}")
+                    self.pty = PtyProcess.spawn([self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd)
+                    self.fd = self.pty.fd
+                    self.pid = self.pty.pid
+                    logger.info(f"[PTY SPAWN] Fallback spawn successful - pid={self.pid}")
+                except Exception as fallback_error:
+                    logger.error(f"[PTY SPAWN] Fallback also failed: {fallback_error}")
+                    logger.error(f"[PTY SPAWN] Fallback traceback: {traceback.format_exc()}")
+                    raise RuntimeError(f"Failed to spawn shell even with fallback: {fallback_error}") from e
         else:
             # Linux/macOS: Native PTY
             self.pid, self.fd = pty.fork()
