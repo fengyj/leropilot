@@ -99,9 +99,11 @@ class PtySession:
                 if shell_full_path:
                     shell_cmd = shell_full_path
 
+                logger.info(f"Creating Windows PTY with cols={self.cols}, rows={self.rows}")
                 # Create PTY with dimensions (cols, rows)
                 self.pty = PTY(self.cols, self.rows)
 
+                logger.info(f"Spawning shell: {shell_cmd}, cwd={self.cwd}")
                 # Spawn the shell process
                 if not self.pty.spawn(shell_cmd, cwd=self.cwd):
                     raise RuntimeError(f"Failed to spawn shell: {shell_cmd}")
@@ -109,6 +111,16 @@ class PtySession:
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
                 logger.info(f"Windows PTY spawned: shell={shell_cmd}, pid={self.pid}, fd={self.fd}")
+
+                # Check if process is alive immediately after spawn
+                import time
+
+                time.sleep(0.1)
+                is_alive = self.pty.isalive()
+                logger.info(f"PTY process alive check after spawn: {is_alive}")
+                if not is_alive:
+                    exit_status = self.pty.get_exitstatus()
+                    logger.error(f"PTY process died immediately after spawn, exit status: {exit_status}")
             except Exception as e:
                 logger.error(f"Failed to start PTY with {self.shell_path}: {e}")
                 # Fallback to cmd.exe
@@ -141,27 +153,39 @@ class PtySession:
 
     def _read_loop(self) -> None:
         """Background thread: Physical PTY -> Queue"""
+        logger.info(f"Read loop started for session {self.session_id}")
+        read_count = 0
         while not self._stop_event.is_set():
             try:
                 data = b""
                 if IS_WINDOWS:
                     if self.pty is None:
+                        logger.info("PTY is None, breaking read loop")
                         break
                     # Use low-level PTY.read() which returns a string
-                    # blocking=False to avoid hanging
+                    # blocking=True to wait for data
                     try:
+                        read_count += 1
+                        if read_count <= 3:
+                            logger.info(f"PTY read attempt #{read_count}, isalive={self.pty.isalive()}")
                         text = self.pty.read(blocking=True)
                         if text:
                             data = text.encode("utf-8")
+                            if read_count <= 3:
+                                logger.info(f"PTY read #{read_count} got {len(data)} bytes")
                         else:
                             # Empty read, check if process is still alive
-                            if not self.pty.isalive():
+                            is_alive = self.pty.isalive()
+                            if read_count <= 3:
+                                logger.info(f"PTY read #{read_count} got empty, isalive={is_alive}")
+                            if not is_alive:
+                                logger.info("PTY process not alive, breaking read loop")
                                 break
                             continue
                     except Exception as e:
-                        if "EOF" in str(e) or not self.pty.isalive():
+                        logger.warning(f"PTY read error: {e}, isalive={self.pty.isalive() if self.pty else 'N/A'}")
+                        if "EOF" in str(e) or (self.pty and not self.pty.isalive()):
                             break
-                        logger.warning(f"PTY read error: {e}")
                         continue
                 else:
                     if self.fd is None:

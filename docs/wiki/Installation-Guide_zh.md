@@ -29,6 +29,26 @@
 
 #### Linux
 
+**选项 A：tar.gz 压缩包（推荐 - 无需额外依赖）**
+
+1. 下载 `leropilot-linux-*.tar.gz`
+2. 解压压缩包：
+   ```bash
+   tar -xzf leropilot-linux-*.tar.gz
+   ```
+3. 运行应用程序：
+   ```bash
+   cd leropilot-linux-*
+   ./leropilot
+   ```
+4. （可选）安装到 `/opt` 以便全局访问：
+   ```bash
+   sudo mv leropilot-linux-* /opt/leropilot
+   sudo ln -s /opt/leropilot/leropilot /usr/local/bin/leropilot
+   ```
+
+**选项 B：AppImage**
+
 1. 下载 `LeRoPilot-*.AppImage`
 2. 添加执行权限：
    ```bash
@@ -38,6 +58,15 @@
    ```bash
    ./LeRoPilot-*.AppImage
    ```
+
+> **注意**：在 Ubuntu 22.04+ 及其他较新的发行版上，可能需要安装 `libfuse2`：
+> ```bash
+> sudo apt install libfuse2
+> ```
+> 或者，可以在不依赖 FUSE 的情况下运行 AppImage：
+> ```bash
+> ./LeRoPilot-*.AppImage --appimage-extract-and-run
+> ```
 
 ### 方式 2：浏览器模式（WSL/服务器）
 
