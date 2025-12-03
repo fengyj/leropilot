@@ -23,7 +23,11 @@ async def get_current_config() -> AppConfig:
     Returns:
         Current configuration
     """
-    return get_config()
+    config = get_config()
+    print(f"[API] Returning config with {len(config.repositories.lerobot_sources)} repos")
+    print(f"[API] Repos: {[r.name for r in config.repositories.lerobot_sources]}")
+    print(f"[API] Mirrors: {[m.name for m in config.pypi.mirrors]}")
+    return config
 
 
 @router.put("", response_model=AppConfig)
