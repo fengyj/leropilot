@@ -1,4 +1,3 @@
-import fcntl
 import logging
 import os
 import platform
@@ -8,7 +7,6 @@ import signal
 import struct
 import subprocess
 import sys
-import termios
 import threading
 import uuid
 from pathlib import Path
@@ -19,7 +17,9 @@ IS_WINDOWS = platform.system() == "Windows"
 if IS_WINDOWS:
     from winpty import PtyProcess
 else:
+    import fcntl
     import pty
+    import termios
 
 logger = logging.getLogger(__name__)
 

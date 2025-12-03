@@ -332,7 +332,11 @@ function createSplashWindow() {
     }
   });
 
-  // Create splash HTML content
+  // Get the icon path
+  const iconPath = path.join(__dirname, 'icon.png').replace(/\\/g, '/');
+
+  // Create splash HTML content with logo image
+  // Color scheme based on logo: orange gradient (#FF8A65 to #F4511E)
   const splashHtml = `
     <!DOCTYPE html>
     <html>
@@ -341,37 +345,45 @@ function createSplashWindow() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #FFF5F2 0%, #FFE8E0 50%, #FFDDD3 100%);
           height: 100vh;
           display: flex;
           flex-direction: column;
           justify-content: center;
           align-items: center;
-          color: white;
+          color: #333;
           border-radius: 12px;
           user-select: none;
           -webkit-app-region: drag;
+          border: 1px solid rgba(244, 81, 30, 0.1);
         }
         .logo {
-          font-size: 48px;
-          margin-bottom: 20px;
+          width: 88px;
+          height: 88px;
+          margin-bottom: 16px;
+          border-radius: 20px;
+          box-shadow: 0 8px 24px rgba(244, 81, 30, 0.25);
         }
         h1 {
           font-size: 28px;
           font-weight: 600;
           margin-bottom: 8px;
+          background: linear-gradient(135deg, #FF8A65 0%, #F4511E 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
         .status {
           font-size: 14px;
-          opacity: 0.9;
           margin-top: 20px;
+          color: #888;
         }
         .spinner {
-          width: 40px;
-          height: 40px;
-          border: 3px solid rgba(255,255,255,0.3);
+          width: 36px;
+          height: 36px;
+          border: 3px solid rgba(244, 81, 30, 0.15);
           border-radius: 50%;
-          border-top-color: white;
+          border-top-color: #F4511E;
           animation: spin 1s ease-in-out infinite;
           margin-top: 20px;
         }
@@ -381,7 +393,7 @@ function createSplashWindow() {
       </style>
     </head>
     <body>
-      <div class="logo">🤖</div>
+      <img class="logo" src="file://${iconPath}" alt="LeRoPilot" />
       <h1>LeRoPilot</h1>
       <div class="spinner"></div>
       <div class="status" id="status">Starting backend...</div>
