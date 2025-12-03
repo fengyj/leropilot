@@ -5,7 +5,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import yaml
 
@@ -138,7 +138,8 @@ class AppConfigManager:
     def _apply_preset_config(self, config: AppConfig) -> AppConfig:
         """Apply preset configuration for first-time users.
 
-        Loads preset PyPI mirrors and repositories from default_config.json.
+        Loads preset PyPI mirrors and repositories from default_config.json,
+        and detects system language for UI settings.
 
         Args:
             config: Base configuration
@@ -146,6 +147,12 @@ class AppConfigManager:
         Returns:
             Configuration with presets applied
         """
+        # Detect and apply system language
+        detected_lang = self._detect_system_language()
+        if detected_lang:
+            config.ui.preferred_language = detected_lang
+            print(f"[CONFIG] Detected system language: {detected_lang}")
+
         try:
             # Load preset configuration file
             resources_dir = _get_resources_dir()
@@ -195,6 +202,51 @@ class AppConfigManager:
             traceback.print_exc()
 
         return config
+
+    def _detect_system_language(self) -> Literal["en", "zh"]:
+        """Detect the system language and return a supported language code.
+
+        Checks system locale settings to determine the user's preferred language.
+        Falls back to English if the detected language is not supported.
+
+        Returns:
+            Language code: 'zh' for Chinese, 'en' for English (default)
+        """
+        import locale
+
+        default_language: Literal["en", "zh"] = "en"
+
+        try:
+            # Try to get system locale
+            # This works on Windows, macOS, and Linux
+            system_locale = locale.getdefaultlocale()[0]  # e.g., 'en_US', 'zh_CN', 'zh_TW'
+
+            if system_locale:
+                # Extract language code (first 2 characters)
+                lang_code = system_locale[:2].lower()
+                print(f"[CONFIG] System locale detected: {system_locale} -> {lang_code}")
+
+                if lang_code == "zh":
+                    return "zh"
+                if lang_code == "en":
+                    return "en"
+
+            # Fallback: Check environment variables directly
+            for env_var in ["LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES"]:
+                env_value = os.getenv(env_var, "")
+                if env_value:
+                    lang_code = env_value[:2].lower()
+                    print(f"[CONFIG] Language from {env_var}: {env_value} -> {lang_code}")
+                    if lang_code == "zh":
+                        return "zh"
+                    if lang_code == "en":
+                        return "en"
+
+        except Exception as e:
+            print(f"[CONFIG] Failed to detect system language: {e}")
+
+        print(f"[CONFIG] Using default language: {default_language}")
+        return default_language
 
     def _apply_env_overrides(self, config: AppConfig) -> AppConfig:
         """Apply environment variable overrides.

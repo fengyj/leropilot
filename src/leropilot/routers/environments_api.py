@@ -479,6 +479,7 @@ async def start_installation(env_id: str) -> StartInstallationResponse:
 
         # Get environment display name
         env_name = executor.installation.env_config.display_name if executor.installation else env_id
+        logger.info(f"Returning env_name: {env_name} for env_id: {env_id}")
 
         return StartInstallationResponse(
             session_id=result["session_id"],

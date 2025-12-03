@@ -91,14 +91,20 @@ class PtySession:
         if IS_WINDOWS:
             # Windows: Pywinpty
             try:
-                self.proc = PtyProcess.spawn(self.shell_path, dims=(self.rows, self.cols), cwd=self.cwd)
+                # PtyProcess.spawn() doesn't accept dims parameter
+                # We spawn first, then resize
+                self.proc = PtyProcess.spawn(self.shell_path, cwd=self.cwd)
                 self.fd = self.proc.fd
                 self.pid = self.proc.pid
+                # Set window size after spawn
+                self.proc.setwinsize(self.rows, self.cols)
             except FileNotFoundError:
                 # Fallback if shell not found
                 self.shell_path = "cmd.exe"
-                self.proc = PtyProcess.spawn(self.shell_path, dims=(self.rows, self.cols), cwd=self.cwd)
+                self.proc = PtyProcess.spawn(self.shell_path, cwd=self.cwd)
                 self.fd = self.proc.fd
+                self.pid = self.proc.pid
+                self.proc.setwinsize(self.rows, self.cols)
         else:
             # Linux/macOS: Native PTY
             self.pid, self.fd = pty.fork()

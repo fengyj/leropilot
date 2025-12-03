@@ -48,13 +48,22 @@ class RepositoryExtrasInspector:
                 cmd,
                 cwd=self.repo_path,
                 capture_output=True,
-                text=True,
                 check=True,
                 timeout=10,
+                encoding="utf-8",  # Use encoding instead of text=True for explicit UTF-8
             )
 
+            # Check if stdout is empty or None
+            stdout_content = result.stdout
+            if not stdout_content:
+                logger.warning(f"Empty pyproject.toml content for ref {ref}")
+                logger.warning(f"stderr: {result.stderr}")
+                return []
+
+            logger.info(f"Got pyproject.toml content, length: {len(stdout_content)} chars")
+
             # Parse TOML
-            pyproject = tomllib.loads(result.stdout)
+            pyproject = tomllib.loads(stdout_content)
 
             # Debug logging
             logger.info(f"Repo path: {self.repo_path}")
