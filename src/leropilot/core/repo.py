@@ -41,12 +41,11 @@ class RepositoryExtrasInspector:
         """
         try:
             # Get pyproject.toml content from git
-            cmd = [self.git_path, "show", f"{ref}:pyproject.toml"]
+            # Method: Use git archive to extract the file to stdout as a tar stream,
+            # then read the file content. This avoids encoding issues with git show on Windows.
+            cmd = [self.git_path, "archive", ref, "pyproject.toml"]
             logger.info(f"Running command: {' '.join(cmd)} in {self.repo_path}")
 
-            # Use Popen with explicit pipes and binary mode to avoid encoding issues on Windows
-            # The issue is that subprocess.run with capture_output=True uses threads that
-            # may use system default encoding (gbk on Chinese Windows)
             result = subprocess.run(  # noqa: UP022
                 cmd,
                 cwd=self.repo_path,
@@ -56,19 +55,26 @@ class RepositoryExtrasInspector:
                 timeout=10,
             )
 
-            # Decode stdout as UTF-8 (pyproject.toml should always be UTF-8)
-            try:
-                stdout_content = result.stdout.decode("utf-8")
-            except UnicodeDecodeError as e:
-                logger.warning(f"Failed to decode pyproject.toml as UTF-8: {e}")
-                # Try with errors='replace' as fallback
-                stdout_content = result.stdout.decode("utf-8", errors="replace")
+            # Extract file content from tar archive
+            import io
+            import tarfile
 
-            # Check if stdout is empty
+            try:
+                tar_bytes = io.BytesIO(result.stdout)
+                with tarfile.open(fileobj=tar_bytes, mode="r") as tar:
+                    member = tar.getmember("pyproject.toml")
+                    f = tar.extractfile(member)
+                    if f is None:
+                        logger.warning(f"Could not extract pyproject.toml from tar for ref {ref}")
+                        return []
+                    stdout_content = f.read().decode("utf-8")
+            except Exception as e:
+                logger.warning(f"Failed to extract pyproject.toml from tar: {e}")
+                return []
+
+            # Check if content is empty
             if not stdout_content:
-                stderr_text = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
                 logger.warning(f"Empty pyproject.toml content for ref {ref}")
-                logger.warning(f"stderr: {stderr_text}")
                 return []
 
             logger.info(f"Got pyproject.toml content, length: {len(stdout_content)} chars")

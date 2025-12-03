@@ -90,21 +90,28 @@ class PtySession:
         """Cross-platform PTY start logic"""
         if IS_WINDOWS:
             # Windows: Pywinpty
+            # PtyProcess.spawn() is a classmethod that handles everything:
+            # - Creates PTY with dimensions
+            # - Finds the command on PATH
+            # - Spawns the process
             try:
-                # PtyProcess.spawn() doesn't accept dims parameter
-                # We spawn first, then resize
-                self.proc = PtyProcess.spawn(self.shell_path, cwd=self.cwd)
+                self.proc = PtyProcess.spawn(
+                    self.shell_path,
+                    cwd=self.cwd,
+                    dimensions=(self.rows, self.cols),
+                )
                 self.fd = self.proc.fd
                 self.pid = self.proc.pid
-                # Set window size after spawn
-                self.proc.setwinsize(self.rows, self.cols)
             except FileNotFoundError:
                 # Fallback if shell not found
                 self.shell_path = "cmd.exe"
-                self.proc = PtyProcess.spawn(self.shell_path, cwd=self.cwd)
+                self.proc = PtyProcess.spawn(
+                    self.shell_path,
+                    cwd=self.cwd,
+                    dimensions=(self.rows, self.cols),
+                )
                 self.fd = self.proc.fd
                 self.pid = self.proc.pid
-                self.proc.setwinsize(self.rows, self.cols)
         else:
             # Linux/macOS: Native PTY
             self.pid, self.fd = pty.fork()
@@ -133,8 +140,13 @@ class PtySession:
                 if IS_WINDOWS:
                     if self.proc is None:
                         break
-                    # winpty read may block or return empty
-                    data = self.proc.read(1024).encode("utf-8")
+                    # PtyProcess.read() returns a decoded string and raises EOFError on close
+                    try:
+                        text = self.proc.read(1024)
+                        data = text.encode("utf-8") if text else b""
+                    except EOFError:
+                        # PTY closed
+                        break
                 else:
                     if self.fd is None:
                         break
@@ -258,7 +270,7 @@ class PtySession:
             else:
                 assert self.fd is not None
                 os.write(self.fd, data.encode("utf-8"))
-        except OSError:
+        except (OSError, EOFError):
             pass
 
     def write_command(self, command: str) -> None:
