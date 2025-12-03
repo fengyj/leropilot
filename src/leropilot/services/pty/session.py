@@ -155,7 +155,9 @@ class PtySession:
         """Background thread: Physical PTY -> Queue"""
         import time as time_module
 
-        logger.info(f"Read loop started for session {self.session_id}")
+        logger.info(f"[READ_LOOP] Started for session {self.session_id}, IS_WINDOWS={IS_WINDOWS}")
+        logger.info(f"[READ_LOOP] self.pty={self.pty}, self.fd={self.fd}, self.pid={self.pid}")
+
         read_count = 0
         consecutive_empty = 0
         while not self._stop_event.is_set():
@@ -163,14 +165,14 @@ class PtySession:
                 data = b""
                 if IS_WINDOWS:
                     if self.pty is None:
-                        logger.info("PTY is None, breaking read loop")
+                        logger.info("[READ_LOOP] PTY is None, breaking read loop")
                         break
                     # Use low-level PTY.read() with blocking=False and polling
                     # This avoids issues with blocking reads on Windows
                     try:
                         read_count += 1
                         if read_count <= 5:
-                            logger.info(f"PTY read attempt #{read_count}, isalive={self.pty.isalive()}")
+                            logger.info(f"[READ_LOOP] read attempt #{read_count}, isalive={self.pty.isalive()}")
 
                         # Use non-blocking read
                         text = self.pty.read(blocking=False)
