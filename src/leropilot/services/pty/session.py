@@ -66,8 +66,10 @@ class PtySession:
         # 1. Detect & Start Shell
         self.shell_path = self._detect_shell()
         logger.info(f"Starting PTY session {self.session_id} with shell: {self.shell_path}")
+        print(f"[PTY DEBUG] Starting PTY session {self.session_id} with shell: {self.shell_path}", flush=True)
         self._start_pty()
         logger.info(f"PTY session {self.session_id} started, pid: {self.pid}, fd: {self.fd}")
+        print(f"[PTY DEBUG] PTY session started, pid: {self.pid}, fd: {self.fd}", flush=True)
 
         # 2. Start Background Reader Thread
         self._reader_thread = threading.Thread(target=self._read_loop, daemon=True, name="PtyReader")
@@ -99,10 +101,12 @@ class PtySession:
                 if shell_full_path:
                     shell_cmd = shell_full_path
 
+                print(f"[PTY DEBUG] Creating Windows PTY with cols={self.cols}, rows={self.rows}", flush=True)
                 logger.info(f"Creating Windows PTY with cols={self.cols}, rows={self.rows}")
                 # Create PTY with dimensions (cols, rows)
                 self.pty = PTY(self.cols, self.rows)
 
+                print(f"[PTY DEBUG] Spawning shell: {shell_cmd}, cwd={self.cwd}", flush=True)
                 logger.info(f"Spawning shell: {shell_cmd}, cwd={self.cwd}")
                 # Spawn the shell process
                 if not self.pty.spawn(shell_cmd, cwd=self.cwd):
@@ -110,6 +114,7 @@ class PtySession:
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
+                print(f"[PTY DEBUG] Windows PTY spawned: pid={self.pid}, fd={self.fd}", flush=True)
                 logger.info(f"Windows PTY spawned: shell={shell_cmd}, pid={self.pid}, fd={self.fd}")
 
                 # Check if process is alive immediately after spawn
@@ -117,11 +122,14 @@ class PtySession:
 
                 time.sleep(0.1)
                 is_alive = self.pty.isalive()
+                print(f"[PTY DEBUG] PTY process alive after spawn: {is_alive}", flush=True)
                 logger.info(f"PTY process alive check after spawn: {is_alive}")
                 if not is_alive:
                     exit_status = self.pty.get_exitstatus()
+                    print(f"[PTY DEBUG] PTY died after spawn, exit status: {exit_status}", flush=True)
                     logger.error(f"PTY process died immediately after spawn, exit status: {exit_status}")
             except Exception as e:
+                print(f"[PTY DEBUG] Failed to start PTY: {e}", flush=True)
                 logger.error(f"Failed to start PTY with {self.shell_path}: {e}")
                 # Fallback to cmd.exe
                 self.shell_path = "cmd.exe"
@@ -155,8 +163,22 @@ class PtySession:
         """Background thread: Physical PTY -> Queue"""
         import time as time_module
 
+        print(f"[PTY DEBUG] _read_loop started for session {self.session_id}", flush=True)
         logger.info(f"[READ_LOOP] Started for session {self.session_id}, IS_WINDOWS={IS_WINDOWS}")
         logger.info(f"[READ_LOOP] self.pty={self.pty}, self.fd={self.fd}, self.pid={self.pid}")
+
+        # On Windows, give the PTY a moment to fully initialize
+        if IS_WINDOWS:
+            time_module.sleep(0.2)
+            if self.pty:
+                is_alive = self.pty.isalive()
+                print(f"[PTY DEBUG] After startup wait, PTY isalive={is_alive}", flush=True)
+                logger.info(f"[READ_LOOP] After startup wait, PTY isalive={is_alive}")
+                if not is_alive:
+                    print("[PTY DEBUG] PTY process died before read loop could start", flush=True)
+                    logger.error("[READ_LOOP] PTY process died before read loop could start")
+                    self._output_queue.put(None)
+                    return
 
         read_count = 0
         consecutive_empty = 0
