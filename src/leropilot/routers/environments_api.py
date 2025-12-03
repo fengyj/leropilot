@@ -1,5 +1,6 @@
 """Environment creation API endpoints."""
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -45,57 +46,43 @@ from ..core.app_config import get_config
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/environments", tags=["environments"])
 
-# Initialize services (will be properly initialized on startup)
-_config_service: EnvironmentInstallationConfigService | None = None
-_i18n_service: I18nService | None = None
-_gpu_detector: GPUDetector | None = None
-_env_manager: EnvironmentManager | None = None
-_installation_executor: InstallationManager | None = None
+# Dependency injection functions
 
-# Store active executors (in production, consider using a proper session store)
+
+@lru_cache
+def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, GPUDetector]:
+    """Get or initialize services (singleton)."""
+    resources_dir = Path(__file__).parent.parent / "resources"
+    config_service = EnvironmentInstallationConfigService(resources_dir / "environment_installation_config.json")
+    i18n_service = I18nService(resources_dir / "i18n.json")
+    gpu_detector = GPUDetector()
+    return config_service, i18n_service, gpu_detector
+
+
+@lru_cache
+def get_env_manager() -> EnvironmentManager:
+    """Get or initialize environment manager (singleton)."""
+    return EnvironmentManager()
+
+
+@lru_cache
+def get_installation_executor() -> InstallationManager:
+    """Get or initialize installation executor (singleton)."""
+    return InstallationManager(get_env_manager())
+
+
+# Active executors storage (consider using Redis/DB in production)
 _active_executors: dict[str, EnvironmentInstallationExecutor] = {}
 
 # API response cache for React strict mode protection
 _api_cache: dict[str, Any] = {}
 
 
-def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, GPUDetector]:
-    """Get or initialize services."""
-    global _config_service, _i18n_service, _gpu_detector
-
-    if not _config_service:
-        resources_dir = Path(__file__).parent.parent / "resources"
-        _config_service = EnvironmentInstallationConfigService(resources_dir / "environment_installation_config.json")
-        _i18n_service = I18nService(resources_dir / "i18n.json")
-        _gpu_detector = GPUDetector()
-
-    assert _config_service is not None
-    assert _i18n_service is not None
-    assert _gpu_detector is not None
-    return _config_service, _i18n_service, _gpu_detector
-
-
-def get_env_manager() -> EnvironmentManager:
-    """Get or initialize environment manager."""
-    global _env_manager
-    if not _env_manager:
-        _env_manager = EnvironmentManager()
-    return _env_manager
-
-
-def get_installation_executor() -> InstallationManager:
-    """Get or initialize installation executor."""
-    global _installation_executor
-    if not _installation_executor:
-        _installation_executor = InstallationManager(get_env_manager())
-    return _installation_executor
-
-
 def clear_env_cache(env_id: str) -> None:
-    """Clear cached responses for a specific environment."""
-    env_execution_ids = [eid for eid in _api_cache.keys() if eid.startswith(f"{env_id}:")]
-    for eid in env_execution_ids:
-        _api_cache.pop(eid, None)
+    """Clear execution cache for an environment."""
+    # For now, we just clear the entire cache as we don't track env_id per execution_id
+    # and this is a single-user application.
+    _api_cache.clear()
 
 
 # Request/Response Models

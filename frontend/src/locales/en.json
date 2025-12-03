@@ -234,16 +234,17 @@
       "name": "Name",
       "url": "Repository URL",
       "default": "Default",
-      "setAsDefault": "Set as Default",
+      "setAsDefault": "Set as default",
       "actions": "Actions",
-      "deleteConfirm": "Are you sure you want to delete the repository \"{{name}}\"?"
+      "deleteConfirm": "Are you sure you want to delete the repository \"{{name}}\"?",
+      "saveBeforeDownload": "Please save the configuration before downloading this repository"
     },
     "pypi": {
       "title": "PyPI Mirrors",
       "description": "Manage PyPI mirror sources for faster package installation. Enable one mirror to use it, or keep all disabled to use official PyPI.",
-      "currentMirror": "Current Mirror",
+      "currentMirror": "Default",
       "usingOfficial": "Using Official PyPI (no mirror enabled)",
-      "addMirror": "Add Mirror",
+      "addMirror": "Add",
       "name": "Name",
       "url": "URL",
       "enable": "Enable",
@@ -283,6 +284,9 @@
     "error": "Error",
     "retry": "Retry",
     "upToDate": "Up to date",
-    "updatedAt": "Updated {{date}}"
+    "updatedAt": "Updated {{date}}",
+    "notFound": "Repository not found",
+    "downloadFailed": "Download failed",
+    "connectionLost": "Connection lost"
   }
 }

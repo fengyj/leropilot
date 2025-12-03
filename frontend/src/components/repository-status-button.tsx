@@ -19,6 +19,8 @@ interface RepositoryStatusButtonProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   showLabel?: boolean;
+  disabled?: boolean;
+  disabledTooltip?: string;
   onStatusChange?: (status: RepositoryStatus) => void;
   onDownloadComplete?: () => void;
 }
@@ -30,6 +32,8 @@ export function RepositoryStatusButton({
   size = 'sm',
   className,
   showLabel = true,
+  disabled = false,
+  disabledTooltip,
   onStatusChange,
   onDownloadComplete,
 }: RepositoryStatusButtonProps) {
@@ -109,7 +113,7 @@ export function RepositoryStatusButton({
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering parent click events (e.g. in selection cards)
-    if (loading) return;
+    if (loading || disabled) return;
 
     setLoading(true);
     setError(null);
@@ -218,54 +222,63 @@ export function RepositoryStatusButton({
                   : showLabel && t('repositoryStatus.download')}
             </button>
           ) : (
-            <Button
-              variant={variant as 'primary' | 'secondary' | 'ghost' | 'danger'}
-              size={size}
-              onClick={handleDownload}
-              disabled={loading}
-              className={cn(
-                'relative gap-2 overflow-hidden transition-all',
-                isDownloaded && !loading
-                  ? 'text-content-secondary hover:text-content-primary hover:border-content-secondary'
-                  : 'border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40',
+            <div className="group relative">
+              <Button
+                variant={variant as 'primary' | 'secondary' | 'ghost' | 'danger'}
+                size={size}
+                onClick={handleDownload}
+                disabled={loading || disabled}
+                className={cn(
+                  'relative gap-2 overflow-hidden transition-all',
+                  isDownloaded && !loading
+                    ? 'text-content-secondary hover:text-content-primary hover:border-content-secondary'
+                    : 'border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40',
+                )}
+                style={
+                  loading && progressPercent > 0
+                    ? {
+                        background: `linear-gradient(to right, rgba(59, 130, 246, 0.3) ${progressPercent}%, transparent ${progressPercent}%)`,
+                      }
+                    : undefined
+                }
+                title={
+                  disabled
+                    ? disabledTooltip
+                    : isDownloaded
+                      ? `${t('repositoryStatus.update')} ${repoName}`
+                      : `${t('repositoryStatus.download')} ${repoName}`
+                }
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {showLabel && (
+                      <span className="max-w-[150px] truncate">
+                        {downloadProgress ||
+                          (isDownloaded
+                            ? t('repositoryStatus.updating')
+                            : t('repositoryStatus.downloading'))}
+                      </span>
+                    )}
+                  </>
+                ) : isDownloaded ? (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    {showLabel && <span>{t('repositoryStatus.update')}</span>}
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    {showLabel && <span>{t('repositoryStatus.download')}</span>}
+                  </>
+                )}
+              </Button>
+              {disabled && disabledTooltip && (
+                <div className="absolute top-full left-1/2 z-10 mt-1 hidden -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+                  {disabledTooltip}
+                </div>
               )}
-              style={
-                loading && progressPercent > 0
-                  ? {
-                      background: `linear-gradient(to right, rgba(59, 130, 246, 0.3) ${progressPercent}%, transparent ${progressPercent}%)`,
-                    }
-                  : undefined
-              }
-              title={
-                isDownloaded
-                  ? `${t('repositoryStatus.update')} ${repoName}`
-                  : `${t('repositoryStatus.download')} ${repoName}`
-              }
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {showLabel && (
-                    <span className="max-w-[150px] truncate">
-                      {downloadProgress ||
-                        (isDownloaded
-                          ? t('repositoryStatus.updating')
-                          : t('repositoryStatus.downloading'))}
-                    </span>
-                  )}
-                </>
-              ) : isDownloaded ? (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  {showLabel && <span>{t('repositoryStatus.update')}</span>}
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4" />
-                  {showLabel && <span>{t('repositoryStatus.download')}</span>}
-                </>
-              )}
-            </Button>
+            </div>
           )}
         </>
       )}

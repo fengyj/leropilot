@@ -70,7 +70,7 @@ class EnvironmentInstallationExecutor:
         # Update env_config status to installing
         self.installation.env_config.status = "installing"
 
-        # Write start message (TODO: localization)
+        # Write start message
         logger.info("[EnvironmentInstallationExecutor] Writing start message to PTY")
         start_msg = "Starting environment installation..."
         assert self.pty_session is not None
@@ -126,7 +126,7 @@ class EnvironmentInstallationExecutor:
 
         self._executing_commands.add(command_key)
 
-        # Write start message on first command (TODO: localization)
+        # Write start message on first command
         if command_index == 0:
             assert self.pty_session is not None
             start_msg = f"▶ Starting: {step.name}"

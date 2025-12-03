@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from leropilot.models.repository import RepositorySource
+
 
 class ServerConfig(BaseModel):
     """Server configuration."""
@@ -176,15 +178,6 @@ class ToolsConfig(BaseModel):
     """Tools configuration."""
 
     git: ToolSource = Field(default_factory=ToolSource)
-
-
-class RepositorySource(BaseModel):
-    """Repository source configuration."""
-
-    id: str
-    name: str
-    url: str
-    is_default: bool = False
 
 
 class RepositoriesConfig(BaseModel):

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { camelCase } from 'lodash';
 import {
   Save,
   RotateCcw,
@@ -19,6 +20,7 @@ import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { cn } from '../utils/cn';
 import { useTheme } from '../contexts/theme-context';
 import { RepositoryStatusButton } from '../components/repository-status-button';
+import { useGitValidation } from '../hooks/useGitValidation';
 
 interface ToolSource {
   type: 'bundled' | 'custom';
@@ -70,10 +72,7 @@ interface AppConfig {
   };
 }
 
-// Helper to convert snake_case to camelCase for i18n keys
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-}
+
 
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
@@ -88,9 +87,6 @@ export function SettingsPage() {
     text: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [gitPathError, setGitPathError] = useState<string | null>(null);
-  const [gitPathValidation, setGitPathValidation] = useState<string | null>(null);
-  const [gitPathValidating, setGitPathValidating] = useState(false);
   const [bundledGitStatus, setBundledGitStatus] = useState<{
     installed: boolean;
     version?: string;
@@ -111,8 +107,8 @@ export function SettingsPage() {
   } | null>(null);
   const [configPath, setConfigPath] = useState<string | null>(null);
 
-  // Track last validated Git path to avoid unnecessary validations
-  const lastValidatedGitPath = useRef<string | null>(null);
+  // Use Git validation hook
+  const gitValidation = useGitValidation();
 
   // Store cleanup state in ref to avoid dependency issues
   const cleanupStateRef = useRef<{
@@ -251,37 +247,10 @@ export function SettingsPage() {
 
   // Validate custom Git path on page load
   useEffect(() => {
-    const validateGitPath = async (path: string) => {
-      if (!path) return;
-
-      // Skip if already validated this path
-      if (path === lastValidatedGitPath.current) return;
-
-      lastValidatedGitPath.current = path;
-      setGitPathValidating(true);
-      try {
-        const response = await fetch('/api/tools/git/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path }),
-        });
-        const data = await response.json();
-        if (!data.valid) {
-          setGitPathError(data.error);
-          setGitPathValidation(null);
-        } else {
-          setGitPathError(null);
-          setGitPathValidation(data.version);
-        }
-      } catch (err) {
-        console.error('Failed to validate git path:', err);
-      } finally {
-        setGitPathValidating(false);
-      }
-    };
-
     if (config?.tools.git.type === 'custom' && config.tools.git.custom_path) {
-      validateGitPath(config.tools.git.custom_path);
+      gitValidation.validate(config.tools.git.custom_path);
+    } else {
+      gitValidation.clear();
     }
   }, [config?.tools.git.type, config?.tools.git.custom_path]);
 
@@ -600,7 +569,7 @@ export function SettingsPage() {
               ).map((pathKey) => (
                 <div key={pathKey} className="space-y-2">
                   <label className="text-content-secondary text-sm font-medium">
-                    {t(`settings.paths.${toCamelCase(pathKey)}` as string)}
+                    {t(`settings.paths.${camelCase(pathKey)}` as string)}
                   </label>
                   <input
                     type="text"
@@ -748,9 +717,9 @@ export function SettingsPage() {
                     placeholder={t('settings.tools.gitPathPlaceholder')}
                     className={cn(
                       'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:border-blue-500 focus:outline-none',
-                      gitPathError && 'border-error-border focus:border-error-border',
-                      !gitPathError &&
-                        config.tools.git.custom_path &&
+                      gitValidation.error && 'border-error-border focus:border-error-border',
+                      !gitValidation.error &&
+                        gitValidation.validation &&
                         'border-green-500',
                     )}
                     value={config.tools.git.custom_path || ''}
@@ -763,55 +732,31 @@ export function SettingsPage() {
                         },
                       });
                       // Clear validation state when user types
-                      setGitPathError(null);
-                      setGitPathValidation(null);
+                      gitValidation.clear();
                     }}
-                    onBlur={async (e) => {
+                    onBlur={(e) => {
                       const path = e.target.value;
-                      if (!path) return;
-
-                      // Skip if already validated this path
-                      if (path === lastValidatedGitPath.current) return;
-
-                      lastValidatedGitPath.current = path;
-                      setGitPathValidating(true);
-                      try {
-                        const response = await fetch('/api/tools/git/validate', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ path }),
-                        });
-                        const data = await response.json();
-                        if (!data.valid) {
-                          setGitPathError(data.error);
-                          setGitPathValidation(null);
-                        } else {
-                          setGitPathError(null);
-                          setGitPathValidation(data.version);
-                        }
-                      } catch (err) {
-                        console.error('Failed to validate git path:', err);
-                      } finally {
-                        setGitPathValidating(false);
+                      if (path) {
+                        gitValidation.validate(path);
                       }
                     }}
                   />
                   {/* Validation icon */}
                   <div className="absolute top-1/2 right-3 -translate-y-1/2">
-                    {gitPathValidating ? (
+                    {gitValidation.isValidating ? (
                       <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                    ) : gitPathError ? (
+                    ) : gitValidation.error ? (
                       <div className="group relative">
                         <XCircle className="h-4 w-4 text-red-500" />
                         <div className="absolute top-6 right-0 z-10 hidden w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg group-hover:block">
-                          {gitPathError}
+                          {gitValidation.error}
                         </div>
                       </div>
-                    ) : gitPathValidation ? (
+                    ) : gitValidation.validation ? (
                       <div className="group relative">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                         <div className="absolute top-6 right-0 z-10 hidden rounded-md bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
-                          {gitPathValidation}
+                          {gitValidation.validation}
                         </div>
                       </div>
                     ) : null}
@@ -822,16 +767,12 @@ export function SettingsPage() {
                   <button
                     type="button"
                     onClick={async () => {
-                      setGitPathValidating(true);
-                      try {
-                        const response = await fetch('/api/tools/git/validate', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ path: 'git' }),
-                        });
-                        const data = await response.json();
-                        if (data.valid) {
-                          // Get the actual path using 'which git'
+                      // Validate 'git' command first
+                      await gitValidation.validate('git');
+
+                      // If valid, get the actual path
+                      if (!gitValidation.error) {
+                        try {
                           const whichResponse = await fetch('/api/tools/git/which');
                           const whichData = await whichResponse.json();
                           if (whichData.path) {
@@ -845,16 +786,14 @@ export function SettingsPage() {
                                 },
                               },
                             });
-                            setGitPathValidation(data.version);
                           }
+                        } catch (err) {
+                          console.error('Failed to get git path:', err);
                         }
-                      } catch (err) {
-                        console.error('Failed to auto-detect git:', err);
-                      } finally {
-                        setGitPathValidating(false);
                       }
                     }}
-                    className="mt-2 text-sm text-blue-500 hover:underline"
+                    disabled={gitValidation.isValidating}
+                    className="mt-2 flex items-center gap-2 text-sm text-blue-500 hover:underline disabled:opacity-50"
                   >
                     {t('settings.tools.autoDetect')}
                   </button>

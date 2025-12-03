@@ -236,14 +236,15 @@
       "default": "默认",
       "setAsDefault": "设为默认",
       "actions": "操作",
-      "deleteConfirm": "您确定要删除仓库 \"{{name}}\" 吗？"
+      "deleteConfirm": "您确定要删除仓库 \"{{name}}\" 吗？",
+      "saveBeforeDownload": "请先保存配置再下载此仓库"
     },
     "pypi": {
       "title": "PyPI 镜像",
       "description": "管理 PyPI 镜像源以加快包安装速度。启用一个镜像使用它，或保持全部禁用以使用官方 PyPI。",
-      "currentMirror": "当前镜像",
+      "currentMirror": "默认",
       "usingOfficial": "使用官方 PyPI（未启用镜像）",
-      "addMirror": "添加镜像",
+      "addMirror": "添加",
       "name": "名称",
       "url": "URL",
       "enable": "启用",
@@ -283,6 +284,9 @@
     "error": "错误",
     "retry": "重试",
     "upToDate": "已是最新",
-    "updatedAt": "更新于 {{date}}"
+    "updatedAt": "更新于 {{date}}",
+    "notFound": "仓库不存在",
+    "downloadFailed": "下载失败",
+    "connectionLost": "连接中断"
   }
 }

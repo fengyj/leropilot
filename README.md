@@ -43,6 +43,7 @@ For detailed installation instructions, see the **[Installation Guide](docs/wiki
 - Git
 
 **Platform-specific build tools** (for compiling native extensions):
+
 - **Windows**: [Visual C++ Build Tools](https://visualstudio.microsoft.com/downloads/) - Required for building pywinpty
 - **Linux**: Standard development tools (usually pre-installed)
   ```bash
@@ -120,6 +121,9 @@ pytest
 # Run frontend tests
 cd frontend
 npm test
+
+# Generate frontend types (requires backend running)
+npm run generate-types
 
 # Run linting
 ./scripts/run-lint.sh

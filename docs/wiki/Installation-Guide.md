@@ -5,6 +5,7 @@
 - **Operating System**: Windows 10/11, macOS 10.15+, or Linux (Ubuntu 20.04+)
 - **Memory**: 4GB RAM minimum (8GB recommended)
 - **Disk Space**: 2GB free space
+- **Git**: Optional (LeRoPilot can download a bundled version), or pre-installed system Git
 - **Python**: 3.10 or 3.11 (for browser mode only)
 
 ## Installation Methods

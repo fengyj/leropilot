@@ -46,8 +46,14 @@ app.add_middleware(
 app.add_middleware(IdempotencyMiddleware, ttl_hours=24)
 
 
-@app.api_route("/api/hello", methods=["GET", "HEAD"])
-async def hello() -> dict[str, str]:
+@app.get("/api/hello", operation_id="hello_api_hello_get")
+async def hello_get() -> dict[str, str]:
+    """Return a simple hello message with version info."""
+    return {"message": "Hello from LeRoPilot!", "version": "0.1.0"}
+
+
+@app.head("/api/hello", operation_id="hello_api_hello_head")
+async def hello_head() -> dict[str, str]:
     """Return a simple hello message with version info."""
     return {"message": "Hello from LeRoPilot!", "version": "0.1.0"}
 
