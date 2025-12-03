@@ -5,18 +5,16 @@ import queue
 import re
 import signal
 import struct
-import subprocess
 import sys
 import threading
 import uuid
 from pathlib import Path
-from shutil import which
 
 # OS Detection
 IS_WINDOWS = platform.system() == "Windows"
 
 if IS_WINDOWS:
-    from winpty import PTY
+    from winpty import PtyProcess
 else:
     import fcntl
     import pty
@@ -35,7 +33,7 @@ class PtySession:
         self.cols = cols
         self.rows = rows
         self.fd: int | None = None
-        self.pty: PTY | None = None  # Windows: low-level PTY object
+        self.pty: PtyProcess | None = None  # Windows: PtyProcess object
         self.pid: int | None = None
 
         # Handle default path and normalize for Windows
@@ -98,81 +96,42 @@ class PtySession:
     def _start_pty(self) -> None:
         """Cross-platform PTY start logic"""
         if IS_WINDOWS:
-            # Windows: Use low-level PTY class for full control
-            # This avoids issues with PtyProcess's internal threading
+            # Windows: Use PtyProcess for better compatibility
             try:
                 # Log environment for debugging
                 comspec = os.environ.get("COMSPEC", "NOT_SET")
                 logger.info(f"[PTY SPAWN] Starting Windows PTY spawn - COMSPEC={comspec}, shell_path={self.shell_path}")
                 print(f"[PTY DEBUG] COMSPEC={comspec}, requested shell={self.shell_path}", flush=True)
 
-                # Find the full path to the shell
-                shell_cmd = self.shell_path
-                shell_full_path = which(shell_cmd)
-                if shell_full_path:
-                    logger.info(f"[PTY SPAWN] Resolved shell path: {shell_full_path}")
-                    shell_cmd = shell_full_path
-                else:
-                    logger.warning(f"[PTY SPAWN] Could not find shell in PATH: {shell_cmd}")
-
                 # Verify CWD exists and is accessible
                 if not os.path.exists(self.cwd):
                     logger.error(f"[PTY SPAWN] CWD does not exist: {self.cwd}")
                     raise RuntimeError(f"CWD does not exist: {self.cwd}")
 
-                logger.info(f"[PTY SPAWN] Target CWD: {self.cwd}")
+                logger.info(f"[PTY SPAWN] CWD: {self.cwd}")
+                print(f"[PTY DEBUG] CWD: {self.cwd}", flush=True)
 
-                # WORKAROUND: Spawn cmd.exe in user's home directory instead of target CWD
-                # Some directories cause STATUS_CONTROL_C_EXIT when used as spawn CWD
-                # We'll change to the target directory after cmd.exe is running
-                spawn_cwd = os.path.expanduser("~")
-                logger.info(f"[PTY SPAWN] Using home directory for spawn: {spawn_cwd}")
-                print(f"[PTY DEBUG] Spawning in home dir (will cd later): {spawn_cwd}", flush=True)
+                print(f"[PTY DEBUG] Creating PtyProcess with cols={self.cols}, rows={self.rows}", flush=True)
+                logger.info(f"[PTY SPAWN] Creating PtyProcess with dimensions: cols={self.cols}, rows={self.rows}")
 
-                print(f"[PTY DEBUG] Creating Windows PTY with cols={self.cols}, rows={self.rows}", flush=True)
-                logger.info(f"[PTY SPAWN] Creating PTY with dimensions: cols={self.cols}, rows={self.rows}")
-
-                # Create PTY with dimensions (cols, rows)
-                self.pty = PTY(self.cols, self.rows)
-                logger.info("[PTY SPAWN] PTY object created successfully")
-
-                print(f"[PTY DEBUG] Spawning shell: {shell_cmd}, cwd={spawn_cwd}", flush=True)
-                logger.info(f"[PTY SPAWN] About to spawn: shell={shell_cmd}, cwd={spawn_cwd}")
-
-                # Spawn the shell process
-                # NOTE: cmd.exe runs interactively by default in PTY mode - no /K needed
-                # Adding /K as "cmd.exe /K" causes spawn to fail because winpty treats
-                # it as a single filename, not as separate arguments
-                spawn_result = self.pty.spawn(shell_cmd, cwd=spawn_cwd)
-                logger.info(f"[PTY SPAWN] spawn() returned: {spawn_result}")
-
-                if not spawn_result:
-                    raise RuntimeError(f"Failed to spawn shell: {shell_cmd}")
+                # Use PtyProcess.spawn() which handles everything internally
+                self.pty = PtyProcess.spawn([self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd)
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
-                print(f"[PTY DEBUG] Windows PTY spawned: pid={self.pid}, fd={self.fd}", flush=True)
+                print(f"[PTY DEBUG] Windows PtyProcess spawned: pid={self.pid}, fd={self.fd}", flush=True)
                 logger.info(f"[PTY SPAWN] Spawn successful - pid={self.pid}, fd={self.fd}")
-
-                # WORKAROUND: Since we spawned in home dir, we need to cd to the target CWD
-                if spawn_cwd != self.cwd:
-                    # Use /d to ensure drive change if needed
-                    cd_cmd = f'cd /d "{self.cwd}"'
-                    logger.info(f"[PTY SPAWN] Switching to target CWD: {cd_cmd}")
-                    # We can write directly to the PTY since it's open
-                    self.pty.write(cd_cmd + "\r")
 
                 # Check if process is alive immediately after spawn
                 import time
 
-                # Give cmd.exe more time to initialize
-                time.sleep(0.5)
+                time.sleep(0.3)
                 is_alive = self.pty.isalive()
-                print(f"[PTY DEBUG] PTY process alive after 0.5s wait: {is_alive}", flush=True)
-                logger.info(f"[PTY SPAWN] Process alive check after 0.5s: {is_alive}")
+                print(f"[PTY DEBUG] PTY process alive after 0.3s wait: {is_alive}", flush=True)
+                logger.info(f"[PTY SPAWN] Process alive check after 0.3s: {is_alive}")
 
                 if not is_alive:
-                    exit_status = self.pty.get_exitstatus()
+                    exit_status = self.pty.exitstatus
                     print(
                         f"[PTY DEBUG] PTY died after spawn, exit status: {exit_status} (0x{exit_status:X})", flush=True
                     )
@@ -189,13 +148,10 @@ class PtySession:
                 print(f"[PTY DEBUG] Exception during PTY start: {e}\n{error_details}", flush=True)
                 logger.error(f"[PTY SPAWN] Exception during start: {e}\n{error_details}")
 
-                # Fallback to cmd.exe (without /K argument)
+                # Fallback to cmd.exe
                 logger.info("[PTY SPAWN] Attempting fallback to cmd.exe")
                 self.shell_path = "cmd.exe"
-                shell_full_path = which(self.shell_path) or self.shell_path
-                self.pty = PTY(self.cols, self.rows)
-                if not self.pty.spawn(shell_full_path, cwd=self.cwd):
-                    raise RuntimeError(f"Failed to spawn fallback shell: {shell_full_path}") from e
+                self.pty = PtyProcess.spawn([self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd)
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
                 logger.info(f"[PTY SPAWN] Fallback spawn successful - pid={self.pid}")
@@ -249,15 +205,14 @@ class PtySession:
                     if self.pty is None:
                         logger.info("[READ_LOOP] PTY is None, breaking read loop")
                         break
-                    # Use low-level PTY.read() with blocking=False and polling
-                    # This avoids issues with blocking reads on Windows
+                    # PtyProcess.read() returns string, not bytes
                     try:
                         read_count += 1
                         if read_count <= 5:
                             logger.info(f"[READ_LOOP] read attempt #{read_count}, isalive={self.pty.isalive()}")
 
-                        # Use non-blocking read
-                        text = self.pty.read(blocking=False)
+                        # PtyProcess.read() with timeout
+                        text = self.pty.read(1024)
                         if text:
                             data = text.encode("utf-8")
                             consecutive_empty = 0
@@ -450,7 +405,8 @@ class PtySession:
                 if not self.pty.isalive():
                     logger.warning(f"Attempted to resize dead PTY session {self.session_id}")
                     return
-                self.pty.set_size(cols, rows)
+                # PtyProcess uses setwinsize(rows, cols) - note the parameter order!
+                self.pty.setwinsize(rows, cols)
             except Exception as e:
                 logger.warning(f"Failed to resize PTY session {self.session_id}: {e}")
         elif not IS_WINDOWS and self.fd:
@@ -550,17 +506,19 @@ class PtySession:
 
         if IS_WINDOWS:
             if self.pty:
-                # Use taskkill to kill the entire process tree
-                if self.pid:
-                    try:
-                        subprocess.run(
-                            ["taskkill", "/F", "/T", "/PID", str(self.pid)],
-                            check=False,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to taskkill process tree: {e}")
+                # Use PtyProcess built-in termination instead of taskkill
+                try:
+                    # Try graceful termination first
+                    self.pty.terminate(force=False)
+                    # Give it a moment to terminate
+                    import time
+
+                    time.sleep(0.1)
+                    # If still alive, force kill
+                    if self.pty.isalive():
+                        self.pty.terminate(force=True)
+                except Exception as e:
+                    logger.warning(f"Failed to terminate PTY process: {e}")
 
                 # Clean up PTY object
                 try:
