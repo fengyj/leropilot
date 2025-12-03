@@ -44,20 +44,31 @@ class RepositoryExtrasInspector:
             cmd = [self.git_path, "show", f"{ref}:pyproject.toml"]
             logger.info(f"Running command: {' '.join(cmd)} in {self.repo_path}")
 
-            result = subprocess.run(
+            # Use Popen with explicit pipes and binary mode to avoid encoding issues on Windows
+            # The issue is that subprocess.run with capture_output=True uses threads that
+            # may use system default encoding (gbk on Chinese Windows)
+            result = subprocess.run(  # noqa: UP022
                 cmd,
                 cwd=self.repo_path,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 check=True,
                 timeout=10,
-                encoding="utf-8",  # Use encoding instead of text=True for explicit UTF-8
             )
 
-            # Check if stdout is empty or None
-            stdout_content = result.stdout
+            # Decode stdout as UTF-8 (pyproject.toml should always be UTF-8)
+            try:
+                stdout_content = result.stdout.decode("utf-8")
+            except UnicodeDecodeError as e:
+                logger.warning(f"Failed to decode pyproject.toml as UTF-8: {e}")
+                # Try with errors='replace' as fallback
+                stdout_content = result.stdout.decode("utf-8", errors="replace")
+
+            # Check if stdout is empty
             if not stdout_content:
+                stderr_text = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
                 logger.warning(f"Empty pyproject.toml content for ref {ref}")
-                logger.warning(f"stderr: {result.stderr}")
+                logger.warning(f"stderr: {stderr_text}")
                 return []
 
             logger.info(f"Got pyproject.toml content, length: {len(stdout_content)} chars")
