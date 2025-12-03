@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const waitOn = require('wait-on');
+const fs = require('fs');
 
 let pythonProcess = null;
 let mainWindow = null;
@@ -54,53 +55,6 @@ function getPythonPath() {
   }
 }
 
-// Get config file path
-function getConfigPath() {
-  const os = require('os');
-  const homeDir = os.homedir();
-  const configDir = path.join(homeDir, '.leropilot');
-  return path.join(configDir, 'config.json');
-}
-
-// Read config file
-function readConfig() {
-  const fs = require('fs');
-  const configPath = getConfigPath();
-
-  try {
-    if (fs.existsSync(configPath)) {
-      const configData = fs.readFileSync(configPath, 'utf8');
-      return JSON.parse(configData);
-    }
-  } catch (err) {
-    console.error('Failed to read config:', err);
-  }
-
-  // Return null, let backend use its own defaults
-  return null;
-}
-
-// Write config file
-function writeConfig(config) {
-  const fs = require('fs');
-  const configPath = getConfigPath();
-  const configDir = path.dirname(configPath);
-
-  try {
-    // Ensure config directory exists
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
-    console.log('Config saved to:', configPath);
-    return true;
-  } catch (err) {
-    console.error('Failed to write config:', err);
-    return false;
-  }
-}
-
 // Parse command line arguments
 function parseCommandLineArgs() {
   const args = process.argv.slice(app.isPackaged ? 1 : 2);
@@ -121,6 +75,7 @@ function parseCommandLineArgs() {
   return result;
 }
 
+
 // Start Python backend
 async function startPythonBackend() {
   // In development, we usually start backend manually for debugging
@@ -134,28 +89,6 @@ async function startPythonBackend() {
   // Parse command line arguments
   const cmdArgs = parseCommandLineArgs();
 
-  // Read config
-  let config = readConfig();
-
-  // If --port argument is provided, update config and save
-  if (cmdArgs.port) {
-    console.log(`Port override detected: ${cmdArgs.port}`);
-
-    // If no config file, create a basic one
-    if (!config) {
-      config = {
-        server: { port: cmdArgs.port, host: '127.0.0.1', auto_open_browser: true },
-        ui: { theme: 'system', preferred_language: 'en' }
-      };
-    } else {
-      config.server = config.server || {};
-      config.server.port = cmdArgs.port;
-    }
-
-    writeConfig(config);
-    console.log(`Config updated with new port: ${cmdArgs.port}`);
-  }
-
   const pythonPath = getPythonPath();
   // Build arguments for backend
   const args = [];
@@ -166,7 +99,10 @@ async function startPythonBackend() {
     args.push('-u'); // Force unbuffered output for development
   }
 
+  // Pass port to backend only if provided via command line
+  // Otherwise, let Python backend use its saved config (or default)
   if (cmdArgs.port) {
+    console.log(`Port override detected from command line: ${cmdArgs.port}`);
     args.push('--port', cmdArgs.port.toString());
   }
   args.push('--no-browser');
@@ -221,8 +157,9 @@ async function startPythonBackend() {
 
   if (!detectedPort) {
     console.error('Could not detect backend port. Backend may have failed to start or output is buffered.');
-    // If detection fails, try fallback to default or config port
-    const fallbackPort = cmdArgs.port || (config && config.server && config.server.port) || 8000;
+    // If detection fails, use command-line port or default
+    // The backend will save the port to config if it was provided via --port
+    const fallbackPort = cmdArgs.port || 8000;
     console.log(`Falling back to port ${fallbackPort}`);
     detectedPort = fallbackPort;
   }
@@ -253,10 +190,18 @@ async function startPythonBackend() {
       );
     }
 
+    // Check if port is actually in use
     throw new Error(
-      `Failed to connect to backend on port ${detectedPort}.\n` +
-      `The backend process is running but not responding.\n` +
-      `Check logs for details.`
+      `Failed to connect to backend on port ${detectedPort}.\n\n` +
+      `Possible causes:\n` +
+      `1. The port is already in use by another process\n` +
+      `2. The backend process crashed (check logs)\n` +
+      `3. Firewall or antivirus is blocking the connection\n\n` +
+      `Solutions:\n` +
+      `• Try again in a few seconds (port may still be releasing)\n` +
+      `• Restart your computer to clear the port\n` +
+      `• Use a different port: leropilot --port 9000\n` +
+      `• Check task manager for processes using port ${detectedPort}`
     );
   }
 }
