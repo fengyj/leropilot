@@ -10,12 +10,13 @@ import sys
 import threading
 import uuid
 from pathlib import Path
+from shutil import which
 
 # OS Detection
 IS_WINDOWS = platform.system() == "Windows"
 
 if IS_WINDOWS:
-    from winpty import PtyProcess
+    from winpty import PTY
 else:
     import fcntl
     import pty
@@ -34,7 +35,7 @@ class PtySession:
         self.cols = cols
         self.rows = rows
         self.fd: int | None = None
-        self.proc: PtyProcess | None = None
+        self.pty: PTY | None = None  # Windows: low-level PTY object
         self.pid: int | None = None
 
         # Handle default path
@@ -89,29 +90,35 @@ class PtySession:
     def _start_pty(self) -> None:
         """Cross-platform PTY start logic"""
         if IS_WINDOWS:
-            # Windows: Pywinpty
-            # PtyProcess.spawn() is a classmethod that handles everything:
-            # - Creates PTY with dimensions
-            # - Finds the command on PATH
-            # - Spawns the process
+            # Windows: Use low-level PTY class for full control
+            # This avoids issues with PtyProcess's internal threading
             try:
-                self.proc = PtyProcess.spawn(
-                    self.shell_path,
-                    cwd=self.cwd,
-                    dimensions=(self.rows, self.cols),
-                )
-                self.fd = self.proc.fd
-                self.pid = self.proc.pid
-            except FileNotFoundError:
-                # Fallback if shell not found
+                # Find the full path to the shell
+                shell_cmd = self.shell_path
+                shell_full_path = which(shell_cmd)
+                if shell_full_path:
+                    shell_cmd = shell_full_path
+
+                # Create PTY with dimensions (cols, rows)
+                self.pty = PTY(self.cols, self.rows)
+
+                # Spawn the shell process
+                if not self.pty.spawn(shell_cmd, cwd=self.cwd):
+                    raise RuntimeError(f"Failed to spawn shell: {shell_cmd}")
+
+                self.fd = self.pty.fd
+                self.pid = self.pty.pid
+                logger.info(f"Windows PTY spawned: shell={shell_cmd}, pid={self.pid}, fd={self.fd}")
+            except Exception as e:
+                logger.error(f"Failed to start PTY with {self.shell_path}: {e}")
+                # Fallback to cmd.exe
                 self.shell_path = "cmd.exe"
-                self.proc = PtyProcess.spawn(
-                    self.shell_path,
-                    cwd=self.cwd,
-                    dimensions=(self.rows, self.cols),
-                )
-                self.fd = self.proc.fd
-                self.pid = self.proc.pid
+                shell_full_path = which(self.shell_path) or self.shell_path
+                self.pty = PTY(self.cols, self.rows)
+                if not self.pty.spawn(shell_full_path, cwd=self.cwd):
+                    raise RuntimeError(f"Failed to spawn fallback shell: {shell_full_path}") from e
+                self.fd = self.pty.fd
+                self.pid = self.pty.pid
         else:
             # Linux/macOS: Native PTY
             self.pid, self.fd = pty.fork()
@@ -138,15 +145,24 @@ class PtySession:
             try:
                 data = b""
                 if IS_WINDOWS:
-                    if self.proc is None:
+                    if self.pty is None:
                         break
-                    # PtyProcess.read() returns a decoded string and raises EOFError on close
+                    # Use low-level PTY.read() which returns a string
+                    # blocking=False to avoid hanging
                     try:
-                        text = self.proc.read(1024)
-                        data = text.encode("utf-8") if text else b""
-                    except EOFError:
-                        # PTY closed
-                        break
+                        text = self.pty.read(blocking=True)
+                        if text:
+                            data = text.encode("utf-8")
+                        else:
+                            # Empty read, check if process is still alive
+                            if not self.pty.isalive():
+                                break
+                            continue
+                    except Exception as e:
+                        if "EOF" in str(e) or not self.pty.isalive():
+                            break
+                        logger.warning(f"PTY read error: {e}")
+                        continue
                 else:
                     if self.fd is None:
                         break
@@ -260,13 +276,13 @@ class PtySession:
             return b""
 
     def write(self, data: str) -> None:
-        if (IS_WINDOWS and self.proc is None) or (not IS_WINDOWS and self.fd is None):
+        if (IS_WINDOWS and self.pty is None) or (not IS_WINDOWS and self.fd is None):
             return
 
         try:
             if IS_WINDOWS:
-                assert self.proc is not None
-                self.proc.write(data)
+                assert self.pty is not None
+                self.pty.write(data)
             else:
                 assert self.fd is not None
                 os.write(self.fd, data.encode("utf-8"))
@@ -305,8 +321,8 @@ class PtySession:
     def resize(self, rows: int, cols: int) -> None:
         self.rows = rows
         self.cols = cols
-        if IS_WINDOWS and self.proc:
-            self.proc.setwinsize(rows, cols)
+        if IS_WINDOWS and self.pty:
+            self.pty.set_size(cols, rows)
         elif not IS_WINDOWS and self.fd:
             self._resize_linux(rows, cols)
 
@@ -403,7 +419,7 @@ class PtySession:
             self.log_handle.close()
 
         if IS_WINDOWS:
-            if self.proc:
+            if self.pty:
                 # Use taskkill to kill the entire process tree
                 if self.pid:
                     try:
@@ -416,12 +432,12 @@ class PtySession:
                     except Exception as e:
                         logger.warning(f"Failed to taskkill process tree: {e}")
 
-                # Fallback to winpty terminate
+                # Clean up PTY object
                 try:
-                    self.proc.terminate()
+                    del self.pty
                 except Exception:
                     pass
-                self.proc = None
+                self.pty = None
         else:
             if self.fd:
                 try:
