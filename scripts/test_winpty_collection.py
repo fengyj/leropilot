@@ -15,9 +15,9 @@ print("\n1. Checking winpty installation...")
 try:
     import winpty
 
-    print(f"   ✓ winpty installed at: {winpty.__file__}")
+    print(f"   [OK] winpty installed at: {winpty.__file__}")
 except ImportError as e:
-    print(f"   ✗ winpty not installed: {e}")
+    print(f"   [FAIL] winpty not installed: {e}")
     sys.exit(1)
 
 # Test 2: Find DLL files
@@ -29,16 +29,16 @@ try:
     dll_files = list(winpty_dir.rglob("*.dll"))
 
     if dll_files:
-        print(f"   ✓ Found {len(dll_files)} DLL files:")
+        print(f"   [OK] Found {len(dll_files)} DLL files:")
         for dll in dll_files:
             rel_path = dll.relative_to(winpty_dir.parent)
             print(f"     - {dll}")
-            print(f"       → {rel_path.parent}")
+            print(f"       -> {rel_path.parent}")
     else:
-        print(f"   ✗ No DLL files found in {winpty_dir}")
+        print(f"   [FAIL] No DLL files found in {winpty_dir}")
 
 except Exception as e:
-    print(f"   ✗ Error searching for DLLs: {e}")
+    print(f"   [FAIL] Error searching for DLLs: {e}")
     import traceback
 
     traceback.print_exc()
@@ -65,11 +65,11 @@ def collect_winpty_binaries() -> list[tuple[str, str]]:
 
 binaries = collect_winpty_binaries()
 if binaries:
-    print(f"   ✓ Collection function returned {len(binaries)} binaries:")
+    print(f"   [OK] Collection function returned {len(binaries)} binaries:")
     for src, dst in binaries:
-        print(f"     {src} → {dst}")
+        print(f"     {src} -> {dst}")
 else:
-    print("   ✗ Collection function returned empty list")
+    print("   [FAIL] Collection function returned empty list")
 
 print("\n" + "=" * 60)
 print("Test complete")
