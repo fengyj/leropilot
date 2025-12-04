@@ -67,10 +67,8 @@ class PtySession:
         # 1. Detect & Start Shell
         self.shell_path = self._detect_shell()
         logger.info(f"Starting PTY session {self.session_id} with shell: {self.shell_path}")
-        print(f"[PTY DEBUG] Starting PTY session {self.session_id} with shell: {self.shell_path}", flush=True)
         self._start_pty()
         logger.info(f"PTY session {self.session_id} started, pid: {self.pid}, fd: {self.fd}")
-        print(f"[PTY DEBUG] PTY session started, pid: {self.pid}, fd: {self.fd}", flush=True)
 
         # 2. Start Background Reader Thread
         self._reader_thread = threading.Thread(target=self._read_loop, daemon=True, name="PtyReader")
@@ -86,9 +84,9 @@ class PtySession:
 
     def _detect_shell(self) -> str:
         if IS_WINDOWS:
-            # COMSPEC is usually set to cmd.exe on Windows
-            # Default to cmd.exe instead of powershell for better compatibility
-            return os.environ.get("COMSPEC", "cmd.exe")
+            # Use PowerShell as default on Windows (like VSCode)
+            # PowerShell has better shell integration support than cmd.exe
+            return "powershell.exe"
         else:
             return os.environ.get("SHELL", "/bin/bash")
 
@@ -97,41 +95,18 @@ class PtySession:
         if IS_WINDOWS:
             # Windows: Use PtyProcess for better compatibility
             try:
-                # Log winpty installation path for diagnostics
                 import winpty as winpty_module
-
-                winpty_path = os.path.dirname(winpty_module.__file__)
-                agent_path = os.path.join(winpty_path, "bin", "winpty-agent.exe")
-                logger.info(f"[PTY SPAWN] winpty installed at: {winpty_path}")
-                logger.info(f"[PTY SPAWN] winpty-agent.exe exists: {os.path.exists(agent_path)}")
-                if os.path.exists(agent_path):
-                    logger.info(f"[PTY SPAWN] winpty-agent.exe path: {agent_path}")
-                else:
-                    logger.error(f"[PTY SPAWN] winpty-agent.exe NOT FOUND at: {agent_path}")
-
-                # Log environment for debugging
-                comspec = os.environ.get("COMSPEC", "NOT_SET")
-                logger.info(f"[PTY SPAWN] Starting Windows PTY spawn - COMSPEC={comspec}, shell_path={self.shell_path}")
-                print(f"[PTY DEBUG] COMSPEC={comspec}, requested shell={self.shell_path}", flush=True)
 
                 # Verify CWD exists and is accessible
                 if not os.path.exists(self.cwd):
-                    logger.error(f"[PTY SPAWN] CWD does not exist: {self.cwd}")
+                    logger.error(f"CWD does not exist: {self.cwd}")
                     raise RuntimeError(f"CWD does not exist: {self.cwd}")
 
-                logger.info(f"[PTY SPAWN] CWD: {self.cwd}")
-                print(f"[PTY DEBUG] CWD: {self.cwd}", flush=True)
-
-                print(f"[PTY DEBUG] Creating PtyProcess with cols={self.cols}, rows={self.rows}", flush=True)
-                logger.info(f"[PTY SPAWN] Creating PtyProcess with dimensions: cols={self.cols}, rows={self.rows}")
-
-                # CRITICAL: cmd.exe requires SystemRoot and PATH environment variables
-                # PtyProcess.spawn() may not inherit them by default, causing immediate crash
+                # Pass environment variables to ensure proper shell initialization
                 current_env = os.environ.copy()
-                logger.info(f"[PTY SPAWN] Passing {len(current_env)} environment variables")
 
                 # Try to use ConPTY backend on Windows 10+ (doesn't need winpty-agent.exe)
-                backend = None
+                use_conpty = False
                 try:
                     # Check if ConPTY is available (Windows 10 1809+)
                     import sys
@@ -139,145 +114,52 @@ class PtySession:
                     if sys.platform == "win32":
                         import platform
 
-                        win_ver = platform.version().split(".")
+                        win_ver_str = platform.version().split(".")
+                        win_version = tuple(map(int, win_ver_str[:3]))  # Get major, minor, build
                         # Windows 10 build 17763 (1809) or later has ConPTY
-                        if len(win_ver) >= 3 and int(win_ver[2]) >= 17763:
-                            logger.info("[PTY SPAWN] Windows 10 1809+ detected, attempting to use ConPTY backend")
-                            # Try to import backend option
-                            try:
-                                from winpty import Backend
-
-                                backend = Backend.ConPTY
-                                logger.info("[PTY SPAWN] Using ConPTY backend (native Windows PTY)")
-                            except (ImportError, AttributeError):
-                                logger.warning("[PTY SPAWN] ConPTY backend not available, using default")
+                        if win_version >= (10, 0, 17763):  # Windows 10 1809+
+                            use_conpty = True
+                            logger.debug("Windows 10 1809+ detected, using ConPTY backend")
                 except Exception as e:
-                    logger.warning(f"[PTY SPAWN] Could not detect ConPTY support: {e}")
+                    logger.debug(f"Could not detect ConPTY support: {e}")
 
                 # Use PtyProcess.spawn() which handles everything internally
                 # Note: first argument is the command, not a keyword argument
-                if backend is not None:
-                    logger.info(f"[PTY SPAWN] Spawning {self.shell_path} with ConPTY backend")
+                # Spawn PTY with backend preference
+                spawn_kwargs = {
+                    "dimensions": (self.rows, self.cols),
+                    "cwd": self.cwd,
+                    "env": current_env,
+                }
+
+                # For PowerShell, add execution policy bypass
+                shell_cmd: str | list[str] = self.shell_path
+                if "powershell" in self.shell_path.lower() or "pwsh" in self.shell_path.lower():
+                    # Add -ExecutionPolicy Bypass to allow script execution
+                    # Add -NoLogo to reduce startup output
+                    shell_cmd = [self.shell_path, "-ExecutionPolicy", "Bypass", "-NoLogo"]
+
+                    # Set UTF-8 encoding for PowerShell output (important for Chinese characters)
+                    current_env["PYTHONIOENCODING"] = "utf-8"
+                    # PowerShell Core uses UTF-8 by default, but for PowerShell 5.x we need this
+                    current_env["PSDefaultParameterValues"] = "Out-File:Encoding=utf8"
+
+                if use_conpty:
                     self.pty = PtyProcess.spawn(
-                        self.shell_path,
-                        dimensions=(self.rows, self.cols),
-                        cwd=self.cwd,
-                        env=current_env,
-                        backend=backend,
+                        shell_cmd,
+                        backend=winpty_module.Backend.ConPTY,
+                        **spawn_kwargs,
                     )
                 else:
-                    logger.info(f"[PTY SPAWN] Spawning {self.shell_path} with default backend")
-                    self.pty = PtyProcess.spawn(
-                        self.shell_path, dimensions=(self.rows, self.cols), cwd=self.cwd, env=current_env
-                    )
+                    self.pty = PtyProcess.spawn(shell_cmd, **spawn_kwargs)
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
-                print(f"[PTY DEBUG] Windows PtyProcess spawned: pid={self.pid}, fd={self.fd}", flush=True)
-                logger.info(f"[PTY SPAWN] Spawn successful - pid={self.pid}, fd={self.fd}")
-
-                # Try to read any immediate output or error
-                import time
-
-                time.sleep(0.1)
-                try:
-                    # Attempt to read any output that might explain the crash
-                    initial_output = self.pty.read(1024)
-                    if initial_output:
-                        logger.info(f"[PTY SPAWN] Initial output: {initial_output[:200]}")
-                        print(f"[PTY DEBUG] Got initial output: {initial_output[:100]}", flush=True)
-                except Exception as read_err:
-                    logger.warning(f"[PTY SPAWN] Could not read initial output: {read_err}")
-
-                # Check if process is alive immediately after spawn
-                time.sleep(0.2)  # Total 0.3s wait
-                is_alive = self.pty.isalive()
-                print(f"[PTY DEBUG] PTY process alive after 0.3s wait: {is_alive}", flush=True)
-                logger.info(f"[PTY SPAWN] Process alive check after 0.3s: {is_alive}")
-
-                if not is_alive:
-                    exit_status = self.pty.exitstatus
-                    print(
-                        f"[PTY DEBUG] PTY died after spawn, exit status: {exit_status} (0x{exit_status:X})", flush=True
-                    )
-                    logger.error(
-                        f"[PTY SPAWN] Process died immediately - exit_status={exit_status} (0x{exit_status:X})"
-                    )
-
-                    # Try to get any remaining output
-                    try:
-                        remaining = self.pty.read(1024)
-                        if remaining:
-                            logger.error(f"[PTY SPAWN] Output before death: {remaining}")
-                    except Exception:
-                        pass
-
-                    # If using ConPTY with cmd.exe failed, try PowerShell
-                    if backend is not None and "cmd.exe" in self.shell_path.lower():
-                        logger.info("[PTY SPAWN] cmd.exe failed with ConPTY, trying PowerShell")
-                        try:
-                            import time
-
-                            pwsh_path = "powershell.exe"
-                            self.pty = PtyProcess.spawn(
-                                pwsh_path,
-                                dimensions=(self.rows, self.cols),
-                                cwd=self.cwd,
-                                env=current_env,
-                                backend=backend,
-                            )
-                            self.fd = self.pty.fd
-                            self.pid = self.pty.pid
-                            self.shell_path = pwsh_path
-                            logger.info(f"[PTY SPAWN] PowerShell spawn successful - pid={self.pid}")
-
-                            # Give PowerShell time to initialize
-                            time.sleep(1)
-                            if self.pty.isalive():
-                                logger.info("[PTY SPAWN] PowerShell is alive and ready!")
-                                print(f"[PTY DEBUG] PowerShell alive! pid={self.pid}", flush=True)
-                                # Don't continue to exception handler - PowerShell works!
-                                # The _read_loop will handle the rest
-                            else:
-                                pwsh_exit = self.pty.exitstatus
-                                logger.error(
-                                    f"[PTY SPAWN] PowerShell also died - exit_status={pwsh_exit} (0x{pwsh_exit:X})"
-                                )
-                        except Exception as pwsh_err:
-                            logger.error(f"[PTY SPAWN] PowerShell spawn failed: {pwsh_err}")
-                else:
-                    logger.info("[PTY SPAWN] Process is alive and ready")
+                logger.info(f"PTY spawned successfully - pid={self.pid}")
 
             except Exception as e:
-                import traceback
-
-                error_details = traceback.format_exc()
-                print(f"[PTY DEBUG] Exception during PTY start: {e}\n{error_details}", flush=True)
-                logger.error(f"[PTY SPAWN] Exception during start: {e}\n{error_details}")
-
-                # Check if it's a specific winpty error
-                error_type = type(e).__name__
-                logger.error(f"[PTY SPAWN] Exception type: {error_type}")
-
-                # If PtyProcess.spawn() failed, try with explicit error handling
-                try:
-                    # Fallback to cmd.exe
-                    logger.info("[PTY SPAWN] Attempting fallback to cmd.exe")
-                    self.shell_path = "cmd.exe"
-                    logger.info(f"[PTY SPAWN] Fallback spawn with cwd={self.cwd}")
-
-                    # Also pass environment to fallback
-                    current_env = os.environ.copy()
-                    self.pty = PtyProcess.spawn(
-                        self.shell_path, dimensions=(self.rows, self.cols), cwd=self.cwd, env=current_env
-                    )
-                    self.fd = self.pty.fd
-                    self.pid = self.pty.pid
-                    logger.info(f"[PTY SPAWN] Fallback spawn successful - pid={self.pid}")
-                except Exception as fallback_error:
-                    logger.error(f"[PTY SPAWN] Fallback also failed: {fallback_error}")
-                    logger.error(f"[PTY SPAWN] Fallback traceback: {traceback.format_exc()}")
-                    raise RuntimeError(f"Failed to spawn shell even with fallback: {fallback_error}") from e
+                logger.error(f"Failed to spawn PTY: {e}")
+                raise RuntimeError(f"Failed to spawn shell: {e}") from e
         else:
             # Linux/macOS: Native PTY
             self.pid, self.fd = pty.fork()
@@ -299,25 +181,22 @@ class PtySession:
                 self._resize_linux(self.rows, self.cols)
 
     def _read_loop(self) -> None:
-        """Background thread: Physical PTY -> Queue"""
-        import time as time_module
+        """Background thread: Read from PTY and push to queue"""
+        import time
 
-        print(f"[PTY DEBUG] _read_loop started for session {self.session_id}", flush=True)
         logger.info(f"[READ_LOOP] Started for session {self.session_id}, IS_WINDOWS={IS_WINDOWS}")
         logger.info(f"[READ_LOOP] self.pty={self.pty}, self.fd={self.fd}, self.pid={self.pid}")
 
-        # On Windows, give the PTY a moment to fully initialize
         if IS_WINDOWS:
-            time_module.sleep(0.2)
-            if self.pty:
-                is_alive = self.pty.isalive()
-                print(f"[PTY DEBUG] After startup wait, PTY isalive={is_alive}", flush=True)
-                logger.info(f"[READ_LOOP] After startup wait, PTY isalive={is_alive}")
-                if not is_alive:
-                    print("[PTY DEBUG] PTY process died before read loop could start", flush=True)
-                    logger.error("[READ_LOOP] PTY process died before read loop could start")
-                    self._output_queue.put(None)
-                    return
+            # Windows: Wait for shell integration to complete
+            time.sleep(0.2)  # Give shell integration time to inject
+            is_alive = self.pty.isalive() if self.pty else False
+            logger.info(f"[READ_LOOP] After startup wait, PTY isalive={is_alive}")
+
+            if not is_alive:
+                logger.error("[READ_LOOP] PTY process died before read loop could start")
+                self._output_queue.put(None)
+                return
 
         read_count = 0
         consecutive_empty = 0
@@ -356,13 +235,13 @@ class PtySession:
                                     logger.info("PTY process not alive and no more data, breaking read loop")
                                     break
                             # Sleep briefly to avoid busy-waiting
-                            time_module.sleep(0.05)
+                            time.sleep(0.05)
                             continue
                     except Exception as e:
                         logger.warning(f"PTY read error: {e}, isalive={self.pty.isalive() if self.pty else 'N/A'}")
                         if "EOF" in str(e) or (self.pty and not self.pty.isalive()):
                             break
-                        time_module.sleep(0.05)
+                        time.sleep(0.05)
                         continue
                 else:
                     if self.fd is None:
@@ -441,7 +320,8 @@ class PtySession:
         if IS_WINDOWS and ("powershell" in shell_name or "pwsh" in shell_name):
             path = os.path.join(script_dir, "shellIntegration.ps1")
             if os.path.exists(path):
-                cmd = f". '{path}'"
+                # Use -ExecutionPolicy Bypass to avoid script execution restrictions
+                cmd = f"& {{ . '{path}' }}"
 
         elif "zsh" in shell_name:
             path = os.path.join(script_dir, "shellIntegration-rc.zsh")

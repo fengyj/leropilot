@@ -57,7 +57,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
 
                 # Check if WebSocket is still connected before sending
                 try:
-                    await websocket.send_text(data.decode(errors="ignore"))
+                    await websocket.send_text(data.decode("utf-8", errors="replace"))
                 except Exception as e:
                     logger.info(f"WebSocket send failed: {e}, stopping reader")
                     # WebSocket is closed, stop reading
