@@ -184,17 +184,13 @@ class PtySession:
         """Background thread: Read from PTY and push to queue"""
         import time
 
-        logger.info(f"[READ_LOOP] Started for session {self.session_id}, IS_WINDOWS={IS_WINDOWS}")
-        logger.info(f"[READ_LOOP] self.pty={self.pty}, self.fd={self.fd}, self.pid={self.pid}")
-
         if IS_WINDOWS:
             # Windows: Wait for shell integration to complete
             time.sleep(0.2)  # Give shell integration time to inject
             is_alive = self.pty.isalive() if self.pty else False
-            logger.info(f"[READ_LOOP] After startup wait, PTY isalive={is_alive}")
 
             if not is_alive:
-                logger.error("[READ_LOOP] PTY process died before read loop could start")
+                logger.error("PTY process died before read loop could start")
                 self._output_queue.put(None)
                 return
 
@@ -205,34 +201,24 @@ class PtySession:
                 data = b""
                 if IS_WINDOWS:
                     if self.pty is None:
-                        logger.info("[READ_LOOP] PTY is None, breaking read loop")
                         break
                     # PtyProcess.read() returns string, not bytes
                     try:
                         read_count += 1
-                        if read_count <= 5:
-                            logger.info(f"[READ_LOOP] read attempt #{read_count}, isalive={self.pty.isalive()}")
 
                         # PtyProcess.read() with timeout
                         text = self.pty.read(1024)
                         if text:
                             data = text.encode("utf-8")
                             consecutive_empty = 0
-                            if read_count <= 5:
-                                logger.info(f"PTY read #{read_count} got {len(data)} bytes")
                         else:
                             consecutive_empty += 1
                             # Check if process is still alive
                             is_alive = self.pty.isalive()
-                            if read_count <= 5 or consecutive_empty <= 3:
-                                logger.info(
-                                    f"PTY read #{read_count} empty (consecutive={consecutive_empty}), alive={is_alive}"
-                                )
                             if not is_alive:
                                 # Process exited, but might still have buffered output
                                 # Try a few more reads before giving up
                                 if consecutive_empty > 5:
-                                    logger.info("PTY process not alive and no more data, breaking read loop")
                                     break
                             # Sleep briefly to avoid busy-waiting
                             time.sleep(0.05)
