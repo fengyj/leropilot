@@ -5,7 +5,6 @@ import queue
 import re
 import signal
 import struct
-import sys
 import threading
 import uuid
 from pathlib import Path
@@ -98,6 +97,18 @@ class PtySession:
         if IS_WINDOWS:
             # Windows: Use PtyProcess for better compatibility
             try:
+                # Log winpty installation path for diagnostics
+                import winpty as winpty_module
+
+                winpty_path = os.path.dirname(winpty_module.__file__)
+                agent_path = os.path.join(winpty_path, "bin", "winpty-agent.exe")
+                logger.info(f"[PTY SPAWN] winpty installed at: {winpty_path}")
+                logger.info(f"[PTY SPAWN] winpty-agent.exe exists: {os.path.exists(agent_path)}")
+                if os.path.exists(agent_path):
+                    logger.info(f"[PTY SPAWN] winpty-agent.exe path: {agent_path}")
+                else:
+                    logger.error(f"[PTY SPAWN] winpty-agent.exe NOT FOUND at: {agent_path}")
+
                 # Log environment for debugging
                 comspec = os.environ.get("COMSPEC", "NOT_SET")
                 logger.info(f"[PTY SPAWN] Starting Windows PTY spawn - COMSPEC={comspec}, shell_path={self.shell_path}")
@@ -119,23 +130,65 @@ class PtySession:
                 current_env = os.environ.copy()
                 logger.info(f"[PTY SPAWN] Passing {len(current_env)} environment variables")
 
+                # Try to use ConPTY backend on Windows 10+ (doesn't need winpty-agent.exe)
+                backend = None
+                try:
+                    # Check if ConPTY is available (Windows 10 1809+)
+                    import sys
+
+                    if sys.platform == "win32":
+                        import platform
+
+                        win_ver = platform.version().split(".")
+                        # Windows 10 build 17763 (1809) or later has ConPTY
+                        if len(win_ver) >= 3 and int(win_ver[2]) >= 17763:
+                            logger.info("[PTY SPAWN] Windows 10 1809+ detected, attempting to use ConPTY backend")
+                            # Try to import backend option
+                            try:
+                                from winpty import Backend
+
+                                backend = Backend.ConPTY
+                                logger.info("[PTY SPAWN] Using ConPTY backend (native Windows PTY)")
+                            except (ImportError, AttributeError):
+                                logger.warning("[PTY SPAWN] ConPTY backend not available, using default")
+                except Exception as e:
+                    logger.warning(f"[PTY SPAWN] Could not detect ConPTY support: {e}")
+
                 # Use PtyProcess.spawn() which handles everything internally
-                self.pty = PtyProcess.spawn(
-                    [self.shell_path],
-                    dimensions=(self.rows, self.cols),
-                    cwd=self.cwd,
-                    env=current_env,  # <--- KEY FIX: explicitly pass environment
-                )
+                spawn_kwargs = {
+                    "cmdline": [self.shell_path],
+                    "dimensions": (self.rows, self.cols),
+                    "cwd": self.cwd,
+                    "env": current_env,
+                }
+
+                # Add backend if we determined one
+                if backend is not None:
+                    spawn_kwargs["backend"] = backend
+
+                logger.info(f"[PTY SPAWN] Spawning with kwargs: cmdline={spawn_kwargs['cmdline']}, backend={backend}")
+                self.pty = PtyProcess.spawn(**spawn_kwargs)
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
                 print(f"[PTY DEBUG] Windows PtyProcess spawned: pid={self.pid}, fd={self.fd}", flush=True)
                 logger.info(f"[PTY SPAWN] Spawn successful - pid={self.pid}, fd={self.fd}")
 
-                # Check if process is alive immediately after spawn
+                # Try to read any immediate output or error
                 import time
 
-                time.sleep(0.3)
+                time.sleep(0.1)
+                try:
+                    # Attempt to read any output that might explain the crash
+                    initial_output = self.pty.read(1024)
+                    if initial_output:
+                        logger.info(f"[PTY SPAWN] Initial output: {initial_output[:200]}")
+                        print(f"[PTY DEBUG] Got initial output: {initial_output[:100]}", flush=True)
+                except Exception as read_err:
+                    logger.warning(f"[PTY SPAWN] Could not read initial output: {read_err}")
+
+                # Check if process is alive immediately after spawn
+                time.sleep(0.2)  # Total 0.3s wait
                 is_alive = self.pty.isalive()
                 print(f"[PTY DEBUG] PTY process alive after 0.3s wait: {is_alive}", flush=True)
                 logger.info(f"[PTY SPAWN] Process alive check after 0.3s: {is_alive}")
@@ -148,6 +201,14 @@ class PtySession:
                     logger.error(
                         f"[PTY SPAWN] Process died immediately - exit_status={exit_status} (0x{exit_status:X})"
                     )
+
+                    # Try to get any remaining output
+                    try:
+                        remaining = self.pty.read(1024)
+                        if remaining:
+                            logger.error(f"[PTY SPAWN] Output before death: {remaining}")
+                    except Exception:
+                        pass
                 else:
                     logger.info("[PTY SPAWN] Process is alive and ready")
 
