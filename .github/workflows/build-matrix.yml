@@ -297,6 +297,12 @@ jobs:
           )
           EOF
 
+      - name: Test winpty binary collection
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uv run python scripts/test_winpty_collection.py
+
       - name: Build Python backend
         shell: bash
         run: |
