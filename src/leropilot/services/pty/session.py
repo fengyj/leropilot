@@ -211,6 +211,32 @@ class PtySession:
                             logger.error(f"[PTY SPAWN] Output before death: {remaining}")
                     except Exception:
                         pass
+
+                    # If using ConPTY with cmd.exe failed, try PowerShell
+                    if backend is not None and "cmd.exe" in self.shell_path.lower():
+                        logger.info("[PTY SPAWN] cmd.exe failed with ConPTY, trying PowerShell")
+                        try:
+                            pwsh_path = "powershell.exe"
+                            self.pty = PtyProcess.spawn(
+                                pwsh_path,
+                                dimensions=(self.rows, self.cols),
+                                cwd=self.cwd,
+                                env=current_env,
+                                backend=backend,
+                            )
+                            self.fd = self.pty.fd
+                            self.pid = self.pty.pid
+                            self.shell_path = pwsh_path
+                            logger.info(f"[PTY SPAWN] PowerShell spawn successful - pid={self.pid}")
+                            # Check if PowerShell stays alive
+                            import time
+
+                            time.sleep(0.3)
+                            if self.pty.isalive():
+                                logger.info("[PTY SPAWN] PowerShell is alive and ready!")
+                                return  # Success!
+                        except Exception as pwsh_err:
+                            logger.error(f"[PTY SPAWN] PowerShell also failed: {pwsh_err}")
                 else:
                     logger.info("[PTY SPAWN] Process is alive and ready")
 
