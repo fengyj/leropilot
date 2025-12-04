@@ -37,6 +37,16 @@ const WebTerminal: React.FC<TerminalProps> = ({
   const [status, setStatus] = useState<TerminalStatus>('Idle');
   const { effectiveTheme } = useTheme();
 
+  // Handle text selection for copy functionality
+  const handleCopy = () => {
+    const selection = termInstance.current?.getSelection();
+    if (selection) {
+      navigator.clipboard.writeText(selection).then(() => {
+        console.log('[WebTerminal] Text copied to clipboard');
+      });
+    }
+  };
+
   // Track if we've already connected to this session (React Strict Mode protection)
   const connectedSessionRef = useRef<string | null>(null);
 
@@ -96,6 +106,13 @@ const WebTerminal: React.FC<TerminalProps> = ({
       fontFamily: 'Consolas, "Courier New", monospace',
       theme: activeThemeMode === 'light' ? light : oneDark,
       allowProposedApi: true,
+      // Enable text selection and copy support
+      scrollback: 1000,
+      screenKeys: false,
+      // Allow selection to be copied to clipboard
+      rightClickSelectsWord: true,
+      // Enable mouse events for better selection support
+      mouseWheelScroll: true,
     });
 
     const fitAddon = new FitAddon();
@@ -219,9 +236,16 @@ const WebTerminal: React.FC<TerminalProps> = ({
     // Start connection
     connect();
 
-    // No cleanup needed for React Strict Mode - we use connectedSessionRef
-    // to prevent duplicate connections. The WebSocket will be closed when
-    // the component actually unmounts (page navigation).
+    // Cleanup function for when component unmounts or session changes
+    return () => {
+      if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+      }
+      if (ws) {
+        ws.close();
+      }
+      term.dispose();
+    };
   }, [
     apiHost,
     sessionId,
@@ -231,27 +255,59 @@ const WebTerminal: React.FC<TerminalProps> = ({
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {/* Simple Status Indicator */}
+      {/* Status Indicator and Toolbar */}
       <div
         style={{
           position: 'absolute',
           top: 5,
           right: 15,
           zIndex: 10,
-          color:
-            status === 'Running'
-              ? 'yellow'
-              : status === 'Success'
-                ? 'lightgreen'
-                : status === 'Error'
-                  ? 'red'
-                  : '#aaa',
-          fontWeight: 'bold',
-          fontSize: '12px',
-          pointerEvents: 'none',
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'center',
         }}
       >
-        ● {status}
+        {/* Copy Button */}
+        <button
+          onClick={handleCopy}
+          title="Copy selected text"
+          style={{
+            padding: '4px 8px',
+            fontSize: '12px',
+            backgroundColor: '#f0f0f0',
+            border: '1px solid #ccc',
+            borderRadius: '3px',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#e0e0e0';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#f0f0f0';
+          }}
+        >
+          📋 Copy
+        </button>
+
+        {/* Status Indicator */}
+        <div
+          style={{
+            color:
+              status === 'Running'
+                ? 'yellow'
+                : status === 'Success'
+                  ? 'lightgreen'
+                  : status === 'Error'
+                    ? 'red'
+                    : '#aaa',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            pointerEvents: 'none',
+          }}
+        >
+          ● {status}
+        </div>
       </div>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>
