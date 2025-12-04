@@ -255,7 +255,7 @@
               "id": "create_venv",
               "commands": [
                 "uv venv {venv_path} --python '{python_version}'",
-                "{venv_path}\\\\Scripts\\\\activate.bat"
+                ". '{venv_path}\\Scripts\\activate.ps1'"
               ]
             },
             {
@@ -534,7 +534,7 @@
               "id": "create_venv",
               "commands": [
                 "uv venv {venv_path} --python '{python_version}'",
-                "{venv_path}\\\\Scripts\\\\activate.bat"
+                ". '{venv_path}\\Scripts\\activate.ps1'"
               ]
             },
             {
@@ -813,7 +813,7 @@
               "id": "create_venv",
               "commands": [
                 "uv venv {venv_path} --python '{python_version}'",
-                "{venv_path}\\\\Scripts\\\\activate.bat"
+                ". '{venv_path}\\Scripts\\activate.ps1'"
               ]
             },
             {
@@ -1005,7 +1005,7 @@
               "id": "create_venv",
               "commands": [
                 "uv venv {venv_path} --python '{python_version}'",
-                "{venv_path}\\\\Scripts\\\\activate.bat"
+                ". '{venv_path}\\Scripts\\activate.ps1'"
               ]
             },
             {

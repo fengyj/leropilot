@@ -96,6 +96,7 @@ const WebTerminal: React.FC<TerminalProps> = ({
       fontFamily: 'Consolas, "Courier New", monospace',
       theme: activeThemeMode === 'light' ? light : oneDark,
       allowProposedApi: true,
+      scrollback: 10000,
     });
 
     const fitAddon = new FitAddon();
