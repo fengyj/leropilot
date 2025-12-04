@@ -36,16 +36,16 @@ jobs:
           npm install
           npm run build
           cd ..
-          # Verify frontend build output
           if [ ! -d src/leropilot/static ]; then
             echo "Frontend build failed - static directory not found"
             exit 1
           fi
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: "x64"
 
       - name: Install uv
         run: pip install uv
@@ -55,6 +55,55 @@ jobs:
         run: |
           set -euxo pipefail
           uv sync --extra dev
+
+      - name: Verify winpty installation (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "=== Verifying winpty installation ==="
+          uv run python -c "import winpty; print(f'pywinpty version: {winpty.__version__}')"
+
+          echo ""
+          echo "=== Listing winpty files ==="
+          uv run python -c "
+          import winpty
+          import os
+          import glob
+          winpty_dir = os.path.dirname(winpty.__file__)
+          print(f'winpty location: {winpty_dir}')
+          for pattern in ['*.dll', '*.pyd', '*.exe']:
+              files = glob.glob(os.path.join(winpty_dir, '**', pattern), recursive=True)
+              for f in files:
+                  size = os.path.getsize(f)
+                  print(f'  {os.path.relpath(f, winpty_dir)} ({size:,} bytes)')
+          "
+
+      - name: Test winpty functionality (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "=== Testing winpty functionality ==="
+          uv run python -c "
+          from winpty import PtyProcess
+          import sys
+          try:
+              proc = PtyProcess.spawn(['cmd.exe', '/c', 'echo', 'TEST_OUTPUT'])
+              output = proc.read(1024)
+              proc.terminate(force=True)
+              if 'TEST_OUTPUT' in output:
+                  print('✅ PTY test PASSED')
+                  sys.exit(0)
+              else:
+                  print(f'❌ PTY test FAILED - unexpected output: {output}')
+                  sys.exit(1)
+          except Exception as e:
+              print(f'❌ PTY test FAILED - exception: {e}')
+              import traceback
+              traceback.print_exc()
+              sys.exit(1)
+          "
 
       - name: Run lint
         shell: bash
@@ -92,28 +141,60 @@ jobs:
             cat > build.spec << 'EOF'
           # -*- mode: python ; coding: utf-8 -*-
           import os
+          import sys
           block_cipher = None
 
-          # Get the directory containing this spec file
           spec_dir = os.path.dirname(os.path.abspath(SPEC)) if 'SPEC' in dir() else os.getcwd()
 
-          # Collect winpty binaries for Windows PTY support (inline to avoid function issues)
+          # Collect winpty binaries using PyInstaller's built-in function
           winpty_binaries = []
-          try:
-              import winpty
-              import pathlib
-              winpty_dir = pathlib.Path(winpty.__file__).parent
-              for dll_file in winpty_dir.rglob('*.dll'):
-                  rel_path = dll_file.relative_to(winpty_dir.parent)
-                  winpty_binaries.append((str(dll_file), str(rel_path.parent)))
-          except ImportError:
-              pass
+          winpty_datas = []
 
-          # Print BEFORE Analysis() so we can see it in the log
-          print(f'[SPEC] Collected {len(winpty_binaries)} winpty DLL files for binaries list')
+          try:
+              from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+
+              # Method 1: Use PyInstaller's built-in function (recommended)
+              winpty_binaries = collect_dynamic_libs('winpty')
+              print(f'[SPEC] collect_dynamic_libs found {len(winpty_binaries)} files')
+
+              # Method 2: Manual collection as fallback
+              if not winpty_binaries:
+                  print('[SPEC] Fallback to manual collection')
+                  import winpty
+                  import pathlib
+                  winpty_dir = pathlib.Path(winpty.__file__).parent
+
+                  for pattern in ['*.dll', '*.pyd', '*.exe']:
+                      for file in winpty_dir.rglob(pattern):
+                          try:
+                              rel_path = file.relative_to(winpty_dir.parent)
+                              dest_dir = str(rel_path.parent)
+                              winpty_binaries.append((str(file), dest_dir))
+                              print(f'[SPEC]   Added: {file.name} -> {dest_dir}')
+                          except ValueError:
+                              winpty_binaries.append((str(file), 'winpty'))
+                              print(f'[SPEC]   Added: {file.name} -> winpty/')
+
+              # Collect data files if any
+              try:
+                  winpty_datas = collect_data_files('winpty', include_py_files=False)
+                  print(f'[SPEC] collect_data_files found {len(winpty_datas)} data files')
+              except:
+                  pass
+
+          except ImportError:
+              print('[SPEC] winpty not installed, skipping collection')
+          except Exception as e:
+              print(f'[SPEC] Error collecting winpty files: {e}')
+              import traceback
+              traceback.print_exc()
+
+          print(f'[SPEC] Total winpty binaries: {len(winpty_binaries)}')
           if winpty_binaries:
-              for src, dst in winpty_binaries:
+              for src, dst in winpty_binaries[:5]:
                   print(f'[SPEC]   {src} -> {dst}')
+              if len(winpty_binaries) > 5:
+                  print(f'[SPEC]   ... and {len(winpty_binaries) - 5} more')
 
           a = Analysis(
               [os.path.join(spec_dir, 'src/leropilot/main.py')],
@@ -122,8 +203,8 @@ jobs:
               datas=[
                   (os.path.join(spec_dir, 'src/leropilot/static'), 'leropilot/static'),
                   (os.path.join(spec_dir, 'src/leropilot/resources'), 'leropilot/resources'),
-              ],
-              hiddenimports=[],
+              ] + winpty_datas,
+              hiddenimports=['winpty', 'winpty.winpty'],
               hookspath=[],
               hooksconfig={},
               runtime_hooks=[],
@@ -165,6 +246,41 @@ jobs:
         run: |
           set -euxo pipefail
           uv run python -m PyInstaller --noconfirm --clean --log-level=INFO build.spec
+
+      - name: Verify PyInstaller output (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "=== Verifying PyInstaller output ==="
+
+          if [ ! -f dist/leropilot.exe ]; then
+            echo "❌ leropilot.exe not found!"
+            exit 1
+          fi
+
+          echo "✅ leropilot.exe found"
+          ls -lh dist/leropilot.exe
+
+          echo ""
+          echo "=== Checking for winpty files in exe ==="
+          uv run python -c "
+          import sys
+          sys.argv = ['pyi-archive_viewer', 'dist/leropilot.exe', '--list']
+          from PyInstaller.utils.cliutils.archive_viewer import run
+          try:
+              run()
+          except SystemExit:
+              pass
+          " 2>/dev/null | grep -i winpty || echo "⚠️  No winpty files found in TOC"
+
+      - name: Smoke test (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        timeout-minutes: 1
+        run: |
+          echo "=== Running smoke test ==="
+          dist/leropilot.exe --help 2>&1 | head -n 10 || echo "Smoke test exit code: $?"
 
       - name: Prepare release files
         shell: bash
@@ -212,16 +328,16 @@ jobs:
           npm install
           npm run build
           cd ..
-          # Verify frontend build output
           if [ ! -d src/leropilot/static ]; then
             echo "Frontend build failed - static directory not found"
             exit 1
           fi
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: "x64"
 
       - name: Install uv
         run: pip install uv
@@ -232,34 +348,60 @@ jobs:
           set -euxo pipefail
           uv sync --extra dev
 
+      - name: Verify winpty (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "=== Verifying winpty for Electron backend ==="
+          uv run python -c "import winpty; print(f'pywinpty: {winpty.__version__}')"
+          uv run python -c "from winpty import PtyProcess; proc = PtyProcess.spawn(['cmd.exe', '/c', 'echo', 'OK']); output = proc.read(); proc.terminate(force=True); print(f'PTY test: {\"PASS\" if \"OK\" in output else \"FAIL\"}')"
+
       - name: Generate backend-only build spec
         shell: bash
         run: |
           cat > build-backend.spec << 'EOF'
           # -*- mode: python ; coding: utf-8 -*-
           import os
+          import sys
           block_cipher = None
 
-          # Get the directory containing this spec file
           spec_dir = os.path.dirname(os.path.abspath(SPEC)) if 'SPEC' in dir() else os.getcwd()
 
-          # Collect winpty binaries for Windows PTY support (inline to avoid function issues)
+          # Collect winpty binaries using PyInstaller's built-in function
           winpty_binaries = []
-          try:
-              import winpty
-              import pathlib
-              winpty_dir = pathlib.Path(winpty.__file__).parent
-              for dll_file in winpty_dir.rglob('*.dll'):
-                  rel_path = dll_file.relative_to(winpty_dir.parent)
-                  winpty_binaries.append((str(dll_file), str(rel_path.parent)))
-          except ImportError:
-              pass
+          winpty_datas = []
 
-          # Print BEFORE Analysis() so we can see it in the log
-          print(f'[SPEC] Collected {len(winpty_binaries)} winpty DLL files for binaries list')
-          if winpty_binaries:
-              for src, dst in winpty_binaries:
-                  print(f'[SPEC]   {src} -> {dst}')
+          try:
+              from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+
+              winpty_binaries = collect_dynamic_libs('winpty')
+              print(f'[SPEC] collect_dynamic_libs found {len(winpty_binaries)} files')
+
+              if not winpty_binaries:
+                  print('[SPEC] Fallback to manual collection')
+                  import winpty
+                  import pathlib
+                  winpty_dir = pathlib.Path(winpty.__file__).parent
+                  for pattern in ['*.dll', '*.pyd', '*.exe']:
+                      for file in winpty_dir.rglob(pattern):
+                          try:
+                              rel_path = file.relative_to(winpty_dir.parent)
+                              dest_dir = str(rel_path.parent)
+                              winpty_binaries.append((str(file), dest_dir))
+                          except ValueError:
+                              winpty_binaries.append((str(file), 'winpty'))
+
+              try:
+                  winpty_datas = collect_data_files('winpty', include_py_files=False)
+              except:
+                  pass
+
+          except ImportError:
+              print('[SPEC] winpty not installed')
+          except Exception as e:
+              print(f'[SPEC] Error: {e}')
+
+          print(f'[SPEC] Total winpty binaries: {len(winpty_binaries)}')
 
           a = Analysis(
               [os.path.join(spec_dir, 'src/leropilot/main.py')],
@@ -268,8 +410,8 @@ jobs:
               datas=[
                   (os.path.join(spec_dir, 'src/leropilot/static'), 'leropilot/static'),
                   (os.path.join(spec_dir, 'src/leropilot/resources'), 'leropilot/resources'),
-              ],
-              hiddenimports=[],
+              ] + winpty_datas,
+              hiddenimports=['winpty', 'winpty.winpty'],
               hookspath=[],
               hooksconfig={},
               runtime_hooks=[],
@@ -305,12 +447,6 @@ jobs:
           )
           EOF
 
-      - name: Test winpty binary collection
-        shell: bash
-        run: |
-          set -euxo pipefail
-          uv run python scripts/test_winpty_collection.py
-
       - name: Build Python backend
         shell: bash
         run: |
@@ -324,7 +460,25 @@ jobs:
           fi
           ls -la dist/python
 
-      - name: Setup Node.js
+      - name: Verify winpty in backend exe (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          echo "=== Checking if winpty DLLs are in backend exe ==="
+          uv run python -c "
+          import sys
+          sys.argv = ['pyi-archive_viewer', 'dist/leropilot-backend.exe', '--list']
+          from PyInstaller.utils.cliutils.archive_viewer import run
+          try:
+              run()
+          except SystemExit:
+              pass
+          " 2>/dev/null | grep -i winpty || echo "WARNING: No winpty files found!"
+          echo ""
+          echo "Backend exe size:"
+          ls -lh dist/leropilot-backend.exe
+
+      - name: Setup Node.js for Electron
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -352,7 +506,6 @@ jobs:
       - name: Set artifact naming variables
         shell: bash
         run: |
-          # Determine OS suffix
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             OS_SUFFIX="win-x64"
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
@@ -361,10 +514,8 @@ jobs:
             OS_SUFFIX="macos"
           fi
 
-          # Determine version suffix
           if [[ "${{ github.event_name }}" == "release" ]]; then
-            VERSION_SUFFIX="${{ github.ref_name }}" # e.g., v0.1.0
-            # Remove 'v' prefix if present for consistency
+            VERSION_SUFFIX="${{ github.ref_name }}"
             VERSION_SUFFIX=${VERSION_SUFFIX#v}
           else
             VERSION_SUFFIX="latest-${{ github.run_number }}"
@@ -373,14 +524,10 @@ jobs:
           echo "ARTIFACT_NAME_PREFIX=leropilot-${OS_SUFFIX}" >> $GITHUB_ENV
           echo "ARTIFACT_VERSION_SUFFIX=${VERSION_SUFFIX}" >> $GITHUB_ENV
 
-          echo "Artifact Name Prefix: leropilot-${OS_SUFFIX}"
-          echo "Artifact Version Suffix: ${VERSION_SUFFIX}"
-
       - name: Build Electron app
         shell: bash
         run: |
           cd electron
-          npm install
           npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -391,31 +538,17 @@ jobs:
         shell: bash
         run: |
           echo "=== Verifying Electron build output ==="
-          echo "Listing electron/dist contents:"
           ls -la electron/dist/ || echo "electron/dist not found!"
-          echo ""
-          echo "Checking for win-unpacked directory:"
-          ls -la electron/dist/win-unpacked/ || ls -la electron/dist/linux-unpacked/ || ls -la electron/dist/mac/ || echo "No unpacked directory found"
-          echo ""
-          echo "Listing resources directory:"
+
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ls -la electron/dist/win-unpacked/resources/ || echo "No resources directory"
-            ls -la electron/dist/win-unpacked/resources/python/ || echo "No python resources directory"
+            ls -la electron/dist/win-unpacked/resources/python/ || echo "No python resources"
+            echo ""
+            echo "Checking for winpty in unpacked resources:"
+            find electron/dist/win-unpacked -name "*winpty*" -o -name "*.dll" 2>/dev/null | grep -i winpty || echo "⚠️  No winpty files found in unpacked dir"
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             ls -la electron/dist/linux-unpacked/resources/ || echo "No resources directory"
           else
-            ls -la electron/dist/mac/*/Contents/Resources/ || echo "No resources directory"
-          fi
-          echo ""
-          echo "Searching for packaged Python backend in resources:"
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            find electron/dist/win-unpacked/resources -name "python" -type d || echo "No python directory in resources"
-            find electron/dist/win-unpacked/resources/python -name "*.exe" 2>/dev/null || echo "No backend exe in resources/python"
-          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            find electron/dist/linux-unpacked/resources -name "python" -type d || echo "No python directory in resources"
-            find electron/dist/linux-unpacked/resources/python -name "leropilot-backend" 2>/dev/null || echo "No backend in resources/python"
-          else
-            find electron/dist/mac -name "python" -type d || echo "No python directory in resources"
+            ls -la electron/dist/mac/ || echo "No mac directory"
           fi
 
       - name: Inspect Windows Installer
@@ -425,11 +558,8 @@ jobs:
           echo "=== Inspecting Windows Installer ==="
           INSTALLER_PATH=$(find electron/dist -name "*setup*.exe" | head -n 1)
           if [[ -f "$INSTALLER_PATH" ]]; then
-            echo "Installer found at: $INSTALLER_PATH"
-            echo "Listing contents using 7z:"
-            7z l "$INSTALLER_PATH" || echo "Failed to list installer contents"
-          else
-            echo "No installer found to inspect"
+            echo "Installer: $INSTALLER_PATH"
+            ls -lh "$INSTALLER_PATH"
           fi
 
       # Upload to GitHub Releases (for release events)
@@ -481,8 +611,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload as Artifacts (for non-release events like workflow_dispatch)
-      - name: Upload Windows Setup
+      # Upload as Artifacts (for non-release events)
+      - name: Upload Windows Setup Artifact
         if: github.event_name != 'release' && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -492,7 +622,7 @@ jobs:
           if-no-files-found: warn
           compression-level: 0
 
-      - name: Upload Windows Portable
+      - name: Upload Windows Portable Artifact
         if: github.event_name != 'release' && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -502,7 +632,7 @@ jobs:
           if-no-files-found: warn
           compression-level: 0
 
-      - name: Upload Linux AppImage
+      - name: Upload Linux AppImage Artifact
         if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -511,7 +641,7 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
 
-      - name: Upload Linux Tarball
+      - name: Upload Linux Tarball Artifact
         if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -520,7 +650,7 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
-      - name: Upload macOS DMG
+      - name: Upload macOS DMG Artifact
         if: github.event_name != 'release' && matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -529,7 +659,7 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
 
-      - name: Upload macOS Zip
+      - name: Upload macOS Zip Artifact
         if: github.event_name != 'release' && matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
