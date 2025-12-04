@@ -216,6 +216,8 @@ class PtySession:
                     if backend is not None and "cmd.exe" in self.shell_path.lower():
                         logger.info("[PTY SPAWN] cmd.exe failed with ConPTY, trying PowerShell")
                         try:
+                            import time
+
                             pwsh_path = "powershell.exe"
                             self.pty = PtyProcess.spawn(
                                 pwsh_path,
@@ -228,15 +230,21 @@ class PtySession:
                             self.pid = self.pty.pid
                             self.shell_path = pwsh_path
                             logger.info(f"[PTY SPAWN] PowerShell spawn successful - pid={self.pid}")
-                            # Check if PowerShell stays alive
-                            import time
 
-                            time.sleep(0.3)
+                            # Give PowerShell time to initialize
+                            time.sleep(1)
                             if self.pty.isalive():
                                 logger.info("[PTY SPAWN] PowerShell is alive and ready!")
-                                return  # Success!
+                                print(f"[PTY DEBUG] PowerShell alive! pid={self.pid}", flush=True)
+                                # Don't continue to exception handler - PowerShell works!
+                                # The _read_loop will handle the rest
+                            else:
+                                pwsh_exit = self.pty.exitstatus
+                                logger.error(
+                                    f"[PTY SPAWN] PowerShell also died - exit_status={pwsh_exit} (0x{pwsh_exit:X})"
+                                )
                         except Exception as pwsh_err:
-                            logger.error(f"[PTY SPAWN] PowerShell also failed: {pwsh_err}")
+                            logger.error(f"[PTY SPAWN] PowerShell spawn failed: {pwsh_err}")
                 else:
                     logger.info("[PTY SPAWN] Process is alive and ready")
 
