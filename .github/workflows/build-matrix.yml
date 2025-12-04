@@ -106,9 +106,14 @@ jobs:
               for dll_file in winpty_dir.rglob('*.dll'):
                   rel_path = dll_file.relative_to(winpty_dir.parent)
                   winpty_binaries.append((str(dll_file), str(rel_path.parent)))
-              print(f'[SPEC] Collected {len(winpty_binaries)} winpty DLL files')
           except ImportError:
-              print('[SPEC] winpty not available, skipping DLL collection')
+              pass
+
+          # Print BEFORE Analysis() so we can see it in the log
+          print(f'[SPEC] Collected {len(winpty_binaries)} winpty DLL files for binaries list')
+          if winpty_binaries:
+              for src, dst in winpty_binaries:
+                  print(f'[SPEC]   {src} -> {dst}')
 
           a = Analysis(
               [os.path.join(spec_dir, 'src/leropilot/main.py')],
@@ -247,9 +252,14 @@ jobs:
               for dll_file in winpty_dir.rglob('*.dll'):
                   rel_path = dll_file.relative_to(winpty_dir.parent)
                   winpty_binaries.append((str(dll_file), str(rel_path.parent)))
-              print(f'[SPEC] Collected {len(winpty_binaries)} winpty DLL files')
           except ImportError:
-              print('[SPEC] winpty not available, skipping DLL collection')
+              pass
+
+          # Print BEFORE Analysis() so we can see it in the log
+          print(f'[SPEC] Collected {len(winpty_binaries)} winpty DLL files for binaries list')
+          if winpty_binaries:
+              for src, dst in winpty_binaries:
+                  print(f'[SPEC]   {src} -> {dst}')
 
           a = Analysis(
               [os.path.join(spec_dir, 'src/leropilot/main.py')],
