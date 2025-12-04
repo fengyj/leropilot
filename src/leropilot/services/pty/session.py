@@ -155,19 +155,21 @@ class PtySession:
                     logger.warning(f"[PTY SPAWN] Could not detect ConPTY support: {e}")
 
                 # Use PtyProcess.spawn() which handles everything internally
-                spawn_kwargs = {
-                    "cmdline": [self.shell_path],
-                    "dimensions": (self.rows, self.cols),
-                    "cwd": self.cwd,
-                    "env": current_env,
-                }
-
-                # Add backend if we determined one
+                # Note: first argument is the command, not a keyword argument
                 if backend is not None:
-                    spawn_kwargs["backend"] = backend
-
-                logger.info(f"[PTY SPAWN] Spawning with kwargs: cmdline={spawn_kwargs['cmdline']}, backend={backend}")
-                self.pty = PtyProcess.spawn(**spawn_kwargs)
+                    logger.info(f"[PTY SPAWN] Spawning {self.shell_path} with ConPTY backend")
+                    self.pty = PtyProcess.spawn(
+                        self.shell_path,
+                        dimensions=(self.rows, self.cols),
+                        cwd=self.cwd,
+                        env=current_env,
+                        backend=backend,
+                    )
+                else:
+                    logger.info(f"[PTY SPAWN] Spawning {self.shell_path} with default backend")
+                    self.pty = PtyProcess.spawn(
+                        self.shell_path, dimensions=(self.rows, self.cols), cwd=self.cwd, env=current_env
+                    )
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
@@ -233,7 +235,7 @@ class PtySession:
                     # Also pass environment to fallback
                     current_env = os.environ.copy()
                     self.pty = PtyProcess.spawn(
-                        [self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd, env=current_env
+                        self.shell_path, dimensions=(self.rows, self.cols), cwd=self.cwd, env=current_env
                     )
                     self.fd = self.pty.fd
                     self.pid = self.pty.pid
