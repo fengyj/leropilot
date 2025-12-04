@@ -114,8 +114,18 @@ class PtySession:
                 print(f"[PTY DEBUG] Creating PtyProcess with cols={self.cols}, rows={self.rows}", flush=True)
                 logger.info(f"[PTY SPAWN] Creating PtyProcess with dimensions: cols={self.cols}, rows={self.rows}")
 
+                # CRITICAL: cmd.exe requires SystemRoot and PATH environment variables
+                # PtyProcess.spawn() may not inherit them by default, causing immediate crash
+                current_env = os.environ.copy()
+                logger.info(f"[PTY SPAWN] Passing {len(current_env)} environment variables")
+
                 # Use PtyProcess.spawn() which handles everything internally
-                self.pty = PtyProcess.spawn([self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd)
+                self.pty = PtyProcess.spawn(
+                    [self.shell_path],
+                    dimensions=(self.rows, self.cols),
+                    cwd=self.cwd,
+                    env=current_env,  # <--- KEY FIX: explicitly pass environment
+                )
 
                 self.fd = self.pty.fd
                 self.pid = self.pty.pid
@@ -158,7 +168,12 @@ class PtySession:
                     logger.info("[PTY SPAWN] Attempting fallback to cmd.exe")
                     self.shell_path = "cmd.exe"
                     logger.info(f"[PTY SPAWN] Fallback spawn with cwd={self.cwd}")
-                    self.pty = PtyProcess.spawn([self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd)
+
+                    # Also pass environment to fallback
+                    current_env = os.environ.copy()
+                    self.pty = PtyProcess.spawn(
+                        [self.shell_path], dimensions=(self.rows, self.cols), cwd=self.cwd, env=current_env
+                    )
                     self.fd = self.pty.fd
                     self.pid = self.pty.pid
                     logger.info(f"[PTY SPAWN] Fallback spawn successful - pid={self.pid}")
