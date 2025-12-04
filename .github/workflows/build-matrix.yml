@@ -97,10 +97,24 @@ jobs:
           # Get the directory containing this spec file
           spec_dir = os.path.dirname(os.path.abspath(SPEC)) if 'SPEC' in dir() else os.getcwd()
 
+          # Collect winpty binaries for Windows PTY support
+          def collect_winpty_binaries():
+              binaries = []
+              try:
+                  import winpty
+                  import pathlib
+                  winpty_dir = pathlib.Path(winpty.__file__).parent
+                  for dll_file in winpty_dir.rglob('*.dll'):
+                      rel_path = dll_file.relative_to(winpty_dir.parent)
+                      binaries.append((str(dll_file), str(rel_path.parent)))
+              except ImportError:
+                  pass
+              return binaries
+
           a = Analysis(
               [os.path.join(spec_dir, 'src/leropilot/main.py')],
               pathex=[spec_dir],
-              binaries=[],
+              binaries=collect_winpty_binaries(),
               datas=[
                   (os.path.join(spec_dir, 'src/leropilot/static'), 'leropilot/static'),
                   (os.path.join(spec_dir, 'src/leropilot/resources'), 'leropilot/resources'),
@@ -225,10 +239,24 @@ jobs:
           # Get the directory containing this spec file
           spec_dir = os.path.dirname(os.path.abspath(SPEC)) if 'SPEC' in dir() else os.getcwd()
 
+          # Collect winpty binaries for Windows PTY support
+          def collect_winpty_binaries():
+              binaries = []
+              try:
+                  import winpty
+                  import pathlib
+                  winpty_dir = pathlib.Path(winpty.__file__).parent
+                  for dll_file in winpty_dir.rglob('*.dll'):
+                      rel_path = dll_file.relative_to(winpty_dir.parent)
+                      binaries.append((str(dll_file), str(rel_path.parent)))
+              except ImportError:
+                  pass
+              return binaries
+
           a = Analysis(
               [os.path.join(spec_dir, 'src/leropilot/main.py')],
               pathex=[spec_dir],
-              binaries=[],
+              binaries=collect_winpty_binaries(),
               datas=[
                   (os.path.join(spec_dir, 'src/leropilot/static'), 'leropilot/static'),
                   (os.path.join(spec_dir, 'src/leropilot/resources'), 'leropilot/resources'),
