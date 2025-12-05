@@ -21,16 +21,25 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
 
     pty = get_pty_session(session_id)
     logger.info(f"PTY session lookup result: {pty is not None}")
-    if pty:
-        logger.info(f"PTY session details: id={pty.session_id}, pid={pty.pid}, fd={pty.fd}")
 
-    # Security: Validate session existence
+    # Security: Validate session existence AND initialization
     if pty is None:
         logger.error(f"Session {session_id} not found in available sessions: {list(sessions.keys())}")
+        # Must accept before closing to avoid 500 error
+        await websocket.accept()
         await websocket.close(code=4004, reason="Session not found")
         return
 
-    logger.info(f"Session {session_id} found, accepting WebSocket connection")
+    # Defensive check: ensure PTY is fully initialized
+    if pty.fd is None and pty.pty is None:
+        logger.error(f"Session {session_id} found but not fully initialized (fd={pty.fd}, pty={pty.pty})")
+        # Must accept before closing to avoid 500 error
+        await websocket.accept()
+        await websocket.close(code=4003, reason="Session not ready")
+        return
+
+    logger.info(f"PTY session details: id={pty.session_id}, pid={pty.pid}, fd={pty.fd}")
+    logger.info(f"Session {session_id} found and initialized, accepting WebSocket connection")
     await websocket.accept()
     logger.info(f"WebSocket connection accepted for session {session_id}")
 

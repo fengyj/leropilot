@@ -130,10 +130,25 @@
       "done": "Done",
       "close": "Close"
     },
+    "cancelDialog": {
+      "title": "Cancel Environment Creation",
+      "message": "Are you sure you want to cancel? All configuration will be lost.",
+      "confirm": "Yes",
+      "stay": "No"
+    },
+    "navigationWarning": {
+      "title": "Leave Page",
+      "message": "You have an incomplete environment creation. Are you sure you want to leave? Unsaved configuration will be lost."
+    },
     "advanced": {
       "title": "Advanced Installation",
       "subtitle": "Customize installation steps and commands",
       "command": "Command",
+      "commands": "Commands",
+      "commandLabel": "Command {{number}}",
+      "commandPlaceholder": "Enter command...",
+      "addCommand": "Add Command",
+      "deleteCommand": "Delete command",
       "output": "Output",
       "run": "Run",
       "logs": "Logs",
@@ -251,6 +266,15 @@
       "disable": "Disable",
       "delete": "Delete",
       "deleteConfirm": "Are you sure you want to delete the PyPI mirror \"{{name}}\"?"
+    },
+    "huggingface": {
+      "title": "HuggingFace",
+      "description": "Configure HuggingFace Hub settings.",
+      "token": "Token",
+      "tokenHelp": "Optional: Access token for private repositories or higher rate limits.",
+      "tokenPlaceholder": "hf_...",
+      "cacheDir": "Cache Directory",
+      "cacheDirPlaceholder": "Default system cache"
     },
     "advanced": {
       "title": "Advanced",

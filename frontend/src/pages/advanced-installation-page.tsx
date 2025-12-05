@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, X, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { useWizardStore } from '../stores/environment-wizard-store';
@@ -16,12 +16,10 @@ interface AdvancedStep {
   logs: string[];
 }
 
-import { CodeEditor } from '../components/code-editor';
-
 export function AdvancedInstallationPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { config, setCustomSteps } = useWizardStore();
+  const { config } = useWizardStore();
   const [steps, setSteps] = useState<AdvancedStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
@@ -101,9 +99,41 @@ export function AdvancedInstallationPage() {
     };
   }, [config, i18n.language]);
 
-  const handleCommandChange = (id: string, newCommand: string) => {
+  const handleCommandUpdate = (
+    stepId: string,
+    commandIndex: number,
+    newValue: string,
+  ) => {
     setSteps(
-      steps.map((s) => (s.id === id ? { ...s, commands: newCommand.split('\n') } : s)),
+      steps.map((s) =>
+        s.id === stepId
+          ? {
+              ...s,
+              commands: s.commands.map((cmd, idx) =>
+                idx === commandIndex ? newValue : cmd,
+              ),
+            }
+          : s,
+      ),
+    );
+  };
+
+  const handleAddCommand = (stepId: string) => {
+    setSteps(
+      steps.map((s) => (s.id === stepId ? { ...s, commands: [...s.commands, ''] } : s)),
+    );
+  };
+
+  const handleDeleteCommand = (stepId: string, commandIndex: number) => {
+    setSteps(
+      steps.map((s) =>
+        s.id === stepId
+          ? {
+              ...s,
+              commands: s.commands.filter((_, idx) => idx !== commandIndex),
+            }
+          : s,
+      ),
     );
   };
 
@@ -179,17 +209,51 @@ export function AdvancedInstallationPage() {
                         </p>
                       </div>
                     )}
-                    {/* Editor */}
-                    <div className="p-4">
-                      <div className="text-content-tertiary mb-2 flex items-center justify-between text-xs">
-                        <span>{t('wizard.advanced.command')}</span>
+                    {/* Commands Editor */}
+                    <div className="space-y-3 p-4">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-content-tertiary text-xs font-medium">
+                          {t('wizard.advanced.commands')}
+                        </span>
                       </div>
-                      <CodeEditor
-                        value={step.commands.join('\n')}
-                        onChange={(value) => handleCommandChange(step.id, value)}
-                        language="shell"
-                        readOnly={false}
-                      />
+
+                      {step.commands.map((command, cmdIndex) => (
+                        <div key={cmdIndex} className="flex items-start gap-2">
+                          <div className="flex-1 space-y-1">
+                            <label className="text-content-secondary text-xs font-medium">
+                              {t('wizard.advanced.commandLabel', {
+                                number: cmdIndex + 1,
+                              })}
+                            </label>
+                            <textarea
+                              value={command}
+                              onChange={(e) =>
+                                handleCommandUpdate(step.id, cmdIndex, e.target.value)
+                              }
+                              className="border-border-default bg-surface-secondary text-content-primary max-h-[7.5rem] w-full resize-y rounded-md border px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none"
+                              rows={1}
+                              placeholder={t('wizard.advanced.commandPlaceholder')}
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleDeleteCommand(step.id, cmdIndex)}
+                            className="mt-6 rounded p-1 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/20"
+                            title={t('wizard.advanced.deleteCommand')}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleAddCommand(step.id)}
+                        className="mt-2 w-full"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        {t('wizard.advanced.addCommand')}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -208,9 +272,77 @@ export function AdvancedInstallationPage() {
             {t('wizard.buttons.cancel')}
           </Button>
           <Button
-            onClick={() => {
-              setCustomSteps(steps);
-              navigate('/environments/install');
+            onClick={async () => {
+              try {
+                // Generate environment ID
+                const newEnvId = crypto.randomUUID();
+
+                // Resolve hardware accelerator version
+                let resolvedCudaVersion: string | undefined =
+                  config.cudaVersion === 'auto' ? undefined : config.cudaVersion;
+                let resolvedRocmVersion: string | undefined = config.rocmVersion;
+
+                // If CPU selected explicitly
+                if (config.cudaVersion === 'cpu') {
+                  resolvedCudaVersion = undefined;
+                  resolvedRocmVersion = undefined;
+                }
+
+                // Construct environment config
+                const envConfig = {
+                  id: newEnvId,
+                  name: config.envName,
+                  display_name: config.friendlyName,
+                  repo_id: config.repositoryId,
+                  repo_url: config.repositoryUrl,
+                  ref: config.lerobotVersion,
+                  python_version: config.pythonVersion,
+                  torch_version: config.torchVersion || '',
+                  torchvision_version: config.torchvisionVersion,
+                  torchaudio_version: config.torchaudioVersion,
+                  cuda_version: resolvedCudaVersion,
+                  rocm_version: resolvedRocmVersion,
+                  extras: config.extras,
+                  status: 'pending',
+                };
+
+                const currentLang = i18n.language.split('-')[0];
+
+                // Generate idempotency key
+                const idempotencyKey = crypto.randomUUID();
+
+                // Filter out empty commands from steps
+                const cleanedSteps = steps
+                  .map((step) => ({
+                    ...step,
+                    commands: step.commands.filter((cmd) => cmd.trim() !== ''),
+                  }))
+                  .filter((step) => step.commands.length > 0);
+
+                // Create environment with custom steps
+                const response = await fetch(
+                  `/api/environments/create?lang=${currentLang}`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Idempotency-Key': idempotencyKey,
+                    },
+                    body: JSON.stringify({
+                      env_config: envConfig,
+                      custom_steps: cleanedSteps, // Pass cleaned custom steps
+                    }),
+                  },
+                );
+
+                if (!response.ok) throw new Error('Failed to create environment');
+
+                // Navigate to installation page with the new envId
+                navigate(`/environments/${newEnvId}/install`);
+              } catch (error) {
+                console.error('Failed to create environment:', error);
+                alert('Failed to create environment. Please try again.');
+              }
             }}
             className="bg-success-surface text-success-content hover:bg-success-surface/90"
           >

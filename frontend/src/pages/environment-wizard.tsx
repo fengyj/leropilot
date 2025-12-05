@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, Check } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter } from '../components/ui/card';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { useWizardStore } from '../stores/environment-wizard-store';
 import { cn } from '../utils/cn';
 
@@ -20,6 +21,7 @@ export function EnvironmentWizard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { step, setStep, reset, config } = useWizardStore();
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const STEPS = [
     { id: 1, title: t('wizard.steps.repo'), component: StepRepoSelection },
@@ -29,6 +31,23 @@ export function EnvironmentWizard() {
     { id: 5, title: t('wizard.steps.name'), component: StepNameConfig },
     { id: 6, title: t('wizard.steps.review'), component: StepReview },
   ];
+
+  // Reset wizard state on mount to ensure fresh start
+  useEffect(() => {
+    reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Warn user before leaving page (browser refresh/close)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   // Validation logic for each step
   const isStepValid = () => {
@@ -155,10 +174,21 @@ export function EnvironmentWizard() {
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
-    } else {
-      navigate('/environments');
-      reset();
     }
+  };
+
+  const handleCancel = () => {
+    setShowCancelDialog(true);
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelDialog(false);
+    reset();
+    navigate('/environments');
+  };
+
+  const handleCancelDialog = () => {
+    setShowCancelDialog(false);
   };
 
   const CurrentStepComponent = STEPS[step - 1].component;
@@ -209,17 +239,39 @@ export function EnvironmentWizard() {
           <CurrentStepComponent />
         </CardContent>
         <CardFooter className="border-border-default flex justify-between border-t p-6">
-          <Button variant="ghost" onClick={handleBack}>
-            {step === 1 ? t('wizard.buttons.cancel') : t('wizard.buttons.back')}
+          {/* Left: Cancel button */}
+          <Button variant="secondary" onClick={handleCancel}>
+            {t('wizard.buttons.cancel')}
           </Button>
-          <Button onClick={handleNext} disabled={!isStepValid()}>
-            {step === STEPS.length
-              ? t('wizard.buttons.create')
-              : t('wizard.buttons.next')}
-            {step < STEPS.length && <ChevronRight className="ml-2 h-4 w-4" />}
-          </Button>
+
+          {/* Right: Navigation buttons */}
+          <div className="flex gap-3">
+            {step > 1 && (
+              <Button variant="ghost" onClick={handleBack}>
+                {t('wizard.buttons.back')}
+              </Button>
+            )}
+            <Button onClick={handleNext} disabled={!isStepValid()}>
+              {step === STEPS.length
+                ? t('wizard.buttons.create')
+                : t('wizard.buttons.next')}
+              {step < STEPS.length && <ChevronRight className="ml-2 h-4 w-4" />}
+            </Button>
+          </div>
         </CardFooter>
       </Card>
+
+      {/* Cancel Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelDialog}
+        title={t('wizard.cancelDialog.title')}
+        message={t('wizard.cancelDialog.message')}
+        confirmText={t('wizard.cancelDialog.confirm')}
+        cancelText={t('wizard.cancelDialog.stay')}
+        onConfirm={handleConfirmCancel}
+        onCancel={handleCancelDialog}
+        variant="danger"
+      />
     </div>
   );
 }

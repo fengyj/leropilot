@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import type { AppConfig } from '../types';
 
@@ -7,7 +8,7 @@ interface HuggingFaceSectionProps {
 }
 
 export function HuggingFaceSection({ config, setConfig }: HuggingFaceSectionProps) {
-  // const { t } = useTranslation();
+  const { t } = useTranslation();
 
   // If huggingface config is missing, initialize it
   if (!config.huggingface) {
@@ -18,9 +19,9 @@ export function HuggingFaceSection({ config, setConfig }: HuggingFaceSectionProp
     <Card>
       <CardHeader>
         <div className="space-y-1.5">
-          <CardTitle>HuggingFace</CardTitle>
+          <CardTitle>{t('settings.huggingface.title')}</CardTitle>
           <p className="text-content-secondary text-sm">
-            Configure HuggingFace Hub settings.
+            {t('settings.huggingface.description')}
           </p>
         </div>
       </CardHeader>
@@ -30,7 +31,7 @@ export function HuggingFaceSection({ config, setConfig }: HuggingFaceSectionProp
             htmlFor="hf-token"
             className="text-content-secondary text-xs font-medium uppercase"
           >
-            Token
+            {t('settings.huggingface.token')}
           </label>
           <input
             id="hf-token"
@@ -46,10 +47,10 @@ export function HuggingFaceSection({ config, setConfig }: HuggingFaceSectionProp
                 },
               })
             }
-            placeholder="hf_..."
+            placeholder={t('settings.huggingface.tokenPlaceholder')}
           />
           <p className="text-content-tertiary text-xs">
-            Optional: Access token for private repositories or higher rate limits.
+            {t('settings.huggingface.tokenHelp')}
           </p>
         </div>
 
@@ -58,7 +59,7 @@ export function HuggingFaceSection({ config, setConfig }: HuggingFaceSectionProp
             htmlFor="hf-cache-dir"
             className="text-content-secondary text-xs font-medium uppercase"
           >
-            Cache Directory
+            {t('settings.huggingface.cacheDir')}
           </label>
           <input
             id="hf-cache-dir"
@@ -74,7 +75,7 @@ export function HuggingFaceSection({ config, setConfig }: HuggingFaceSectionProp
                 },
               })
             }
-            placeholder="Default system cache"
+            placeholder={t('settings.huggingface.cacheDirPlaceholder')}
           />
         </div>
       </CardContent>

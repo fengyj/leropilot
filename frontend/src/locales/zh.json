@@ -122,10 +122,33 @@
       "customize": "自定义",
       "advancedWarning": "警告：修改命令可能会导致安装失败。请谨慎操作。"
     },
+    "buttons": {
+      "cancel": "取消",
+      "back": "上一步",
+      "next": "下一步",
+      "create": "创建环境",
+      "done": "完成",
+      "close": "关闭"
+    },
+    "cancelDialog": {
+      "title": "取消创建环境",
+      "message": "确定要取消吗？所有配置将会丢失。",
+      "confirm": "是",
+      "stay": "否"
+    },
+    "navigationWarning": {
+      "title": "离开页面",
+      "message": "您有未完成的环境创建。确定要离开吗？未保存的配置将会丢失。"
+    },
     "advanced": {
       "title": "高级安装",
       "subtitle": "自定义安装步骤和命令",
       "command": "命令",
+      "commands": "命令列表",
+      "commandLabel": "命令 {{number}}",
+      "commandPlaceholder": "输入命令...",
+      "addCommand": "添加命令",
+      "deleteCommand": "删除命令",
       "output": "输出",
       "run": "运行",
       "logs": "日志",
@@ -162,14 +185,6 @@
       "done": "完成",
       "cancel": "取消",
       "running": "运行中"
-    },
-    "buttons": {
-      "cancel": "取消",
-      "back": "上一步",
-      "next": "下一步",
-      "create": "创建环境",
-      "done": "完成",
-      "close": "关闭"
     }
   },
   "language": {
@@ -251,6 +266,15 @@
       "disable": "禁用",
       "delete": "删除",
       "deleteConfirm": "您确定要删除 PyPI 镜像 \"{{name}}\" 吗？"
+    },
+    "huggingface": {
+      "title": "HuggingFace",
+      "description": "配置 HuggingFace Hub 设置。",
+      "token": "令牌",
+      "tokenHelp": "可选：用于私有仓库或更高速率限制的访问令牌。",
+      "tokenPlaceholder": "hf_...",
+      "cacheDir": "缓存目录",
+      "cacheDirPlaceholder": "默认系统缓存"
     },
     "advanced": {
       "title": "高级",

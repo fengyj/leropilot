@@ -6,6 +6,7 @@ import { type ShellEvent, SHELL_EVENT_TYPES } from '../components/ShellIntegrati
 import { Button } from '../components/ui/button';
 import { CheckCircle2, Circle, Loader2, XCircle } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { useWizardStore } from '../stores/environment-wizard-store';
 
 interface InstallStep {
   id: string;
@@ -35,6 +36,7 @@ export function EnvironmentInstallationPage() {
   const { envId } = useParams<{ envId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { reset: resetWizard } = useWizardStore();
 
   const [ptySessionId, setPtySessionId] = useState<string>('');
   const [envName, setEnvName] = useState<string>('');
@@ -344,6 +346,8 @@ export function EnvironmentInstallationPage() {
   };
 
   const handleBackToList = () => {
+    // Reset wizard state before navigating back
+    resetWizard();
     navigate('/environments');
   };
 
@@ -470,6 +474,7 @@ export function EnvironmentInstallationPage() {
           {ptySessionId ? (
             <WebTerminal
               sessionId={ptySessionId}
+              apiHost={import.meta.env.VITE_API_BASE_URL || undefined}
               onShellEvent={handleShellEvent}
               onConnected={() => {
                 console.log('[Installation] WebTerminal connected');
