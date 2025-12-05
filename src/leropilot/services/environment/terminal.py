@@ -57,16 +57,17 @@ class TerminalService:
     def _open_windows_terminal(env_dir: Path, venv_path: Path) -> None:
         """Open cmd.exe terminal on Windows."""
         activate_script = venv_path / "Scripts" / "activate.bat"
-        cmd = f'cmd.exe /K "cd /d {env_dir} && {activate_script}"'
 
-        # CREATE_NEW_CONSOLE is only available on Windows
-        # Use getattr to avoid mypy errors on non-Windows platforms
-        create_new_console = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        # Use 'start' command to ensure a new window is opened.
+        # Format: start "Title" /D "WorkingDir" cmd /k "Command"
+        # We need to quote paths to handle spaces.
+        # Note: The first quoted argument to 'start' is always interpreted as the window title.
+        cmd = f'start "LeRoPilot Terminal" /D "{env_dir}" cmd /k "{activate_script}"'
 
+        # shell=True is required to use the 'start' command (which is a shell builtin)
         subprocess.Popen(
             cmd,
             shell=True,
-            creationflags=create_new_console,
         )
 
     @staticmethod
