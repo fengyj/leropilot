@@ -63,7 +63,7 @@ class EnvironmentInstallationExecutor:
         # Create PTY session with log file
         logger.info("[EnvironmentInstallationExecutor] Creating PTY session")
         log_file = str(self.env_dir / "installation.log")
-        self.pty_session = PtySession(cols=80, rows=24, cwd=str(self.env_dir), log_file=log_file)
+        self.pty_session = PtySession(cols=80, rows=24, cwd=self.plan.repo_dir, log_file=log_file)
         logger.info(f"[EnvironmentInstallationExecutor] PTY session created: {self.pty_session.session_id}")
 
         self.installation.session_id = self.pty_session.session_id

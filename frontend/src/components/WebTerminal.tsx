@@ -220,16 +220,9 @@ const WebTerminal: React.FC<TerminalProps> = ({
     // Start connection
     connect();
 
-    // Cleanup function for when component unmounts or session changes
-    return () => {
-      if (resizeHandler) {
-        window.removeEventListener('resize', resizeHandler);
-      }
-      if (ws) {
-        ws.close();
-      }
-      term.dispose();
-    };
+    // No cleanup needed for React Strict Mode - we use connectedSessionRef
+    // to prevent duplicate connections. The WebSocket will be closed when
+    // the component actually unmounts (page navigation).
   }, [
     apiHost,
     sessionId,

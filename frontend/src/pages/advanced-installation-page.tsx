@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Loader2, X, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
+import { CodeEditor } from '../components/code-editor';
 import { useWizardStore } from '../stores/environment-wizard-store';
 import { cn } from '../utils/cn';
 
@@ -39,8 +40,14 @@ export function AdvancedInstallationPage() {
           repo_url: config.repositoryUrl,
           ref: config.lerobotVersion,
           python_version: config.pythonVersion,
-          torch_version: '2.4.0', // Default placeholder, backend handles actual version
-          cuda_version: config.cudaVersion === 'auto' ? null : config.cudaVersion,
+          torch_version: config.torchVersion || '2.4.0',
+          torchvision_version: config.torchvisionVersion || '',
+          torchaudio_version: config.torchaudioVersion || '',
+          // cuda_version: null means CPU-only, 'auto' means auto-detect, otherwise it's the CUDA version
+          cuda_version:
+            config.cudaVersion === 'auto' || config.cudaVersion === 'cpu'
+              ? null
+              : config.cudaVersion,
           extras: config.extras,
           status: 'pending',
         };
@@ -219,19 +226,21 @@ export function AdvancedInstallationPage() {
 
                       {step.commands.map((command, cmdIndex) => (
                         <div key={cmdIndex} className="flex items-start gap-2">
-                          <div className="flex-1 space-y-1">
+                          <div className="min-w-0 flex-1 space-y-1">
                             <label className="text-content-secondary text-xs font-medium">
                               {t('wizard.advanced.commandLabel', {
                                 number: cmdIndex + 1,
                               })}
                             </label>
-                            <textarea
+                            <CodeEditor
                               value={command}
-                              onChange={(e) =>
-                                handleCommandUpdate(step.id, cmdIndex, e.target.value)
+                              onChange={(value) =>
+                                handleCommandUpdate(step.id, cmdIndex, value)
                               }
-                              className="border-border-default bg-surface-secondary text-content-primary max-h-[7.5rem] w-full resize-y rounded-md border px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none"
-                              rows={1}
+                              language="shell"
+                              height="auto"
+                              minHeight="40px"
+                              maxHeight="200px"
                               placeholder={t('wizard.advanced.commandPlaceholder')}
                             />
                           </div>

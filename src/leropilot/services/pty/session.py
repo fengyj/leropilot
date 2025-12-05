@@ -62,15 +62,13 @@ class PtySession:
             log_path.parent.mkdir(parents=True, exist_ok=True)
             self.log_handle = open(log_file, "w", encoding="utf-8", buffering=1)
 
+        sessions[self.session_id] = self
+
         # 1. Detect & Start Shell
         self.shell_path = self._detect_shell()
         logger.info(f"Starting PTY session {self.session_id} with shell: {self.shell_path}")
         self._start_pty()
         logger.info(f"PTY session {self.session_id} started, pid: {self.pid}, fd: {self.fd}")
-
-        # Register session AFTER PTY is fully initialized to avoid race condition
-        # where WebSocket connects before fd/pid are set
-        sessions[self.session_id] = self
 
         # 2. Start Background Reader Thread
         self._reader_thread = threading.Thread(target=self._read_loop, daemon=True, name="PtyReader")
@@ -327,9 +325,9 @@ class PtySession:
                 cmd = f"source '{path}'"
 
         if cmd:
-            # Auto-execute injection command
-            # Note: Don't clear screen - we want to preserve welcome messages
+            # Auto-execute injection command and clear screen
             self.write_command(cmd)
+            self.write_command("clear" if not IS_WINDOWS else "Clear-Host")
 
     # --- Public API ---
 
