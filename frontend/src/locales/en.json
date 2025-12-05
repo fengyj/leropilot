@@ -32,6 +32,8 @@
     "delete": "Delete",
     "deleteConfirmTitle": "Delete Environment",
     "deleteConfirmMessage": "Are you sure you want to delete this environment? This action cannot be undone.",
+    "terminalOpenSuccess": "Terminal opened successfully",
+    "terminalOpenError": "Failed to open terminal",
     "status": {
       "ready": "Ready",
       "error": "Error",

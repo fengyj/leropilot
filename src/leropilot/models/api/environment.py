@@ -127,3 +127,10 @@ class DeleteEnvironmentResponse(BaseModel):
 
     success: bool
     message: str
+
+
+class OpenTerminalResponse(BaseModel):
+    """Response for opening terminal."""
+
+    success: bool
+    message: str

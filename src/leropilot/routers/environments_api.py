@@ -26,6 +26,7 @@ from leropilot.models.api.environment import (
     HardwareInfo,
     HasEnvironmentsResponse,
     InstallationStatusResponse,
+    OpenTerminalResponse,
     StartInstallationResponse,
 )
 from leropilot.models.environment import (
@@ -38,6 +39,7 @@ from leropilot.services.environment import (
     EnvironmentInstallationPlanGenerator,
     EnvironmentManager,
     InstallationManager,
+    TerminalService,
 )
 from leropilot.utils import get_resources_dir
 
@@ -581,3 +583,45 @@ async def get_installation_status(env_id: str) -> InstallationStatusResponse:
         created_at=executor.installation.created_at,
         completed_at=executor.installation.completed_at,
     )
+
+
+@router.post("/{env_id}/open-terminal", response_model=OpenTerminalResponse)
+async def open_terminal(env_id: str) -> OpenTerminalResponse:
+    """
+    Open a system terminal for the environment with virtual environment activated.
+
+    Args:
+        env_id: Environment identifier
+
+    Returns:
+        Success/error response
+
+    Raises:
+        HTTPException: If environment not found or not ready
+    """
+    env_manager = get_env_manager()
+    env_config = env_manager.load_environment_config(env_id)
+
+    if not env_config:
+        raise HTTPException(status_code=404, detail="Environment not found")
+
+    if env_config.status != "ready":
+        raise HTTPException(
+            status_code=400, detail="Environment is not ready. Only ready environments can open terminal."
+        )
+
+    # Get paths
+    config = get_config()
+    env_dir = config.paths.get_environment_path(env_id)
+    venv_path = config.paths.get_environment_venv_path(env_id)
+
+    try:
+        TerminalService.open_terminal(env_dir, venv_path)
+        return OpenTerminalResponse(success=True, message="Terminal opened successfully")
+
+    except FileNotFoundError as e:
+        logger.error(f"Path not found for environment {env_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except RuntimeError as e:
+        logger.error(f"Failed to open terminal for environment {env_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e

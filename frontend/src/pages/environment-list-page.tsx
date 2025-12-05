@@ -46,6 +46,7 @@ export function EnvironmentListPage() {
     envId: null,
     envName: null,
   });
+  const [openingTerminal, setOpeningTerminal] = useState<string | null>(null);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -111,6 +112,31 @@ export function EnvironmentListPage() {
 
   const handleDeleteCancel = () => {
     setDeleteConfirm({ isOpen: false, envId: null, envName: null });
+  };
+
+  const handleOpenTerminal = async (envId: string) => {
+    setOpeningTerminal(envId);
+    try {
+      const response = await fetch(`/api/environments/${envId}/open-terminal`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Success - terminal opened
+        console.log(t('environments.terminalOpenSuccess'));
+      } else {
+        const error = await response.json();
+        console.error(t('environments.terminalOpenError'), error.detail);
+        alert(
+          `${t('environments.terminalOpenError')}: ${error.detail || 'Unknown error'}`,
+        );
+      }
+    } catch (error) {
+      console.error('Error opening terminal:', error);
+      alert(t('environments.terminalOpenError'));
+    } finally {
+      setOpeningTerminal(null);
+    }
   };
 
   if (loading) {
@@ -220,9 +246,14 @@ export function EnvironmentListPage() {
                     variant="secondary"
                     size="sm"
                     className="flex-1"
-                    disabled={env.status !== 'ready'}
+                    disabled={env.status !== 'ready' || openingTerminal === env.id}
+                    onClick={() => handleOpenTerminal(env.id)}
                   >
-                    <Terminal className="mr-2 h-3 w-3" />
+                    {openingTerminal === env.id ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Terminal className="mr-2 h-3 w-3" />
+                    )}
                     {t('environments.shell')}
                   </Button>
                 </div>
