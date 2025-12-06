@@ -37,9 +37,6 @@ const WebTerminal: React.FC<TerminalProps> = ({
   const [status, setStatus] = useState<TerminalStatus>('Idle');
   const { effectiveTheme } = useTheme();
 
-  // Track if we've already connected to this session (React Strict Mode protection)
-  const connectedSessionRef = useRef<string | null>(null);
-
   // Use prop override if provided, otherwise use context theme
   const activeThemeMode = propThemeMode || effectiveTheme;
 
@@ -74,18 +71,6 @@ const WebTerminal: React.FC<TerminalProps> = ({
 
   useEffect(() => {
     if (!containerRef.current || !sessionId) return;
-
-    // React Strict Mode protection: skip if we've already connected to this session
-    // and the WebSocket connection is still alive
-    if (connectedSessionRef.current === sessionId) {
-      console.log(
-        `[WebTerminal] Already connected to session ${sessionId}, skipping duplicate mount`,
-      );
-      return;
-    }
-
-    // Mark this session as connected
-    connectedSessionRef.current = sessionId;
 
     console.log(`[WebTerminal] Initializing terminal for session ${sessionId}`);
 
@@ -192,43 +177,53 @@ const WebTerminal: React.FC<TerminalProps> = ({
         setStatus('Idle');
         onDisconnectedRef.current?.();
       };
-
-      // 4. Input Handling (Native Mode)
-      term.onData((data) => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'input', data }));
-          onInputRef.current?.(data);
-        }
-      });
-
-      // Resize Handling
-      resizeHandler = () => {
-        fitAddon.fit();
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: 'resize',
-              cols: term.cols,
-              rows: term.rows,
-            }),
-          );
-        }
-      };
-      window.addEventListener('resize', resizeHandler);
     };
+
+    // 4. Input Handling (Native Mode)
+    const cleanupInput = term.onData((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+        onInputRef.current?.(data);
+      }
+    });
+
+    // Resize Handling
+    resizeHandler = () => {
+      fitAddon.fit();
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: 'resize',
+            cols: term.cols,
+            rows: term.rows,
+          }),
+        );
+      }
+    };
+    window.addEventListener('resize', resizeHandler);
 
     // Start connection
     connect();
 
-    // No cleanup needed for React Strict Mode - we use connectedSessionRef
-    // to prevent duplicate connections. The WebSocket will be closed when
-    // the component actually unmounts (page navigation).
-  }, [
-    apiHost,
-    sessionId,
-    activeThemeMode,
-    // Removed callback dependencies - now using refs
-  ]);
+    // Cleanup function
+    return () => {
+      console.log(`[WebTerminal] Cleaning up session ${sessionId}`);
+      onDisconnectedRef.current = undefined;
+
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+
+      if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+      }
+
+      cleanupInput.dispose();
+      term.dispose();
+      termInstance.current = null;
+    };
+  }, [apiHost, sessionId, activeThemeMode]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

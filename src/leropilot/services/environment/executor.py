@@ -249,6 +249,7 @@ class EnvironmentInstallationExecutor:
     def cleanup(self) -> None:
         """Cleanup resources."""
         if self.pty_session:
+            logger.info(f"[EnvironmentInstallationExecutor] Cleaning up PTY session {self.pty_session.session_id}")
             self.pty_session.close()
             self.pty_session = None
 

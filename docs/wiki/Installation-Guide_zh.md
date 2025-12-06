@@ -60,10 +60,13 @@
    ```
 
 > **注意**：在 Ubuntu 22.04+ 及其他较新的发行版上，可能需要安装 `libfuse2`：
+>
 > ```bash
 > sudo apt install libfuse2
 > ```
+>
 > 或者，可以在不依赖 FUSE 的情况下运行 AppImage：
+>
 > ```bash
 > ./LeRoPilot-*.AppImage --appimage-extract-and-run
 > ```
@@ -89,6 +92,8 @@
    ```
 
 3. 打开浏览器访问 `http://localhost:8000`
+
+> **WSL 用户注意**：为了获得最佳的集成终端体验，我们建议安装 [Windows Terminal](https://apps.microsoft.com/detail/9n0dx20hk701) (`wt.exe`)。LeRoPilot 将自动使用它来打开终端。
 
 ## 首次启动
 

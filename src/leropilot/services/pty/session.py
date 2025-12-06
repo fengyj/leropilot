@@ -68,7 +68,7 @@ class PtySession:
         self.shell_path = self._detect_shell()
         logger.info(f"Starting PTY session {self.session_id} with shell: {self.shell_path}")
         self._start_pty()
-        logger.info(f"PTY session {self.session_id} started, pid: {self.pid}, fd: {self.fd}")
+        logger.info(f"PTY session {self.session_id} started, fd: {self.fd}")
 
         # 2. Start Background Reader Thread
         self._reader_thread = threading.Thread(target=self._read_loop, daemon=True, name="PtyReader")

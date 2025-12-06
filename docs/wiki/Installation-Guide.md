@@ -60,10 +60,13 @@ Download the latest release for your platform:
    ```
 
 > **Note**: On Ubuntu 22.04+ and other newer distributions, you may need to install `libfuse2`:
+>
 > ```bash
 > sudo apt install libfuse2
 > ```
+>
 > Alternatively, you can run AppImage without FUSE:
+>
 > ```bash
 > ./LeRoPilot-*.AppImage --appimage-extract-and-run
 > ```
@@ -89,6 +92,8 @@ For WSL or remote server environments:
    ```
 
 3. Open your browser and navigate to `http://localhost:8000`
+
+> **Note for WSL Users**: For the best experience with the integrated terminal feature, we recommend installing [Windows Terminal](https://apps.microsoft.com/detail/9n0dx20hk701) (`wt.exe`). LeRoPilot will automatically use it to open terminals.
 
 ## First Launch
 

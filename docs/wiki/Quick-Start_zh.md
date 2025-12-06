@@ -26,7 +26,7 @@ python -m leropilot.main
 3. 按照向导操作：
    - **名称**：输入名称（例如 "my-first-env"）
    - **LeRobot 版本**：选择版本（推荐最新版）
-   - **PyTorch 版本**：选择兼容版本
+   - **PyTorch 版本**：选择兼容版本和计算平台（例如 CUDA 12.1、ROCm 6.0、CPU）
    - **Python 版本**：3.10 或 3.11
 4. 点击 **"创建"**
 
