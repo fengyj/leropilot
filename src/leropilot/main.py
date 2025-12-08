@@ -1,7 +1,7 @@
+import logging
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
@@ -10,9 +10,25 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from leropilot import __version__
-from leropilot.config import get_config
 from leropilot.logger import get_logger
-from leropilot.routers import config as config_router
+from leropilot.middleware import IdempotencyMiddleware
+from leropilot.routers import app_config_api as config_router
+from leropilot.routers import environments_api as environments_router
+from leropilot.routers import repositories_api as repositories_router
+from leropilot.routers import tools_api as tools_router
+from leropilot.routers import web_sockets_api as terminal_router
+from leropilot.services.config import get_config
+from leropilot.utils import get_static_dir
+
+# Configure basic logging early to capture config loading messages
+# Note: This runs after imports, so initial config loading logs may not be visible
+# For debugging config loading, set LEROPILOT_DEBUG=1 environment variable
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
 
 logger = get_logger(__name__)
 
@@ -27,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(title="LeRoPilot", lifespan=lifespan)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,27 +52,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Idempotency middleware (after CORS)
+app.add_middleware(IdempotencyMiddleware, ttl_hours=24)
 
-@app.api_route("/api/hello", methods=["GET", "HEAD"])
-async def hello() -> dict[str, str]:
+
+@app.get("/api/hello", operation_id="hello_api_hello_get")
+async def hello_get() -> dict[str, str]:
+    """Return a simple hello message with version info."""
+    return {"message": "Hello from LeRoPilot!", "version": "0.1.0"}
+
+
+@app.head("/api/hello", operation_id="hello_api_hello_head")
+async def hello_head() -> dict[str, str]:
     """Return a simple hello message with version info."""
     return {"message": "Hello from LeRoPilot!", "version": "0.1.0"}
 
 
 # Register routers
 app.include_router(config_router.router)
-
-
-def get_static_dir() -> Path:
-    """Get static files directory, compatible with development and PyInstaller packaged environments"""
-    if getattr(sys, "frozen", False):
-        # PyInstaller packaged environment
-        base_path = Path(sys._MEIPASS)  # type: ignore
-        return base_path / "leropilot" / "static"
-    else:
-        # Development environment: src/leropilot/static
-        # __file__ is src/leropilot/main.py
-        return Path(__file__).parent / "static"
+app.include_router(environments_router.router)
+app.include_router(repositories_router.router)
+app.include_router(terminal_router.router)
+app.include_router(tools_router.router)
 
 
 def serve_static() -> None:
@@ -92,7 +110,7 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
     import threading
     import webbrowser
 
-    from leropilot.config import get_config, save_config
+    from leropilot.services.config import get_config, save_config
 
     config = get_config()
 
@@ -109,7 +127,6 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
     def open_browser_func() -> None:
         import shutil
         import subprocess
-        import sys
         import time
 
         time.sleep(1.5)

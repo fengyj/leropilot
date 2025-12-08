@@ -1,4 +1,11 @@
 {
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "delete": "删除",
+    "yes": "是",
+    "no": "否"
+  },
   "nav": {
     "dashboard": "仪表板",
     "environments": "环境",
@@ -14,6 +21,7 @@
     "title": "环境",
     "subtitle": "管理您的 LeRobot 环境和依赖项。",
     "createNew": "创建新环境",
+    "noEnvironments": "未找到环境。请创建一个新环境以开始使用。",
     "launch": "启动",
     "shell": "终端",
     "python": "Python",
@@ -21,6 +29,11 @@
     "official": "官方",
     "custom": "自定义",
     "errorMessage": "缺少依赖项。请运行修复。",
+    "delete": "删除",
+    "deleteConfirmTitle": "删除环境",
+    "deleteConfirmMessage": "您确定要删除此环境吗？此操作无法撤销。",
+    "terminalOpenSuccess": "终端已成功打开",
+    "terminalOpenError": "打开终端失败",
     "status": {
       "ready": "就绪",
       "error": "错误",
@@ -31,49 +44,149 @@
     "title": "创建环境",
     "subtitle": "配置您的新 LeRobot 环境。",
     "steps": {
-      "source": "来源",
+      "repo": "仓库",
+      "version": "版本",
       "hardware": "硬件",
-      "robots": "机器人",
+      "extras": "组件",
+      "name": "命名",
       "review": "审查"
     },
-    "source": {
-      "repoType": "仓库类型",
-      "officialLeRobot": "官方 LeRobot",
-      "huggingFace": "Hugging Face",
-      "customUrl": "自定义 URL",
-      "gitRepository": "Git 仓库",
-      "versionTag": "版本 / 标签",
-      "latestStable": "最新稳定版",
-      "nightly": "每夜构建版"
+    "repoSelection": {
+      "title": "选择仓库",
+      "subtitle": "选择您的环境源代码仓库。",
+      "official": "官方",
+      "downloaded": "已下载",
+      "notDownloaded": "未下载",
+      "updated": "更新于",
+      "addCustom": "想要添加新仓库？去",
+      "settingsLink": "设置 > 仓库"
     },
-    "hardware": {
-      "detected": "检测到的硬件",
-      "pythonVersion": "Python 版本",
-      "pytorchVersion": "PyTorch 版本",
+    "versionSelection": {
+      "title": "选择版本",
+      "subtitle": "选择 LeRobot 版本标签或分支。",
+      "released": "发布于",
+      "stable": "稳定版"
+    },
+    "hardwareSelection": {
+      "title": "硬件加速",
+      "subtitle": "配置 PyTorch 加速设置。",
+      "detected": "系统检测",
+      "gpu": "显卡",
+      "driver": "驱动",
+      "auto": "自动检测 (推荐)",
+      "cpu": "仅 CPU (无加速)",
+      "best": "最佳",
       "recommended": "推荐",
+      "compatibilityNote": "我们会根据您的硬件自动选择最兼容的 PyTorch 和加速库（CUDA/ROCm）版本。",
+      "cpuWarning": "在 CPU 上运行训练和推理会明显变慢。",
+      "unknown": "未知",
       "cpuOnly": "仅 CPU",
-      "compatibilityNote": "与您的 NVIDIA 驱动程序和 LeRobot v2.0 兼容。"
+      "nvidiaGpu": "NVIDIA 显卡",
+      "amdGpu": "AMD 显卡",
+      "appleSilicon": "Apple Silicon"
     },
-    "robots": {
-      "description": "选择您想要支持的机器人。这将安装额外的依赖项。"
+    "extrasSelection": {
+      "title": "可选组件",
+      "subtitle": "选择要安装的额外组件。",
+      "all": "安装所有组件",
+      "allDescription": "自动安装所有可用的额外组件（推荐用于完整体验）。",
+      "categories": {
+        "robots": "机器人支持",
+        "simulation": "仿真环境",
+        "policies": "策略模型",
+        "features": "功能特性",
+        "motors": "电机驱动",
+        "other": "其他工具"
+      }
+    },
+    "nameConfig": {
+      "title": "环境名称",
+      "subtitle": "配置环境的标识名称。",
+      "internalName": "内部名称 (ID)",
+      "internalNameHelp": "仅允许字母、数字、点、横线和下划线。",
+      "friendlyName": "显示名称",
+      "friendlyNameHelp": "在环境列表中显示的名称。",
+      "duplicateError": "环境名称已存在，请选择其他名称。",
+      "formatError": "内部名称仅允许小写字母、数字、点、横线和下划线。"
     },
     "review": {
-      "summary": "摘要",
+      "title": "审查与创建",
+      "subtitle": "在创建之前检查您的配置。",
+      "summary": "配置摘要",
       "repository": "仓库",
       "python": "Python",
       "pytorch": "PyTorch",
-      "robots": "机器人",
+      "hardware": "硬件",
+      "extras": "组件",
       "none": "无",
-      "internetNote": "注意：此过程需要有效的互联网连接来下载依赖项。",
-      "showAdvanced": "显示高级：编辑安装脚本",
-      "hideAdvanced": "隐藏高级：编辑安装脚本",
-      "installScriptComment": "# 生成的安装脚本"
+      "internetWarning": "注意：此过程需要有效的互联网连接来下载依赖项 (~2GB)。",
+      "advancedMode": "高级模式：自定义安装脚本",
+      "customize": "自定义",
+      "advancedWarning": "警告：修改命令可能会导致安装失败。请谨慎操作。"
     },
     "buttons": {
       "cancel": "取消",
-      "back": "返回",
+      "back": "上一步",
       "next": "下一步",
-      "createEnvironment": "创建环境"
+      "create": "创建环境",
+      "done": "完成",
+      "close": "关闭"
+    },
+    "cancelDialog": {
+      "title": "取消创建环境",
+      "message": "确定要取消吗？所有配置将会丢失。",
+      "confirm": "是",
+      "stay": "否"
+    },
+    "navigationWarning": {
+      "title": "离开页面",
+      "message": "您有未完成的环境创建。确定要离开吗？未保存的配置将会丢失。"
+    },
+    "advanced": {
+      "title": "高级安装",
+      "subtitle": "自定义安装步骤和命令",
+      "command": "命令",
+      "commands": "命令列表",
+      "commandLabel": "命令 {{number}}",
+      "commandPlaceholder": "输入命令...",
+      "addCommand": "添加命令",
+      "deleteCommand": "删除命令",
+      "output": "输出",
+      "run": "运行",
+      "logs": "日志",
+      "waiting": "等待执行...",
+      "addStep": "添加步骤",
+      "stepName": "步骤名称",
+      "stepNamePlaceholder": "例如：安装依赖"
+    },
+    "installation": {
+      "title": "正在安装环境",
+      "subtitle": "正在设置 {{envName}}。请勿关闭此窗口。",
+      "progress": "总进度",
+      "steps": "安装步骤",
+      "logs": "控制台输出",
+      "waitingLogs": "等待日志...",
+      "retry": "重试",
+      "reinstall": "重新安装",
+      "installing": "安装中...",
+      "cancelConfirm": "确定要取消安装吗？",
+      "stepsList": {
+        "git": "克隆代码仓库",
+        "venv": "创建虚拟环境",
+        "torch": "安装 PyTorch",
+        "lerobot": "安装 LeRobot",
+        "extras": "安装额外组件"
+      },
+      "pageTitle": "环境安装",
+      "pageSubtitle": "正在安装环境：{{envName}}",
+      "terminal": "终端",
+      "runningStep": "正在运行：{{stepName}}",
+      "preparingSteps": "正在准备安装步骤...",
+      "noEnvIdError": "未提供环境 ID",
+      "errorTitle": "安装错误",
+      "done": "完成",
+      "cancel": "取消",
+      "running": "运行中"
     }
   },
   "language": {
@@ -122,7 +235,13 @@
       "customPath": "可执行文件路径",
       "customPathPlaceholder": "可执行文件路径 (例如 /usr/bin/git 或 C:\\Program Files\\Git\\bin\\git.exe)",
       "gitPathPlaceholder": "Git 可执行文件路径 (例如 /usr/bin/git 或 C:\\Program Files\\Git\\bin\\git.exe)",
-      "uvPathPlaceholder": "UV 可执行文件路径 (例如 /home/user/.cargo/bin/uv 或 C:\\Users\\user\\.cargo\\bin\\uv.exe)"
+      "uvPathPlaceholder": "UV 可执行文件路径 (例如 /home/user/.cargo/bin/uv 或 C:\\Users\\user\\.cargo\\bin\\uv.exe)",
+      "bundledInstalled": "检测到系统 Git",
+      "bundledNotInstalled": "未找到系统 Git",
+      "bundledDescription": "使用系统安装的 Git。",
+      "downloadAndInstall": "下载并安装",
+      "autoDetect": "自动检测系统 Git",
+      "notInstalled": "未安装"
     },
     "repositories": {
       "title": "LeRobot 仓库",
@@ -133,18 +252,31 @@
       "url": "仓库地址",
       "default": "默认",
       "setAsDefault": "设为默认",
-      "actions": "操作"
+      "actions": "操作",
+      "deleteConfirm": "您确定要删除仓库 \"{{name}}\" 吗？",
+      "saveBeforeDownload": "请先保存配置再下载此仓库"
     },
     "pypi": {
       "title": "PyPI 镜像",
-      "description": "管理 PyPI 镜像源以加快包安装速度。",
-      "mirrors": "镜像源",
-      "addMirror": "添加镜像",
+      "description": "管理 PyPI 镜像源以加快包安装速度。启用一个镜像使用它，或保持全部禁用以使用官方 PyPI。",
+      "currentMirror": "默认",
+      "usingOfficial": "使用官方 PyPI（未启用镜像）",
+      "addMirror": "添加",
       "name": "名称",
       "url": "URL",
-      "default": "默认",
-      "setAsDefault": "设为默认",
-      "actions": "操作"
+      "enable": "启用",
+      "disable": "禁用",
+      "delete": "删除",
+      "deleteConfirm": "您确定要删除 PyPI 镜像 \"{{name}}\" 吗？"
+    },
+    "huggingface": {
+      "title": "HuggingFace",
+      "description": "配置 HuggingFace Hub 设置。",
+      "token": "令牌",
+      "tokenHelp": "可选：用于私有仓库或更高速率限制的访问令牌。",
+      "tokenPlaceholder": "hf_...",
+      "cacheDir": "缓存目录",
+      "cacheDirPlaceholder": "默认系统缓存"
     },
     "advanced": {
       "title": "高级",
@@ -168,5 +300,19 @@
       "resetConfirm": "您确定要将所有设置重置为默认值吗？如果存在环境，您的数据目录将被保留。",
       "dataDirLocked": "创建环境后无法更改数据目录。"
     }
+  },
+  "repositoryStatus": {
+    "download": "下载",
+    "update": "更新",
+    "downloading": "下载中...",
+    "updating": "更新中...",
+    "checking": "检查中...",
+    "error": "错误",
+    "retry": "重试",
+    "upToDate": "已是最新",
+    "updatedAt": "更新于 {{date}}",
+    "notFound": "仓库不存在",
+    "downloadFailed": "下载失败",
+    "connectionLost": "连接中断"
   }
 }

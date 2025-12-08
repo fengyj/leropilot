@@ -36,16 +36,16 @@ jobs:
           npm install
           npm run build
           cd ..
-          # Verify frontend build output
           if [ ! -d src/leropilot/static ]; then
             echo "Frontend build failed - static directory not found"
             exit 1
           fi
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: "x64"
 
       - name: Install uv
         run: pip install uv
@@ -89,52 +89,94 @@ jobs:
         shell: bash
         run: |
           if [ ! -f build.spec ]; then
-            printf '%s\n' \
-              '# -*- mode: python ; coding: utf-8 -*-' \
-              '' \
-              'block_cipher = None' \
-              '' \
-              'a = Analysis(' \
-              "    ['src/leropilot/main.py']," \
-              '    pathex=[],' \
-              '    binaries=[],' \
-              '    datas=[' \
-              "        ('src/leropilot/static', 'leropilot/static')," \
-              '    ],' \
-              '    hiddenimports=[],' \
-              '    hookspath=[],' \
-              '    hooksconfig={},' \
-              '    runtime_hooks=[],' \
-              "    excludes=['torch', 'tensorflow', 'matplotlib', 'pytest']," \
-              '    win_no_prefer_redirects=False,' \
-              '    win_private_assemblies=False,' \
-              '    cipher=block_cipher,' \
-              '    noarchive=False,' \
-              ')' \
-              '' \
-              'pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)' \
-              '' \
-              'exe = EXE(' \
-              '    pyz,' \
-              '    a.scripts,' \
-              '    a.binaries,' \
-              '    a.zipfiles,' \
-              '    a.datas,' \
-              '    [],' \
-              "    name='leropilot'," \
-              '    debug=False,' \
-              '    bootloader_ignore_signals=False,' \
-              '    strip=False,' \
-              '    upx=True,' \
-              '    upx_exclude=[],' \
-              '    runtime_tmpdir=None,' \
-              '    console=True,' \
-              '    disable_windowed_traceback=False,' \
-              '    argv_emulation=False,' \
-              '    target_arch=None,' \
-              '    codesign_identity=None,' \
-              '    entitlements_file=None,' \
-              ')' > build.spec
+            cat > build.spec << 'EOF'
+          # -*- mode: python ; coding: utf-8 -*-
+          import os
+          import sys
+          block_cipher = None
+
+          spec_dir = os.path.dirname(os.path.abspath(SPEC)) if 'SPEC' in dir() else os.getcwd()
+
+          # Collect winpty binaries using PyInstaller's built-in function
+          winpty_binaries = []
+          winpty_datas = []
+
+          try:
+              from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+
+              # Method 1: Use PyInstaller's built-in function (recommended)
+              winpty_binaries = collect_dynamic_libs('winpty')
+
+              # Method 2: Manual collection as fallback
+              if not winpty_binaries:
+                  import winpty
+                  import pathlib
+                  winpty_dir = pathlib.Path(winpty.__file__).parent
+
+                  for pattern in ['*.dll', '*.pyd', '*.exe']:
+                      for file in winpty_dir.rglob(pattern):
+                          try:
+                              rel_path = file.relative_to(winpty_dir.parent)
+                              dest_dir = str(rel_path.parent)
+                              winpty_binaries.append((str(file), dest_dir))
+                          except ValueError:
+                              winpty_binaries.append((str(file), 'winpty'))
+
+              # Collect data files if any
+              try:
+                  winpty_datas = collect_data_files('winpty', include_py_files=False)
+              except:
+                  pass
+
+          except ImportError:
+              pass
+          except Exception as e:
+              import traceback
+              traceback.print_exc()
+
+          a = Analysis(
+              [os.path.join(spec_dir, 'src/leropilot/main.py')],
+              pathex=[spec_dir],
+              binaries=winpty_binaries,
+              datas=[
+                  (os.path.join(spec_dir, 'src/leropilot/static'), 'leropilot/static'),
+                  (os.path.join(spec_dir, 'src/leropilot/resources'), 'leropilot/resources'),
+              ] + winpty_datas,
+              hiddenimports=['winpty', 'winpty.winpty'],
+              hookspath=[],
+              hooksconfig={},
+              runtime_hooks=[],
+              excludes=['torch', 'tensorflow', 'matplotlib', 'pytest'],
+              win_no_prefer_redirects=False,
+              win_private_assemblies=False,
+              cipher=block_cipher,
+              noarchive=False,
+          )
+
+          pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+          exe = EXE(
+              pyz,
+              a.scripts,
+              a.binaries,
+              a.zipfiles,
+              a.datas,
+              [],
+              name='leropilot',
+              debug=False,
+              bootloader_ignore_signals=False,
+              strip=False,
+              upx=True,
+              upx_exclude=[],
+              runtime_tmpdir=None,
+              console=True,
+              disable_windowed_traceback=False,
+              argv_emulation=False,
+              target_arch=None,
+              codesign_identity=None,
+              entitlements_file=None,
+          )
+          EOF
           fi
 
       - name: PyInstaller build
@@ -189,16 +231,16 @@ jobs:
           npm install
           npm run build
           cd ..
-          # Verify frontend build output
           if [ ! -d src/leropilot/static ]; then
             echo "Frontend build failed - static directory not found"
             exit 1
           fi
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: "x64"
 
       - name: Install uv
         run: pip install uv
@@ -214,14 +256,53 @@ jobs:
         run: |
           cat > build-backend.spec << 'EOF'
           # -*- mode: python ; coding: utf-8 -*-
+          import os
+          import sys
           block_cipher = None
 
+          spec_dir = os.path.dirname(os.path.abspath(SPEC)) if 'SPEC' in dir() else os.getcwd()
+
+          # Collect winpty binaries using PyInstaller's built-in function
+          winpty_binaries = []
+          winpty_datas = []
+
+          try:
+              from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+
+              winpty_binaries = collect_dynamic_libs('winpty')
+
+              if not winpty_binaries:
+                  import winpty
+                  import pathlib
+                  winpty_dir = pathlib.Path(winpty.__file__).parent
+                  for pattern in ['*.dll', '*.pyd', '*.exe']:
+                      for file in winpty_dir.rglob(pattern):
+                          try:
+                              rel_path = file.relative_to(winpty_dir.parent)
+                              dest_dir = str(rel_path.parent)
+                              winpty_binaries.append((str(file), dest_dir))
+                          except ValueError:
+                              winpty_binaries.append((str(file), 'winpty'))
+
+              try:
+                  winpty_datas = collect_data_files('winpty', include_py_files=False)
+              except:
+                  pass
+
+          except ImportError:
+              pass
+          except Exception as e:
+              pass
+
           a = Analysis(
-              ['src/leropilot/main.py'],
-              pathex=[],
-              binaries=[],
-              datas=[('src/leropilot/static', 'leropilot/static')],
-              hiddenimports=[],
+              [os.path.join(spec_dir, 'src/leropilot/main.py')],
+              pathex=[spec_dir],
+              binaries=winpty_binaries,
+              datas=[
+                  (os.path.join(spec_dir, 'src/leropilot/static'), 'leropilot/static'),
+                  (os.path.join(spec_dir, 'src/leropilot/resources'), 'leropilot/resources'),
+              ] + winpty_datas,
+              hiddenimports=['winpty', 'winpty.winpty'],
               hookspath=[],
               hooksconfig={},
               runtime_hooks=[],
@@ -270,7 +351,7 @@ jobs:
           fi
           ls -la dist/python
 
-      - name: Setup Node.js
+      - name: Setup Node.js for Electron
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -298,7 +379,6 @@ jobs:
       - name: Set artifact naming variables
         shell: bash
         run: |
-          # Determine OS suffix
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             OS_SUFFIX="win-x64"
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
@@ -307,10 +387,8 @@ jobs:
             OS_SUFFIX="macos"
           fi
 
-          # Determine version suffix
           if [[ "${{ github.event_name }}" == "release" ]]; then
-            VERSION_SUFFIX="${{ github.ref_name }}" # e.g., v0.1.0
-            # Remove 'v' prefix if present for consistency
+            VERSION_SUFFIX="${{ github.ref_name }}"
             VERSION_SUFFIX=${VERSION_SUFFIX#v}
           else
             VERSION_SUFFIX="latest-${{ github.run_number }}"
@@ -319,14 +397,10 @@ jobs:
           echo "ARTIFACT_NAME_PREFIX=leropilot-${OS_SUFFIX}" >> $GITHUB_ENV
           echo "ARTIFACT_VERSION_SUFFIX=${VERSION_SUFFIX}" >> $GITHUB_ENV
 
-          echo "Artifact Name Prefix: leropilot-${OS_SUFFIX}"
-          echo "Artifact Version Suffix: ${VERSION_SUFFIX}"
-
       - name: Build Electron app
         shell: bash
         run: |
           cd electron
-          npm install
           npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -337,31 +411,14 @@ jobs:
         shell: bash
         run: |
           echo "=== Verifying Electron build output ==="
-          echo "Listing electron/dist contents:"
           ls -la electron/dist/ || echo "electron/dist not found!"
-          echo ""
-          echo "Checking for win-unpacked directory:"
-          ls -la electron/dist/win-unpacked/ || ls -la electron/dist/linux-unpacked/ || ls -la electron/dist/mac/ || echo "No unpacked directory found"
-          echo ""
-          echo "Listing resources directory:"
+
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ls -la electron/dist/win-unpacked/resources/ || echo "No resources directory"
-            ls -la electron/dist/win-unpacked/resources/python/ || echo "No python resources directory"
+            ls -la electron/dist/win-unpacked/resources/python/ || echo "No python resources"
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             ls -la electron/dist/linux-unpacked/resources/ || echo "No resources directory"
           else
-            ls -la electron/dist/mac/*/Contents/Resources/ || echo "No resources directory"
-          fi
-          echo ""
-          echo "Searching for packaged Python backend in resources:"
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            find electron/dist/win-unpacked/resources -name "python" -type d || echo "No python directory in resources"
-            find electron/dist/win-unpacked/resources/python -name "*.exe" 2>/dev/null || echo "No backend exe in resources/python"
-          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            find electron/dist/linux-unpacked/resources -name "python" -type d || echo "No python directory in resources"
-            find electron/dist/linux-unpacked/resources/python -name "leropilot-backend" 2>/dev/null || echo "No backend in resources/python"
-          else
-            find electron/dist/mac -name "python" -type d || echo "No python directory in resources"
+            ls -la electron/dist/mac/ || echo "No mac directory"
           fi
 
       - name: Inspect Windows Installer
@@ -371,11 +428,8 @@ jobs:
           echo "=== Inspecting Windows Installer ==="
           INSTALLER_PATH=$(find electron/dist -name "*setup*.exe" | head -n 1)
           if [[ -f "$INSTALLER_PATH" ]]; then
-            echo "Installer found at: $INSTALLER_PATH"
-            echo "Listing contents using 7z:"
-            7z l "$INSTALLER_PATH" || echo "Failed to list installer contents"
-          else
-            echo "No installer found to inspect"
+            echo "Installer: $INSTALLER_PATH"
+            ls -lh "$INSTALLER_PATH"
           fi
 
       # Upload to GitHub Releases (for release events)
@@ -427,8 +481,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload as Artifacts (for non-release events like workflow_dispatch)
-      - name: Upload Windows Setup
+      # Upload as Artifacts (for non-release events)
+      - name: Upload Windows Setup Artifact
         if: github.event_name != 'release' && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -438,7 +492,7 @@ jobs:
           if-no-files-found: warn
           compression-level: 0
 
-      - name: Upload Windows Portable
+      - name: Upload Windows Portable Artifact
         if: github.event_name != 'release' && matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -448,7 +502,7 @@ jobs:
           if-no-files-found: warn
           compression-level: 0
 
-      - name: Upload Linux AppImage
+      - name: Upload Linux AppImage Artifact
         if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -457,7 +511,7 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
 
-      - name: Upload Linux Tarball
+      - name: Upload Linux Tarball Artifact
         if: github.event_name != 'release' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -466,7 +520,7 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
-      - name: Upload macOS DMG
+      - name: Upload macOS DMG Artifact
         if: github.event_name != 'release' && matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
@@ -475,7 +529,7 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
 
-      - name: Upload macOS Zip
+      - name: Upload macOS Zip Artifact
         if: github.event_name != 'release' && matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:

@@ -5,6 +5,7 @@
 - **Operating System**: Windows 10/11, macOS 10.15+, or Linux (Ubuntu 20.04+)
 - **Memory**: 4GB RAM minimum (8GB recommended)
 - **Disk Space**: 2GB free space
+- **Git**: Optional (LeRoPilot can download a bundled version), or pre-installed system Git
 - **Python**: 3.10 or 3.11 (for browser mode only)
 
 ## Installation Methods
@@ -28,6 +29,26 @@ Download the latest release for your platform:
 
 #### Linux
 
+**Option A: tar.gz Archive (Recommended - No Dependencies)**
+
+1. Download `leropilot-linux-*.tar.gz`
+2. Extract the archive:
+   ```bash
+   tar -xzf leropilot-linux-*.tar.gz
+   ```
+3. Run the application:
+   ```bash
+   cd leropilot-linux-*
+   ./leropilot
+   ```
+4. (Optional) Install to `/opt` for system-wide access:
+   ```bash
+   sudo mv leropilot-linux-* /opt/leropilot
+   sudo ln -s /opt/leropilot/leropilot /usr/local/bin/leropilot
+   ```
+
+**Option B: AppImage**
+
 1. Download `LeRoPilot-*.AppImage`
 2. Make it executable:
    ```bash
@@ -37,6 +58,18 @@ Download the latest release for your platform:
    ```bash
    ./LeRoPilot-*.AppImage
    ```
+
+> **Note**: On Ubuntu 22.04+ and other newer distributions, you may need to install `libfuse2`:
+>
+> ```bash
+> sudo apt install libfuse2
+> ```
+>
+> Alternatively, you can run AppImage without FUSE:
+>
+> ```bash
+> ./LeRoPilot-*.AppImage --appimage-extract-and-run
+> ```
 
 ### Method 2: Browser Mode (WSL/Server)
 
@@ -59,6 +92,8 @@ For WSL or remote server environments:
    ```
 
 3. Open your browser and navigate to `http://localhost:8000`
+
+> **Note for WSL Users**: For the best experience with the integrated terminal feature, we recommend installing [Windows Terminal](https://apps.microsoft.com/detail/9n0dx20hk701) (`wt.exe`). LeRoPilot will automatically use it to open terminals.
 
 ## First Launch
 

@@ -126,7 +126,7 @@ class EnvironmentConfig(BaseModel):
     rocm_version: Optional[str]
 
     # Extras
-    selected_robots: List[str] # e.g., ["aloha", "xarm"]
+    extras: List[str] # e.g., ["aloha", "xarm"]
 ```
 
     data_dir: Path = "~/.leropilot"
@@ -233,16 +233,16 @@ class EnvironmentConfig(BaseModel):
 #### Step 4: Review & Advanced (Script Edit)
 
 - **Summary View**: Shows selected Repo, Python, PyTorch, and Extras.
-- **"Advanced: Edit Install Script"**: Toggle button.
-  - **Action**: Calls backend to generate the install script based on current selections.
+- **"Advanced: Edit Install Script"**: Link to Advanced Installation Page.
+  - **Action**: Navigates to a dedicated editor page.
   - **Platform Adaptation**:
     - **Linux/macOS**: Generates a Bash script (`install.sh`).
     - **Windows**: Generates a PowerShell script (`install.ps1`) or Batch script (`install.bat`).
-  - **UI**: A code editor showing the generated commands.
+  - **UI**: A list of steps with code editors showing the generated commands.
   - **User Capability**: User can modify flags, add environment variables, or insert custom commands.
 - **"Create Environment"**:
-  - If script was edited, sends the _custom script_ to the backend.
-  - If not, sends the _structured config_.
+  - If script was edited (Advanced Mode), sends the _custom steps_ to the backend (`/create-advanced`).
+  - If not (Standard Mode), sends the _structured config_ (`/create`).
 
 #### Step 5: Installation Progress
 

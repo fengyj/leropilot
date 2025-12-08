@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/dashboard-layout';
 import { EnvironmentListPage } from './pages/environment-list-page';
 import { EnvironmentWizard } from './pages/environment-wizard';
+import { EnvironmentInstallationPage } from './pages/environment-installation-page';
+import { AdvancedInstallationPage } from './pages/advanced-installation-page';
 import { SettingsPage } from './pages/settings-page';
 
 interface ElectronAPI {
@@ -27,6 +29,18 @@ function App() {
           <Route index element={<Navigate to="/environments" replace />} />
           <Route path="environments" element={<EnvironmentListPage />} />
           <Route path="environments/new" element={<EnvironmentWizard />} />
+          <Route
+            path="environments/install"
+            element={<EnvironmentInstallationPage />}
+          />
+          <Route
+            path="environments/:envId/install"
+            element={<EnvironmentInstallationPage />}
+          />
+          <Route
+            path="environments/advanced-install"
+            element={<AdvancedInstallationPage />}
+          />
           {/* Placeholders for other routes */}
           <Route
             path="dashboard"

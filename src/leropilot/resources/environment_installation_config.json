@@ -1,0 +1,1036 @@
+{
+  "repositories": {
+    "https://github.com/huggingface/lerobot.git": {
+      "versions": {
+        "v0.4.1": {
+          "python_version": ">=3.10,<3.14",
+          "torch_version": ">=2.2.1,<2.8.0",
+          "compatibility_matrix": [
+            {
+              "torch": "2.7.1",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.1",
+              "torchaudio": "2.7.1",
+              "cpu": true,
+              "is_recommended": true
+            },
+            {
+              "torch": "2.7.0",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.0",
+              "torchaudio": "2.7.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.6.0",
+              "cuda": [
+                "11.8",
+                "12.4",
+                "12.6"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2.4"
+              ],
+              "torchvision": "0.21.0",
+              "torchaudio": "2.6.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.1",
+              "torchaudio": "2.5.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.0",
+              "torchaudio": "2.5.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.4.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1"
+              ],
+              "torchvision": "0.19.1",
+              "torchaudio": "2.4.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.4.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1"
+              ],
+              "torchvision": "0.19.0",
+              "torchaudio": "2.4.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.3.1",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "6.0"
+              ],
+              "torchvision": "0.18.1",
+              "torchaudio": "2.3.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.3.0",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "6.0"
+              ],
+              "torchvision": "0.18.0",
+              "torchaudio": "2.3.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.2.2",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "5.7"
+              ],
+              "torchvision": "0.17.2",
+              "torchaudio": "2.2.2",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.2.1",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "5.7"
+              ],
+              "torchvision": "0.17.1",
+              "torchaudio": "2.2.1",
+              "cpu": true,
+              "is_recommended": false
+            }
+          ],
+          "darwin": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (curl -L https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z -o /tmp/ffmpeg.7z && 7z x /tmp/ffmpeg.7z -o{tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.7z)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version}"
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "linux": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz -O /tmp/ffmpeg.tar.xz && mkdir -p {tools_cache_dir} && tar -xf /tmp/ffmpeg.tar.xz -C {tools_cache_dir} && mv {tools_cache_dir}/ffmpeg-n7.1-latest-linux64-gpl-7.1 {tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.tar.xz)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}",
+                "python -c \"import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.version.cuda}, Available: {torch.cuda.is_available()}'); cuda_tag = '{cuda_tag}'; assert cuda_tag == 'cpu' or torch.cuda.is_available(), f'CUDA not available for {cuda_tag}'\""
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "windows": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                ". '{venv_path}\\Scripts\\activate.ps1'"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "if (-not (Test-Path '{tools_cache_dir}\\ffmpeg-7.1.3')) { curl.exe -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip -o \"$env:TEMP\\ffmpeg.zip\"; Expand-Archive -Path \"$env:TEMP\\ffmpeg.zip\" -DestinationPath '{tools_cache_dir}'; Move-Item -Path '{tools_cache_dir}\\ffmpeg-n7.1-latest-win64-gpl-7.1' -Destination '{tools_cache_dir}\\ffmpeg-7.1.3'; Remove-Item -Path \"$env:TEMP\\ffmpeg.zip\" }",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffmpeg.exe {venv_path}\\Scripts\\",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffprobe.exe {venv_path}\\Scripts\\"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}",
+                "python -c \"import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.version.cuda}, Available: {torch.cuda.is_available()}'); cuda_tag = '{cuda_tag}'; assert cuda_tag == 'cpu' or torch.cuda.is_available(), f'CUDA not available for {cuda_tag}'\""
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ]
+        },
+        "v0.4.0": {
+          "python_version": ">=3.10,<3.14",
+          "torch_version": ">=2.2.1,<2.8.0",
+          "compatibility_matrix": [
+            {
+              "torch": "2.7.1",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.1",
+              "torchaudio": "2.7.1",
+              "cpu": true,
+              "is_recommended": true
+            },
+            {
+              "torch": "2.7.0",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.0",
+              "torchaudio": "2.7.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.6.0",
+              "cuda": [
+                "11.8",
+                "12.4",
+                "12.6"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2.4"
+              ],
+              "torchvision": "0.21.0",
+              "torchaudio": "2.6.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.1",
+              "torchaudio": "2.5.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.0",
+              "torchaudio": "2.5.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.4.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1"
+              ],
+              "torchvision": "0.19.1",
+              "torchaudio": "2.4.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.4.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1"
+              ],
+              "torchvision": "0.19.0",
+              "torchaudio": "2.4.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.3.1",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "6.0"
+              ],
+              "torchvision": "0.18.1",
+              "torchaudio": "2.3.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.3.0",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "6.0"
+              ],
+              "torchvision": "0.18.0",
+              "torchaudio": "2.3.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.2.2",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "5.7"
+              ],
+              "torchvision": "0.17.2",
+              "torchaudio": "2.2.2",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.2.1",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "5.7"
+              ],
+              "torchvision": "0.17.1",
+              "torchaudio": "2.2.1",
+              "cpu": true,
+              "is_recommended": false
+            }
+          ],
+          "darwin": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (curl -L https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z -o /tmp/ffmpeg.7z && 7z x /tmp/ffmpeg.7z -o{tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.7z)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version}"
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "linux": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz -O /tmp/ffmpeg.tar.xz && mkdir -p {tools_cache_dir} && tar -xf /tmp/ffmpeg.tar.xz -C {tools_cache_dir} && mv {tools_cache_dir}/ffmpeg-n7.1-latest-linux64-gpl-7.1 {tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.tar.xz)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}",
+                "python -c \"import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.version.cuda}, Available: {torch.cuda.is_available()}'); cuda_tag = '{cuda_tag}'; assert cuda_tag == 'cpu' or torch.cuda.is_available(), f'CUDA not available for {cuda_tag}'\""
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "windows": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                ". '{venv_path}\\Scripts\\activate.ps1'"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "if (-not (Test-Path '{tools_cache_dir}\\ffmpeg-7.1.3')) { curl.exe -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip -o \"$env:TEMP\\ffmpeg.zip\"; Expand-Archive -Path \"$env:TEMP\\ffmpeg.zip\" -DestinationPath '{tools_cache_dir}'; Move-Item -Path '{tools_cache_dir}\\ffmpeg-n7.1-latest-win64-gpl-7.1' -Destination '{tools_cache_dir}\\ffmpeg-7.1.3'; Remove-Item -Path \"$env:TEMP\\ffmpeg.zip\" }",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffmpeg.exe {venv_path}\\Scripts\\",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffprobe.exe {venv_path}\\Scripts\\"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}",
+                "python -c \"import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.version.cuda}, Available: {torch.cuda.is_available()}'); cuda_tag = '{cuda_tag}'; assert cuda_tag == 'cpu' or torch.cuda.is_available(), f'CUDA not available for {cuda_tag}'\""
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ]
+        },
+        "v0.3.3": {
+          "python_version": ">=3.10,<3.14",
+          "torch_version": ">=2.2.1,<2.8.0",
+          "compatibility_matrix": [
+            {
+              "torch": "2.7.1",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.1",
+              "torchaudio": "2.7.1",
+              "cpu": true,
+              "is_recommended": true
+            },
+            {
+              "torch": "2.7.0",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.0",
+              "torchaudio": "2.7.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.6.0",
+              "cuda": [
+                "11.8",
+                "12.4",
+                "12.6"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2.4"
+              ],
+              "torchvision": "0.21.0",
+              "torchaudio": "2.6.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.1",
+              "torchaudio": "2.5.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.0",
+              "torchaudio": "2.5.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.4.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1"
+              ],
+              "torchvision": "0.19.1",
+              "torchaudio": "2.4.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.4.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1"
+              ],
+              "torchvision": "0.19.0",
+              "torchaudio": "2.4.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.3.1",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "6.0"
+              ],
+              "torchvision": "0.18.1",
+              "torchaudio": "2.3.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.3.0",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "6.0"
+              ],
+              "torchvision": "0.18.0",
+              "torchaudio": "2.3.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.2.2",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "5.7"
+              ],
+              "torchvision": "0.17.2",
+              "torchaudio": "2.2.2",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.2.1",
+              "cuda": [
+                "11.8",
+                "12.1"
+              ],
+              "rocm": [
+                "5.7"
+              ],
+              "torchvision": "0.17.1",
+              "torchaudio": "2.2.1",
+              "cpu": true,
+              "is_recommended": false
+            }
+          ],
+          "darwin": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (curl -L https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z -o /tmp/ffmpeg.7z && 7z x /tmp/ffmpeg.7z -o{tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.7z)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version}"
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "linux": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz -O /tmp/ffmpeg.tar.xz && mkdir -p {tools_cache_dir} && tar -xf /tmp/ffmpeg.tar.xz -C {tools_cache_dir} && mv {tools_cache_dir}/ffmpeg-n7.1-latest-linux64-gpl-7.1 {tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.tar.xz)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}",
+                "python -c \"import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.version.cuda}, Available: {torch.cuda.is_available()}'); cuda_tag = '{cuda_tag}'; assert cuda_tag == 'cpu' or torch.cuda.is_available(), f'CUDA not available for {cuda_tag}'\""
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "windows": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                ". '{venv_path}\\Scripts\\activate.ps1'"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "if (-not (Test-Path '{tools_cache_dir}\\ffmpeg-7.1.3')) { curl.exe -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip -o \"$env:TEMP\\ffmpeg.zip\"; Expand-Archive -Path \"$env:TEMP\\ffmpeg.zip\" -DestinationPath '{tools_cache_dir}'; Move-Item -Path '{tools_cache_dir}\\ffmpeg-n7.1-latest-win64-gpl-7.1' -Destination '{tools_cache_dir}\\ffmpeg-7.1.3'; Remove-Item -Path \"$env:TEMP\\ffmpeg.zip\" }",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffmpeg.exe {venv_path}\\Scripts\\",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffprobe.exe {venv_path}\\Scripts\\"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}",
+                "python -c \"import torch; print(f'Torch: {torch.__version__}, CUDA: {torch.version.cuda}, Available: {torch.cuda.is_available()}'); cuda_tag = '{cuda_tag}'; assert cuda_tag == 'cpu' or torch.cuda.is_available(), f'CUDA not available for {cuda_tag}'\""
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ]
+        },
+        "main": {
+          "python_version": ">=3.10,<3.14",
+          "torch_version": ">=2.2.1,<2.8.0",
+          "compatibility_matrix": [
+            {
+              "torch": "2.7.1",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.1",
+              "torchaudio": "2.7.1",
+              "cpu": true,
+              "is_recommended": true
+            },
+            {
+              "torch": "2.7.0",
+              "cuda": [
+                "11.8",
+                "12.6",
+                "12.8"
+              ],
+              "rocm": [
+                "6.3"
+              ],
+              "torchvision": "0.22.0",
+              "torchaudio": "2.7.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.6.0",
+              "cuda": [
+                "11.8",
+                "12.4",
+                "12.6"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2.4"
+              ],
+              "torchvision": "0.21.0",
+              "torchaudio": "2.6.0",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.1",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.1",
+              "torchaudio": "2.5.1",
+              "cpu": true,
+              "is_recommended": false
+            },
+            {
+              "torch": "2.5.0",
+              "cuda": [
+                "11.8",
+                "12.1",
+                "12.4"
+              ],
+              "rocm": [
+                "6.1",
+                "6.2"
+              ],
+              "torchvision": "0.20.0",
+              "torchaudio": "2.5.0",
+              "cpu": true,
+              "is_recommended": false
+            }
+          ],
+          "darwin": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (curl -L https://evermeet.cx/ffmpeg/getrelease/ffmpeg/7z -o /tmp/ffmpeg.7z && 7z x /tmp/ffmpeg.7z -o{tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.7z)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version}"
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "linux": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                "source {venv_path}/bin/activate"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "test -d {tools_cache_dir}/ffmpeg-7.1.3 || (wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz -O /tmp/ffmpeg.tar.xz && mkdir -p {tools_cache_dir} && tar -xf /tmp/ffmpeg.tar.xz -C {tools_cache_dir} && mv {tools_cache_dir}/ffmpeg-n7.1-latest-linux64-gpl-7.1 {tools_cache_dir}/ffmpeg-7.1.3 && rm /tmp/ffmpeg.tar.xz)",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffmpeg {venv_path}/bin/",
+                "cp {tools_cache_dir}/ffmpeg-7.1.3/bin/ffprobe {venv_path}/bin/",
+                "chmod +x {venv_path}/bin/ffmpeg {venv_path}/bin/ffprobe"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}"
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ],
+          "windows": [
+            {
+              "id": "checkout_version",
+              "commands": [
+                "git checkout {ref}"
+              ]
+            },
+            {
+              "id": "create_venv",
+              "commands": [
+                "uv venv {venv_path} --clear  --python '{python_version}'",
+                ". '{venv_path}\\Scripts\\activate.ps1'"
+              ]
+            },
+            {
+              "id": "ensure_ffmpeg",
+              "commands": [
+                "if (-not (Test-Path '{tools_cache_dir}\\ffmpeg-7.1.3')) { curl.exe -L https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip -o \"$env:TEMP\\ffmpeg.zip\"; Expand-Archive -Path \"$env:TEMP\\ffmpeg.zip\" -DestinationPath '{tools_cache_dir}'; Move-Item -Path '{tools_cache_dir}\\ffmpeg-n7.1-latest-win64-gpl-7.1' -Destination '{tools_cache_dir}\\ffmpeg-7.1.3'; Remove-Item -Path \"$env:TEMP\\ffmpeg.zip\" }",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffmpeg.exe {venv_path}\\Scripts\\",
+                "copy {tools_cache_dir}\\ffmpeg-7.1.3\\bin\\ffprobe.exe {venv_path}\\Scripts\\"
+              ]
+            },
+            {
+              "id": "install_pytorch",
+              "commands": [
+                "uv pip install torch=={pytorch_version} torchvision=={torchvision_version} torchaudio=={torchaudio_version} --index-url https://download.pytorch.org/whl/{cuda_tag}"
+              ]
+            },
+            {
+              "id": "install_lerobot",
+              "commands": [
+                "uv pip install \".{extras}\""
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

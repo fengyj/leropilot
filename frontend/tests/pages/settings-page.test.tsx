@@ -28,6 +28,11 @@ vi.mock('lucide-react', () => ({
   Sun: () => <div>Sun Icon</div>,
   Moon: () => <div>Moon Icon</div>,
   Monitor: () => <div>Monitor Icon</div>,
+  Download: () => <div>Download Icon</div>,
+  RefreshCw: () => <div>Refresh Icon</div>,
+  Loader2: () => <div>Loader Icon</div>,
+  Globe: () => <div>Globe Icon</div>,
+  Server: () => <div>Server Icon</div>,
 }));
 
 const mockConfig = {
@@ -92,16 +97,32 @@ describe('SettingsPage', () => {
 
     // Default successful responses
     mockFetch.mockImplementation((url: string) => {
-      if (url === '/api/config') {
+      if (url === '/api/app-config') {
         return Promise.resolve({
           ok: true,
           json: async () => mockConfig,
         } as Response);
       }
-      if (url === '/api/config/has-environments') {
+      if (url === '/api/environments/has-environments') {
         return Promise.resolve({
           ok: true,
           json: async () => ({ has_environments: false }),
+        } as Response);
+      }
+      if (url === '/api/tools/git/bundled/status') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ is_installed: true, version: '2.40.0' }),
+        } as Response);
+      }
+      if (url.match(/\/api\/repositories\/.*\/status/)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            is_downloaded: true,
+            last_updated: null,
+            has_updates: false,
+          }),
         } as Response);
       }
       return Promise.reject(new Error('Unknown URL'));
@@ -131,7 +152,7 @@ describe('SettingsPage', () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/config');
+        expect(mockFetch).toHaveBeenCalledWith('/api/app-config');
       });
 
       await waitFor(() => {
@@ -141,10 +162,10 @@ describe('SettingsPage', () => {
 
     it('should show error state when config loading fails', async () => {
       mockFetch.mockImplementation((url: string) => {
-        if (url === '/api/config') {
+        if (url === '/api/app-config') {
           return Promise.reject(new Error('Network error'));
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
@@ -172,7 +193,10 @@ describe('SettingsPage', () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/config/has-environments');
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/environments/has-environments',
+          expect.any(Object),
+        );
       });
     });
   });
@@ -250,22 +274,38 @@ describe('SettingsPage', () => {
   describe('Save Configuration', () => {
     it('should call save API when save button is clicked', async () => {
       mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url === '/api/config' && options?.method === 'PUT') {
+        if (url === '/api/app-config' && options?.method === 'PUT') {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config' && !options?.method) {
+        if (url === '/api/app-config' && !options?.method) {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
+          } as Response);
+        }
+        if (url === '/api/tools/git/bundled/status') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ is_installed: true, version: '2.40.0' }),
+          } as Response);
+        }
+        if (url.match(/\/api\/repositories\/.*\/status/)) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              is_downloaded: true,
+              last_updated: null,
+              has_updates: false,
+            }),
           } as Response);
         }
         return Promise.reject(new Error('Unknown URL'));
@@ -281,12 +321,20 @@ describe('SettingsPage', () => {
         expect(screen.getByText('settings.title')).toBeInTheDocument();
       });
 
+      // Change a setting to enable the save button
+      const darkThemeButton = screen
+        .getByText('settings.appearance.dark')
+        .closest('button');
+      if (darkThemeButton) {
+        fireEvent.click(darkThemeButton);
+      }
+
       const saveButton = screen.getByRole('button', { name: /save/i });
       fireEvent.click(saveButton);
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
-          '/api/config',
+          '/api/app-config',
           expect.objectContaining({
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -297,22 +345,38 @@ describe('SettingsPage', () => {
 
     it('should show success message after successful save', async () => {
       mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url === '/api/config' && options?.method === 'PUT') {
+        if (url === '/api/app-config' && options?.method === 'PUT') {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config' && !options?.method) {
+        if (url === '/api/app-config' && !options?.method) {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
+          } as Response);
+        }
+        if (url === '/api/tools/git/bundled/status') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ is_installed: true, version: '2.40.0' }),
+          } as Response);
+        }
+        if (url.match(/\/api\/repositories\/.*\/status/)) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              is_downloaded: true,
+              last_updated: null,
+              has_updates: false,
+            }),
           } as Response);
         }
         return Promise.reject(new Error('Unknown URL'));
@@ -327,6 +391,14 @@ describe('SettingsPage', () => {
       await waitFor(() => {
         expect(screen.getByText('settings.title')).toBeInTheDocument();
       });
+
+      // Change a setting to enable the save button
+      const darkThemeButton = screen
+        .getByText('settings.appearance.dark')
+        .closest('button');
+      if (darkThemeButton) {
+        fireEvent.click(darkThemeButton);
+      }
 
       const saveButton = screen.getByRole('button', { name: /save/i });
       fireEvent.click(saveButton);
@@ -338,22 +410,38 @@ describe('SettingsPage', () => {
 
     it('should show error message when save fails', async () => {
       mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url === '/api/config' && options?.method === 'PUT') {
+        if (url === '/api/app-config' && options?.method === 'PUT') {
           return Promise.resolve({
             ok: false,
             json: async () => ({ detail: 'Save failed' }),
           } as Response);
         }
-        if (url === '/api/config' && !options?.method) {
+        if (url === '/api/app-config' && !options?.method) {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
+          } as Response);
+        }
+        if (url === '/api/tools/git/bundled/status') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ is_installed: true, version: '2.40.0' }),
+          } as Response);
+        }
+        if (url.match(/\/api\/repositories\/.*\/status/)) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              is_downloaded: true,
+              last_updated: null,
+              has_updates: false,
+            }),
           } as Response);
         }
         return Promise.reject(new Error('Unknown URL'));
@@ -368,6 +456,14 @@ describe('SettingsPage', () => {
       await waitFor(() => {
         expect(screen.getByText('settings.title')).toBeInTheDocument();
       });
+
+      // Change a setting to enable the save button
+      const darkThemeButton = screen
+        .getByText('settings.appearance.dark')
+        .closest('button');
+      if (darkThemeButton) {
+        fireEvent.click(darkThemeButton);
+      }
 
       const saveButton = screen.getByRole('button', { name: /save/i });
       fireEvent.click(saveButton);
@@ -384,22 +480,38 @@ describe('SettingsPage', () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
       mockFetch.mockImplementation((url: string, options?: RequestInit) => {
-        if (url === '/api/config/reset' && options?.method === 'POST') {
+        if (url === '/api/app-config/reset' && options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config') {
+        if (url === '/api/app-config') {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: false }),
+          } as Response);
+        }
+        if (url === '/api/tools/git/bundled/status') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ is_installed: true, version: '2.40.0' }),
+          } as Response);
+        }
+        if (url.match(/\/api\/repositories\/.*\/status/)) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              is_downloaded: true,
+              last_updated: null,
+              has_updates: false,
+            }),
           } as Response);
         }
         return Promise.reject(new Error('Unknown URL'));
@@ -419,7 +531,9 @@ describe('SettingsPage', () => {
       fireEvent.click(resetButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/config/reset', { method: 'POST' });
+        expect(mockFetch).toHaveBeenCalledWith('/api/app-config/reset', {
+          method: 'POST',
+        });
       });
 
       confirmSpy.mockRestore();
@@ -441,7 +555,7 @@ describe('SettingsPage', () => {
       const resetButton = screen.getByRole('button', { name: /reset/i });
       fireEvent.click(resetButton);
 
-      expect(mockFetch).not.toHaveBeenCalledWith('/api/config/reset', {
+      expect(mockFetch).not.toHaveBeenCalledWith('/api/app-config/reset', {
         method: 'POST',
       });
 
@@ -452,16 +566,32 @@ describe('SettingsPage', () => {
   describe('Data Directory Locking', () => {
     it('should disable data directory input when environments exist', async () => {
       mockFetch.mockImplementation((url: string) => {
-        if (url === '/api/config') {
+        if (url === '/api/app-config') {
           return Promise.resolve({
             ok: true,
             json: async () => mockConfig,
           } as Response);
         }
-        if (url === '/api/config/has-environments') {
+        if (url === '/api/environments/has-environments') {
           return Promise.resolve({
             ok: true,
             json: async () => ({ has_environments: true }),
+          } as Response);
+        }
+        if (url === '/api/tools/git/bundled/status') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ is_installed: true, version: '2.40.0' }),
+          } as Response);
+        }
+        if (url.match(/\/api\/repositories\/.*\/status/)) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              is_downloaded: true,
+              last_updated: null,
+              has_updates: false,
+            }),
           } as Response);
         }
         return Promise.reject(new Error('Unknown URL'));

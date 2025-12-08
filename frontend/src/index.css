@@ -182,6 +182,8 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Custom Scrollbar Styling */
@@ -211,6 +213,32 @@ body {
   scrollbar-color: var(--color-zinc-700) transparent;
 }
 
+/* Backdrop filter support for Safari */
+.backdrop-blur {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-sm {
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-md {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.backdrop-blur-lg {
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.backdrop-blur-xl {
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+
 /* Light theme scrollbar */
 :root.light ::-webkit-scrollbar-thumb,
 [data-theme='light'] ::-webkit-scrollbar-thumb {
@@ -225,4 +253,24 @@ body {
 :root.light *,
 [data-theme='light'] * {
   scrollbar-color: var(--color-zinc-300) transparent;
+}
+
+/* Hide native number input spinners to keep form controls visually consistent */
+/* WebKit browsers (Chrome, Edge, Safari) */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox + standard appearance */
+input[type='number'] {
+  -moz-appearance: textfield;
+  -webkit-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Keep style consistent with other inputs when spinners are removed */
+input[type='number']:focus {
+  outline: none;
 }

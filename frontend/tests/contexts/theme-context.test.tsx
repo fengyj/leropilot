@@ -168,7 +168,7 @@ describe('ThemeContext', () => {
         expect(result.current.theme).toBe('dark');
       });
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/config');
+      expect(global.fetch).toHaveBeenCalledWith('/api/app-config');
     });
 
     it('should handle config API errors gracefully', async () => {
