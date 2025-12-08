@@ -1,0 +1,29 @@
+{
+  "pypi_mirrors": [
+    {
+      "name": "Tsinghua University/清华大学",
+      "url": "https://pypi.tuna.tsinghua.edu.cn/simple",
+      "enabled": false
+    },
+    {
+      "name": "Aliyun/阿里云",
+      "url": "https://mirrors.aliyun.com/pypi/simple/",
+      "enabled": false
+    },
+    {
+      "name": "USTC/中国科技大学",
+      "url": "https://pypi.mirrors.ustc.edu.cn/simple/",
+      "enabled": false
+    }
+  ],
+  "repositories": {
+    "lerobot_sources": [
+      {
+        "id": "official",
+        "name": "Official/官方仓库",
+        "url": "https://github.com/huggingface/lerobot.git",
+        "is_default": true
+      }
+    ]
+  }
+}

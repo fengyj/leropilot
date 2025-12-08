@@ -2,9 +2,11 @@ const { app, BrowserWindow, Menu } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const waitOn = require('wait-on');
+const fs = require('fs');
 
 let pythonProcess = null;
 let mainWindow = null;
+let splashWindow = null;
 
 // Check if running in WSL
 const isWSL = require('os').release().toLowerCase().includes('microsoft');
@@ -54,53 +56,6 @@ function getPythonPath() {
   }
 }
 
-// Get config file path
-function getConfigPath() {
-  const os = require('os');
-  const homeDir = os.homedir();
-  const configDir = path.join(homeDir, '.leropilot');
-  return path.join(configDir, 'config.json');
-}
-
-// Read config file
-function readConfig() {
-  const fs = require('fs');
-  const configPath = getConfigPath();
-
-  try {
-    if (fs.existsSync(configPath)) {
-      const configData = fs.readFileSync(configPath, 'utf8');
-      return JSON.parse(configData);
-    }
-  } catch (err) {
-    console.error('Failed to read config:', err);
-  }
-
-  // Return null, let backend use its own defaults
-  return null;
-}
-
-// Write config file
-function writeConfig(config) {
-  const fs = require('fs');
-  const configPath = getConfigPath();
-  const configDir = path.dirname(configPath);
-
-  try {
-    // Ensure config directory exists
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
-    console.log('Config saved to:', configPath);
-    return true;
-  } catch (err) {
-    console.error('Failed to write config:', err);
-    return false;
-  }
-}
-
 // Parse command line arguments
 function parseCommandLineArgs() {
   const args = process.argv.slice(app.isPackaged ? 1 : 2);
@@ -121,6 +76,7 @@ function parseCommandLineArgs() {
   return result;
 }
 
+
 // Start Python backend
 async function startPythonBackend() {
   // In development, we usually start backend manually for debugging
@@ -134,28 +90,6 @@ async function startPythonBackend() {
   // Parse command line arguments
   const cmdArgs = parseCommandLineArgs();
 
-  // Read config
-  let config = readConfig();
-
-  // If --port argument is provided, update config and save
-  if (cmdArgs.port) {
-    console.log(`Port override detected: ${cmdArgs.port}`);
-
-    // If no config file, create a basic one
-    if (!config) {
-      config = {
-        server: { port: cmdArgs.port, host: '127.0.0.1', auto_open_browser: true },
-        ui: { theme: 'system', preferred_language: 'en' }
-      };
-    } else {
-      config.server = config.server || {};
-      config.server.port = cmdArgs.port;
-    }
-
-    writeConfig(config);
-    console.log(`Config updated with new port: ${cmdArgs.port}`);
-  }
-
   const pythonPath = getPythonPath();
   // Build arguments for backend
   const args = [];
@@ -166,7 +100,10 @@ async function startPythonBackend() {
     args.push('-u'); // Force unbuffered output for development
   }
 
+  // Pass port to backend only if provided via command line
+  // Otherwise, let Python backend use its saved config (or default)
   if (cmdArgs.port) {
+    console.log(`Port override detected from command line: ${cmdArgs.port}`);
     args.push('--port', cmdArgs.port.toString());
   }
   args.push('--no-browser');
@@ -175,14 +112,24 @@ async function startPythonBackend() {
 
   let detectedPort = null;
 
+  // Set environment to disable Python output buffering
+  const env = { ...process.env, PYTHONUNBUFFERED: '1' };
+
   pythonProcess = spawn(pythonPath, args, {
     cwd: process.resourcesPath,
-    stdio: ['ignore', 'pipe', 'pipe'] // Capture stdout and stderr
+    stdio: ['ignore', 'pipe', 'pipe'], // Capture stdout and stderr
+    env: env
   });
+
+  let backendOutput = '';  // Collect output for error reporting
+  let backendExited = false;
+  let backendExitCode = null;
+  let backendError = null;
 
   const handleOutput = (data, source) => {
     const output = data.toString();
     console.log(`[Backend ${source}]`, output);
+    backendOutput += output;  // Collect for error reporting
 
     // Try to extract port from uvicorn output
     // Uvicorn output format: "Uvicorn running on http://127.0.0.1:8000"
@@ -200,6 +147,7 @@ async function startPythonBackend() {
 
   pythonProcess.on('error', (err) => {
     console.error('Failed to start Python backend:', err);
+    backendError = err;
 
     // Check if the error is because the file doesn't exist
     if (err.code === 'ENOENT') {
@@ -210,35 +158,56 @@ async function startPythonBackend() {
 
   pythonProcess.on('exit', (code, signal) => {
     console.log(`Python backend exited with code ${code} and signal ${signal}`);
+    backendExited = true;
+    backendExitCode = code;
   });
 
-  // Wait for port detection or timeout
-  const maxWaitTime = 15000; // Increased to 15 seconds
+  // Wait for port detection or timeout (reduced to 5 seconds)
+  updateSplashStatus('Detecting backend port...');
+  const maxWaitTime = 5000;
   const startTime = Date.now();
-  while (!detectedPort && Date.now() - startTime < maxWaitTime) {
+  while (!detectedPort && !backendExited && Date.now() - startTime < maxWaitTime) {
     await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  // Check if backend crashed during startup
+  if (backendExited) {
+    const errorMsg = backendOutput.length > 500
+      ? '...' + backendOutput.slice(-500)
+      : backendOutput;
+    throw new Error(
+      `Backend process crashed during startup (exit code: ${backendExitCode}).\n\n` +
+      `Output:\n${errorMsg || 'No output captured'}`
+    );
+  }
+
+  if (backendError) {
+    throw new Error(`Failed to start backend: ${backendError.message}`);
   }
 
   if (!detectedPort) {
     console.error('Could not detect backend port. Backend may have failed to start or output is buffered.');
-    // If detection fails, try fallback to default or config port
-    const fallbackPort = cmdArgs.port || (config && config.server && config.server.port) || 8000;
+    // If detection fails, use command-line port or default
+    // The backend will save the port to config if it was provided via --port
+    const fallbackPort = cmdArgs.port || 8000;
     console.log(`Falling back to port ${fallbackPort}`);
     detectedPort = fallbackPort;
   }
 
   // Wait for backend to start
+  updateSplashStatus('Waiting for backend to be ready...');
   console.log(`Waiting for backend to be ready on port ${detectedPort}...`);
   console.log(`Health check URL: http://127.0.0.1:${detectedPort}/api/hello`);
 
   try {
     await waitOn({
       resources: [`http://127.0.0.1:${detectedPort}/api/hello`],
-      timeout: 30000,
-      interval: 1000,
+      timeout: 15000,  // Reduced from 30s to 15s
+      interval: 500,   // Check more frequently
       tcpTimeout: 1000,
-      window: 1000,
+      window: 500,
     });
+    updateSplashStatus('Loading application...');
     console.log(`Python backend is ready on port ${detectedPort}`);
     return detectedPort;
   } catch (err) {
@@ -253,10 +222,18 @@ async function startPythonBackend() {
       );
     }
 
+    // Check if port is actually in use
     throw new Error(
-      `Failed to connect to backend on port ${detectedPort}.\n` +
-      `The backend process is running but not responding.\n` +
-      `Check logs for details.`
+      `Failed to connect to backend on port ${detectedPort}.\n\n` +
+      `Possible causes:\n` +
+      `1. The port is already in use by another process\n` +
+      `2. The backend process crashed (check logs)\n` +
+      `3. Firewall or antivirus is blocking the connection\n\n` +
+      `Solutions:\n` +
+      `• Try again in a few seconds (port may still be releasing)\n` +
+      `• Restart your computer to clear the port\n` +
+      `• Use a different port: leropilot --port 9000\n` +
+      `• Check task manager for processes using port ${detectedPort}`
     );
   }
 }
@@ -339,6 +316,122 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Create splash window for startup
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 320,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+
+  // Read icon and convert to base64
+  const iconPath = path.join(__dirname, 'icon.png');
+  let iconBase64 = '';
+  try {
+    const iconData = fs.readFileSync(iconPath);
+    iconBase64 = iconData.toString('base64');
+  } catch (e) {
+    console.error('Failed to load icon:', e);
+  }
+
+  // Create splash HTML content with logo image
+  // Color scheme based on logo: orange gradient (#FF8A65 to #F4511E)
+  const splashHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+          background: linear-gradient(135deg, #FFF5F2 0%, #FFE8E0 50%, #FFDDD3 100%);
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          color: #333;
+          border-radius: 12px;
+          user-select: none;
+          -webkit-app-region: drag;
+          border: 1px solid rgba(244, 81, 30, 0.1);
+        }
+        .logo {
+          width: 88px;
+          height: 88px;
+          margin-bottom: 16px;
+          border-radius: 20px;
+          box-shadow: 0 8px 24px rgba(244, 81, 30, 0.25);
+        }
+        h1 {
+          font-size: 28px;
+          font-weight: 600;
+          margin-bottom: 4px;
+          background: linear-gradient(135deg, #FF8A65 0%, #F4511E 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        .status {
+          font-size: 14px;
+          margin-top: 16px;
+          color: #888;
+        }
+        .spinner {
+          width: 36px;
+          height: 36px;
+          border: 3px solid rgba(244, 81, 30, 0.15);
+          border-radius: 50%;
+          border-top-color: #F4511E;
+          animation: spin 1s ease-in-out infinite;
+          margin-top: 16px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </head>
+    <body>
+      ${iconBase64 ? `<img class="logo" src="data:image/png;base64,${iconBase64}" alt="LeRoPilot" />` : ''}
+      <h1>LeRoPilot</h1>
+      <div class="spinner"></div>
+      <div class="status" id="status">Starting backend...</div>
+      <script>
+        const { ipcRenderer } = require('electron');
+        ipcRenderer.on('splash-status', (event, message) => {
+          document.getElementById('status').textContent = message;
+        });
+      </script>
+    </body>
+    </html>
+  `;
+
+  splashWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(splashHtml));
+  splashWindow.center();
+  splashWindow.show();
+}
+
+function updateSplashStatus(message) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('splash-status', message);
+  }
+}
+
+function closeSplashWindow() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+    splashWindow = null;
+  }
+}
+
 // Create main window
 function createWindow(backendPort) {
   // Validate backendPort in production mode
@@ -378,6 +471,7 @@ function createWindow(backendPort) {
   mainWindow.loadURL(startUrl);
 
   mainWindow.once('ready-to-show', () => {
+    closeSplashWindow();
     mainWindow.show();
     mainWindow.focus();
   });
@@ -416,12 +510,18 @@ function createWindow(backendPort) {
 app.whenReady().then(async () => {
   createMenu();
 
+  // Show splash screen in production
+  if (app.isPackaged) {
+    createSplashWindow();
+  }
+
   let backendPort;
   try {
     backendPort = await startPythonBackend();
     createWindow(backendPort);
   } catch (err) {
     console.error('Fatal error during startup:', err);
+    closeSplashWindow();
     const { dialog } = require('electron');
     const portMsg = backendPort
       ? `Please check if port ${backendPort} is available or try running with --port <port>.`
@@ -449,9 +549,43 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('quit', () => {
-  if (pythonProcess) {
-    console.log('Killing Python backend process...');
-    pythonProcess.kill();
-  }
+app.on('before-quit', () => {
+  killPythonBackend();
 });
+
+app.on('quit', () => {
+  killPythonBackend();
+});
+
+function killPythonBackend() {
+  if (pythonProcess && !pythonProcess.killed) {
+    console.log('Killing Python backend process...');
+
+    if (process.platform === 'win32') {
+      // Windows: Use taskkill to forcefully kill the process tree
+      try {
+        require('child_process').execSync(`taskkill /pid ${pythonProcess.pid} /T /F`, {
+          stdio: 'ignore'
+        });
+      } catch (e) {
+        // Process might already be dead
+        console.log('taskkill failed (process may already be terminated):', e.message);
+      }
+    } else {
+      // Unix: Send SIGTERM first, then SIGKILL
+      try {
+        pythonProcess.kill('SIGTERM');
+        // Give it a moment to terminate gracefully
+        setTimeout(() => {
+          if (pythonProcess && !pythonProcess.killed) {
+            pythonProcess.kill('SIGKILL');
+          }
+        }, 1000);
+      } catch (e) {
+        console.log('Failed to kill process:', e.message);
+      }
+    }
+
+    pythonProcess = null;
+  }
+}

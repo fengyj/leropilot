@@ -26,7 +26,7 @@ Then open `http://localhost:8000` in your browser.
 3. Follow the wizard:
    - **Name**: Enter a name (e.g., "my-first-env")
    - **LeRobot Version**: Select a version (latest recommended)
-   - **PyTorch Version**: Select a compatible version
+   - **PyTorch Version**: Select a compatible version and compute platform (e.g., CUDA 12.1, ROCm 6.0, CPU)
    - **Python Version**: 3.10 or 3.11
 4. Click **"Create"**
 

@@ -7,7 +7,7 @@ name = "leropilot"
 version = "0.1.0"
 description = "LeRoPilot - Local development environment manager"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi==0.115.6",
     "uvicorn[standard]==0.32.1",
@@ -15,6 +15,8 @@ dependencies = [
     "pydantic-settings==2.6.1",
     "structlog==24.4.0",
     "pyyaml==6.0.2",
+    "httpx==0.28.1",
+    "pywinpty>=2.0.0; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +69,6 @@ select = [
     "ANN",    # flake8-annotations
 ]
 extend-ignore = [
-    "E203",   # whitespace before ':' (conflicts with black)
 ]
 
 [tool.ruff.format]
@@ -75,3 +76,8 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[dependency-groups]
+dev = [
+    "vulture>=2.14",
+]

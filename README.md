@@ -25,6 +25,7 @@ For detailed installation instructions, see the **[Installation Guide](docs/wiki
 - **Device Management**: Configure and manage robots and cameras with an intuitive interface
 - **Data Recording**: Record and manage datasets for robot learning with streamlined workflows
 - **Cross-Platform**: Native desktop applications for Windows, macOS, and Linux, plus browser mode for remote servers
+- **Integrated Terminal**: Full terminal integration with PTY support for Linux, macOS, and Windows (via ConPTY)
 
 ## 📚 Documentation
 
@@ -40,6 +41,19 @@ For detailed installation instructions, see the **[Installation Guide](docs/wiki
 - Python 3.10 or 3.11
 - Node.js 20+
 - Git
+
+**Platform-specific build tools** (for compiling native extensions):
+
+- **Windows**: [Visual C++ Build Tools](https://visualstudio.microsoft.com/downloads/) - Required for building pywinpty
+- **Linux**: Standard development tools (usually pre-installed)
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install python3-dev build-essential
+  ```
+- **macOS**: Xcode Command Line Tools
+  ```bash
+  xcode-select --install
+  ```
 
 ### Setup Development Environment
 
@@ -107,6 +121,9 @@ pytest
 # Run frontend tests
 cd frontend
 npm test
+
+# Generate frontend types (requires backend running)
+npm run generate-types
 
 # Run linting
 ./scripts/run-lint.sh

@@ -1,0 +1,632 @@
+"""Environment creation API endpoints."""
+
+import platform
+from functools import lru_cache
+from typing import Any, cast
+
+from fastapi import APIRouter, HTTPException, Query
+
+from leropilot.core import (
+    EnvironmentInstallationConfigService,
+    ExtrasMetadataService,
+    GPUDetector,
+    I18nService,
+    RepositoryExtrasInspector,
+)
+from leropilot.logger import get_logger
+from leropilot.models.api.environment import (
+    CancelInstallationResponse,
+    CreateEnvironmentRequest,
+    CreateEnvironmentResponse,
+    DeleteEnvironmentResponse,
+    ExecuteInstallationResponse,
+    ExecuteRequest,
+    ExtraInfo,
+    GenerateStepsRequest,
+    GenerateStepsResponse,
+    HardwareInfo,
+    HasEnvironmentsResponse,
+    InstallationStatusResponse,
+    OpenTerminalResponse,
+    StartInstallationResponse,
+)
+from leropilot.models.environment import (
+    EnvironmentConfig,
+    EnvironmentInstallationPlan,
+    EnvironmentInstallStep,
+)
+from leropilot.services.environment import (
+    EnvironmentInstallationExecutor,
+    EnvironmentInstallationPlanGenerator,
+    EnvironmentManager,
+    InstallationManager,
+    TerminalService,
+)
+from leropilot.utils import get_resources_dir
+
+from ..core.app_config import get_config
+
+logger = get_logger(__name__)
+router = APIRouter(prefix="/api/environments", tags=["environments"])
+
+# Dependency injection functions
+
+
+@lru_cache
+def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, GPUDetector]:
+    """Get or initialize services (singleton)."""
+    resources_dir = get_resources_dir()
+    config_service = EnvironmentInstallationConfigService(resources_dir / "environment_installation_config.json")
+    i18n_service = I18nService(resources_dir / "i18n.json")
+    gpu_detector = GPUDetector()
+    return config_service, i18n_service, gpu_detector
+
+
+@lru_cache
+def get_env_manager() -> EnvironmentManager:
+    """Get or initialize environment manager (singleton)."""
+    return EnvironmentManager()
+
+
+@lru_cache
+def get_installation_executor() -> InstallationManager:
+    """Get or initialize installation executor (singleton)."""
+    return InstallationManager(get_env_manager())
+
+
+# Active executors storage (consider using Redis/DB in production)
+_active_executors: dict[str, EnvironmentInstallationExecutor] = {}
+
+# API response cache for React strict mode protection
+_api_cache: dict[str, Any] = {}
+
+
+def clear_env_cache(env_id: str) -> None:
+    """Clear execution cache for an environment."""
+    # For now, we just clear the entire cache as we don't track env_id per execution_id
+    # and this is a single-user application.
+    _api_cache.clear()
+
+
+# Request/Response Models
+
+
+# Endpoints
+
+
+@router.get("/has-environments", response_model=HasEnvironmentsResponse)
+async def get_has_environments() -> HasEnvironmentsResponse:
+    """Check if any environments have been created.
+
+    Returns:
+        Dictionary with has_environments boolean
+    """
+    env_manager = get_env_manager()
+    has_envs = len(env_manager.list_environments()) > 0
+    return HasEnvironmentsResponse(has_environments=has_envs)
+
+
+@router.get("", response_model=list[EnvironmentConfig])
+async def list_environments() -> list[EnvironmentConfig]:
+    """
+    List all environments.
+
+    Returns:
+        List of environment configurations
+    """
+    env_manager = get_env_manager()
+    return env_manager.list_environments()
+
+
+@router.get("/hardware", response_model=HardwareInfo)
+async def get_hardware_info() -> HardwareInfo:
+    """
+    Get detected hardware information.
+
+    Returns:
+        Hardware detection results
+    """
+    _, _, gpu_detector = get_services()
+
+    gpu_info = gpu_detector.detect()
+
+    # Build response
+    hardware_info = HardwareInfo(
+        detected_cuda=gpu_info.cuda_version,
+        detected_rocm=gpu_info.rocm_version,
+        detected_driver=gpu_info.driver_version,
+        detected_gpu=gpu_info.gpu_name,
+        has_nvidia_gpu=gpu_info.has_nvidia_gpu,
+        has_amd_gpu=gpu_info.has_amd_gpu,
+        is_apple_silicon=gpu_info.is_apple_silicon,
+    )
+
+    return hardware_info
+
+
+@router.get("/extras", response_model=list[ExtraInfo])
+async def get_available_extras(
+    repo_id: str = Query(..., description="Repository ID"),
+    ref: str = Query("main", description="Git ref (branch/tag)"),
+    lang: str = Query("en", description="Language code"),
+) -> list[ExtraInfo]:
+    """
+    Get available extras for a repository version.
+
+    Note: Repository is guaranteed to exist since it's downloaded in step 2 (version selection).
+
+    Args:
+        repo_id: Repository identifier
+        ref: Git reference
+        lang: Language code for localization
+
+    Returns:
+        List of enriched extra information
+    """
+    _, i18n_service, _ = get_services()
+
+    # Get repository path from cache
+    config = get_config()
+    repo_path = config.paths.get_repo_path(repo_id)
+
+    logger.info(f"Checking extras for repo_id={repo_id}, ref={ref}, path={repo_path}")
+
+    if not repo_path.exists():
+        logger.error(f"Repository not found: {repo_path}. This should not happen as repo is downloaded in step 2.")
+        return []
+
+    # Inspect repository
+    from leropilot.services.git import GitToolManager
+
+    git_manager = GitToolManager()
+    git_path = git_manager.get_git_executable()
+
+    inspector = RepositoryExtrasInspector(repo_path, git_path)
+    raw_extras = inspector.get_available_extras(ref)
+    logger.info(f"Found raw extras: {raw_extras}")
+
+    # Enrich with metadata
+    metadata_service = ExtrasMetadataService(i18n_service)
+    enriched = metadata_service.enrich_extras(raw_extras, lang)
+
+    return [
+        ExtraInfo(
+            id=extra["id"],
+            name=extra["name"],
+            description=extra["description"],
+            category=extra["category"],
+            category_label=extra["category_label"],
+        )
+        for extra in enriched
+    ]
+
+
+@router.post("/generate-steps", response_model=GenerateStepsResponse)
+async def generate_installation_steps(
+    request: GenerateStepsRequest,
+    lang: str = Query("en", description="Language code"),
+) -> GenerateStepsResponse:
+    """
+    Generate installation steps preview based on configuration.
+
+    Args:
+        request: Environment configuration
+        lang: Language code for localization
+
+    Returns:
+        Generated installation steps
+    """
+    config_service, i18n_service, _ = get_services()
+
+    # Get repository path using repo_id from env_config
+    # config = get_config()
+    # repo_path = config.paths.get_repo_path(request.env_config.repo_id)
+
+    # Generate complete installation plan
+    generator = EnvironmentInstallationPlanGenerator(config_service, i18n_service)
+    plan = generator.generate_plan(request.env_config, lang)
+
+    return GenerateStepsResponse(steps=plan.steps)
+
+
+@router.post("/create", response_model=CreateEnvironmentResponse)
+async def create_environment(
+    request: CreateEnvironmentRequest,
+    lang: str = Query("en", description="Language code"),
+) -> CreateEnvironmentResponse:
+    """
+    Start environment creation/installation.
+
+    Args:
+        request: Environment configuration with optional custom steps
+        lang: Language code for localization
+
+    Returns:
+        Installation ID and status
+
+    Raises:
+        HTTPException: If creation fails
+    """
+    try:
+        config_service, i18n_service, _ = get_services()
+        executor = get_installation_executor()
+
+        # Use custom steps if provided, otherwise generate from config
+        if request.custom_steps:
+            logger.info(f"Using {len(request.custom_steps)} custom steps from advanced editor")
+            # Create plan with custom steps
+            from leropilot.core.app_config import get_config
+
+            config = get_config()
+            env_config = request.env_config
+
+            # Calculate paths
+            env_dir = config.paths.get_environment_path(env_config.id)
+            repo_dir = config.paths.get_repo_path(env_config.repo_id)
+            venv_path = config.paths.get_environment_venv_path(env_config.id)
+            log_file = env_dir / "installation.log"
+
+            # Prepare environment variables
+            from leropilot.models.environment import EnvironmentInstallationPlan
+
+            # Note: PATH will be prepended with venv/bin by the runner (venv_path parameter)
+            env_vars = {
+                "VIRTUAL_ENV": str(venv_path),
+            }
+
+            plan = EnvironmentInstallationPlan(
+                env_dir=str(env_dir),
+                repo_dir=str(repo_dir),
+                venv_path=str(venv_path),
+                log_file=str(log_file),
+                steps=request.custom_steps,
+                env_vars=env_vars,
+                default_cwd=str(repo_dir),
+            )
+        else:
+            # Generate plan from configuration
+            generator = EnvironmentInstallationPlanGenerator(config_service, i18n_service)
+            plan = generator.generate_plan(request.env_config, lang)
+
+        # Create installation with plan
+        installation = executor.create_installation(request.env_config, plan)
+
+        # Installation is now controlled by frontend via step-by-step execution
+
+        return CreateEnvironmentResponse(
+            installation_id=installation.id,
+            env_id=installation.env_config.id,
+            status=installation.status,
+            steps=[
+                EnvironmentInstallStep(
+                    id=step.id,
+                    name=step.name,
+                    comment=step.comment,
+                    commands=step.commands,
+                    status=step.status,
+                    logs=step.logs[-10:],
+                )
+                for step in installation.plan.steps
+            ],
+            message="Installation created",
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to create environment: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create environment: {str(e)}") from e
+
+
+@router.get("/{env_id}/installation", response_model=InstallationStatusResponse)
+async def get_environment_installation_status(env_id: str) -> InstallationStatusResponse:
+    """
+    Get installation status for a specific environment.
+
+    Args:
+        env_id: Environment identifier
+
+    Returns:
+        Installation status for the environment
+
+    Raises:
+        HTTPException: If no active installation found for the environment
+    """
+    executor = get_installation_executor()
+
+    # Find the active installation for this environment
+    installation = None
+    for _inst_id, inst in executor.active_installations.items():
+        if inst.env_config.id == env_id:
+            installation = inst
+            break
+            break
+
+    if not installation:
+        raise HTTPException(status_code=404, detail="No active installation found for environment")
+
+    # Calculate progress
+    total_steps = len(installation.plan.steps)
+    completed_steps = sum(1 for step in installation.plan.steps if step.status == "success")
+    progress = int((completed_steps / total_steps) * 100) if total_steps > 0 else 0
+
+    return InstallationStatusResponse(
+        installation_id=installation.id,
+        env_id=installation.env_config.id,
+        status=installation.status,
+        progress=progress,
+        steps=[
+            EnvironmentInstallStep(
+                id=step.id,
+                name=step.name,
+                comment=step.comment,
+                commands=step.commands,
+                status=step.status,
+                logs=step.logs[-10:],
+            )
+            for step in installation.plan.steps
+        ],
+        created_at=installation.created_at,
+        completed_at=installation.completed_at,
+    )
+
+
+@router.post("/{env_id}/installation/cancel", response_model=CancelInstallationResponse)
+async def cancel_environment_installation(env_id: str) -> CancelInstallationResponse:
+    """
+    Cancel the active installation for a specific environment.
+
+    Args:
+        env_id: Environment identifier
+
+    Returns:
+        Cancellation status
+
+    Raises:
+        HTTPException: If no active installation found for the environment
+    """
+    executor = get_installation_executor()
+
+    # Find the active installation for this environment
+    installation_id = None
+    for _inst_id, inst in executor.active_installations.items():
+        if inst.env_config.id == env_id:
+            installation_id = _inst_id
+            break
+
+    if not installation_id:
+        raise HTTPException(status_code=404, detail="No active installation found for environment")
+
+    success = await executor.cancel_installation(installation_id)
+
+    if not success:
+        raise HTTPException(status_code=400, detail="Installation cannot be cancelled")
+
+    return CancelInstallationResponse(success=True, message="Installation cancelled")
+
+
+@router.get("/{env_id}")
+async def get_environment_details(env_id: str) -> EnvironmentConfig:
+    """
+    Get detailed information about a specific environment.
+
+    Args:
+        env_id: Environment identifier
+
+    Returns:
+        Environment configuration
+
+    Raises:
+        HTTPException: If environment not found
+    """
+    env_manager = get_env_manager()
+    env_config = env_manager.load_environment_config(env_id)
+
+    if not env_config:
+        raise HTTPException(status_code=404, detail="Environment not found")
+
+    return env_config
+
+
+@router.delete("/{env_id}", response_model=DeleteEnvironmentResponse)
+async def delete_environment(env_id: str) -> DeleteEnvironmentResponse:
+    """
+    Delete an environment.
+
+    Args:
+        env_id: Environment identifier
+
+    Returns:
+        Deletion status
+
+    Raises:
+        HTTPException: If environment not found or deletion fails
+    """
+    env_manager = get_env_manager()
+    success = env_manager.delete_environment(env_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Environment not found")
+
+    return DeleteEnvironmentResponse(success=True, message=f"Environment {env_id} deleted successfully")
+
+
+@router.post("/{env_id}/installation/start", response_model=StartInstallationResponse)
+async def start_installation(env_id: str) -> StartInstallationResponse:
+    """
+    Start environment installation.
+
+    Creates a PTY session and returns the first command to execute.
+    """
+    try:
+        logger.info(f"Received install_start request for env_id: {env_id}")
+
+        # Check if there's already an active executor for this environment
+        existing_executor = _active_executors.get(env_id)
+        if existing_executor and existing_executor.installation and existing_executor.installation.session_id:
+            # Return existing session information
+            session_id = existing_executor.installation.session_id
+            logger.info(f"Returning existing session for env_id {env_id}: session_id={session_id}")
+            assert existing_executor.plan is not None
+            env_name = existing_executor.installation.env_config.display_name
+            return StartInstallationResponse(
+                session_id=session_id,
+                plan=existing_executor.plan,
+                env_name=env_name,
+                is_windows=platform.system() == "Windows",
+            )
+
+        logger.info(f"Creating new installation executor for env_id: {env_id}")
+        config = get_config()
+        env_dir = config.paths.get_environment_path(env_id)
+        executor = EnvironmentInstallationExecutor(env_id, str(env_dir))
+
+        result = executor.start()
+        logger.info(f"Installation started successfully for env_id {env_id}: session_id={result.get('session_id')}")
+
+        # Store executor for later use
+        _active_executors[env_id] = executor
+
+        # Get environment display name
+        env_name = executor.installation.env_config.display_name if executor.installation else env_id
+        return StartInstallationResponse(
+            session_id=result["session_id"],
+            plan=EnvironmentInstallationPlan(**result["plan"]),
+            env_name=env_name,
+            is_windows=platform.system() == "Windows",
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to start installation for {env_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to start installation") from e
+
+
+@router.post("/{env_id}/installation/execute", response_model=ExecuteInstallationResponse)
+async def execute_installation(env_id: str, request: ExecuteRequest) -> ExecuteInstallationResponse:
+    """
+    Execute a command or report execution result.
+
+    If exit_code is None: execute the command
+    If exit_code is provided: handle the result and get next command
+    """
+    # Check for cached response (React strict mode protection)
+    if request.execution_id and request.execution_id in _api_cache:
+        logger.info(f"Returning cached response for execution_id: {request.execution_id}")
+        return cast(ExecuteInstallationResponse, _api_cache[request.execution_id])
+
+    executor = _active_executors.get(env_id)
+    if not executor:
+        raise HTTPException(status_code=404, detail="Installation session not found")
+
+    try:
+        result = executor.execute(
+            step_id=request.step_id, command_index=request.command_index, exit_code=request.exit_code
+        )
+
+        # Cache the response if we have an execution_id
+        if request.execution_id:
+            _api_cache[request.execution_id] = result
+
+        # Clean up executor if installation is completed or failed
+        if result.get("status") in ["completed", "failed"]:
+            executor.cleanup()
+            _active_executors.pop(env_id, None)
+            # Clean up execution cache for this environment
+            clear_env_cache(env_id)
+
+        return ExecuteInstallationResponse(**result)
+
+    except Exception as e:
+        logger.error(f"Failed to execute installation step for {env_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to execute installation step") from e
+
+
+@router.get("/{env_id}/installation/status", response_model=InstallationStatusResponse)
+async def get_installation_status(env_id: str) -> InstallationStatusResponse:
+    """
+    Get current installation status and steps.
+    """
+    executor = _active_executors.get(env_id)
+
+    # If not in memory, try to load from disk
+    if not executor:
+        try:
+            config = get_config()
+            env_dir = config.paths.get_environment_path(env_id)
+            if env_dir.exists():
+                executor = EnvironmentInstallationExecutor(env_id, str(env_dir))
+                # This will load existing state if available
+                if executor.installation and executor.installation.status != "pending":
+                    _active_executors[env_id] = executor
+        except Exception as e:
+            logger.warning(f"Failed to load executor for {env_id}: {e}")
+
+    if not executor or not executor.installation:
+        raise HTTPException(status_code=404, detail="Installation not found")
+
+    assert executor.plan is not None
+
+    # Calculate progress
+    total_steps = len(executor.plan.steps)
+    completed_steps = sum(1 for step in executor.plan.steps if step.status == "success")
+    progress = int((completed_steps / total_steps) * 100) if total_steps > 0 else 0
+
+    return InstallationStatusResponse(
+        installation_id=executor.installation.id,
+        env_id=env_id,
+        status=executor.installation.status,
+        progress=progress,
+        steps=[
+            EnvironmentInstallStep(
+                id=step.id,
+                name=step.name,
+                status=step.status,
+                commands=step.commands,  # Required field
+            )
+            for step in executor.plan.steps
+        ],
+        created_at=executor.installation.created_at,
+        completed_at=executor.installation.completed_at,
+    )
+
+
+@router.post("/{env_id}/open-terminal", response_model=OpenTerminalResponse)
+async def open_terminal(env_id: str) -> OpenTerminalResponse:
+    """
+    Open a system terminal for the environment with virtual environment activated.
+
+    Args:
+        env_id: Environment identifier
+
+    Returns:
+        Success/error response
+
+    Raises:
+        HTTPException: If environment not found or not ready
+    """
+    env_manager = get_env_manager()
+    env_config = env_manager.load_environment_config(env_id)
+
+    if not env_config:
+        raise HTTPException(status_code=404, detail="Environment not found")
+
+    if env_config.status != "ready":
+        raise HTTPException(
+            status_code=400, detail="Environment is not ready. Only ready environments can open terminal."
+        )
+
+    # Get paths
+    config = get_config()
+    env_dir = config.paths.get_environment_path(env_id)
+    venv_path = config.paths.get_environment_venv_path(env_id)
+
+    try:
+        TerminalService.open_terminal(env_dir, venv_path)
+        return OpenTerminalResponse(success=True, message="Terminal opened successfully")
+
+    except FileNotFoundError as e:
+        logger.error(f"Path not found for environment {env_id}: {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except RuntimeError as e:
+        logger.error(f"Failed to open terminal for environment {env_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e

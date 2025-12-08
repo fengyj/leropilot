@@ -1,37 +1,203 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Check, Info, AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ChevronRight, Check } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardFooter } from '../components/ui/card';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { useWizardStore } from '../stores/environment-wizard-store';
 import { cn } from '../utils/cn';
 
+// Step Components
+import { StepRepoSelection } from '../components/environments/wizard/step-repo-selection';
+import { StepVersionSelection } from '../components/environments/wizard/step-version-selection';
+import { StepHardwareSelection } from '../components/environments/wizard/step-hardware-selection';
+import { StepExtrasSelection } from '../components/environments/wizard/step-extras-selection';
+import { StepNameConfig } from '../components/environments/wizard/step-name-config';
+import { StepReview } from '../components/environments/wizard/step-review';
+
 export function EnvironmentWizard() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
-  const { step, setStep, config, updateConfig } = useWizardStore();
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { step, setStep, reset, config } = useWizardStore();
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const STEPS = [
-    { id: 1, title: t('wizard.steps.source') },
-    { id: 2, title: t('wizard.steps.hardware') },
-    { id: 3, title: t('wizard.steps.robots') },
-    { id: 4, title: t('wizard.steps.review') },
+    { id: 1, title: t('wizard.steps.repo'), component: StepRepoSelection },
+    { id: 2, title: t('wizard.steps.version'), component: StepVersionSelection },
+    { id: 3, title: t('wizard.steps.hardware'), component: StepHardwareSelection },
+    { id: 4, title: t('wizard.steps.extras'), component: StepExtrasSelection },
+    { id: 5, title: t('wizard.steps.name'), component: StepNameConfig },
+    { id: 6, title: t('wizard.steps.review'), component: StepReview },
   ];
 
-  const handleNext = () => {
-    if (step < 4) setStep(step + 1);
-    else navigate('/environments');
+  // Reset wizard state on mount to ensure fresh start (unless navigating to specific step)
+  useEffect(() => {
+    const stepParam = searchParams.get('step');
+    if (!stepParam) {
+      reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Warn user before leaving page (browser refresh/close)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Validation logic for each step
+  const isStepValid = () => {
+    switch (step) {
+      case 1: // Repo
+        return !!config.repositoryId;
+      case 2: // Version
+        return !!config.lerobotVersion;
+      case 3: // Compute
+        return (
+          !!config.torchVersion && !!config.cudaVersion && config.cudaVersion !== 'auto'
+        );
+      case 4: // Extras
+        return true;
+      case 5: // Name
+        // Check for empty and valid format (lowercase alphanumeric, dot, dash, underscore)
+        return (
+          !!config.friendlyName &&
+          !!config.envName &&
+          /^[a-z0-9._-]+$/.test(config.envName)
+        );
+      default:
+        return true;
+    }
+  };
+
+  // Initialize step from URL on mount and handle browser navigation
+  useEffect(() => {
+    const stepParam = searchParams.get('step');
+    if (stepParam) {
+      const stepNum = parseInt(stepParam, 10);
+      if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= STEPS.length) {
+        if (stepNum !== step) {
+          setStep(stepNum);
+        }
+      } else {
+        setSearchParams({ step: '1' }, { replace: true });
+        setStep(1);
+      }
+    } else {
+      setSearchParams({ step: String(step) }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Update URL when step changes (from user interaction)
+  useEffect(() => {
+    const stepParam = searchParams.get('step');
+    if (stepParam !== String(step)) {
+      setSearchParams({ step: String(step) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const handleNext = async () => {
+    if (step < STEPS.length) {
+      setStep(step + 1);
+    } else {
+      // Create environment and navigate to installation page
+      try {
+        // Resolve hardware accelerator version
+        let resolvedCudaVersion: string | undefined =
+          config.cudaVersion === 'auto' ? undefined : config.cudaVersion;
+        let resolvedRocmVersion: string | undefined = config.rocmVersion;
+
+        // If auto (shouldn't happen with new UI but for safety), fallback to detection
+        // Note: detectedHardware is not available here, so we'll skip this for now
+
+        // If CPU selected explicitly
+        if (config.cudaVersion === 'cpu') {
+          resolvedCudaVersion = undefined;
+          resolvedRocmVersion = undefined;
+        }
+
+        const newEnvId = crypto.randomUUID();
+
+        const envConfig = {
+          id: newEnvId,
+          name: config.envName,
+          display_name: config.friendlyName,
+          repo_id: config.repositoryId,
+          repo_url: config.repositoryUrl,
+          ref: config.lerobotVersion,
+          python_version: config.pythonVersion,
+          torch_version: config.torchVersion || '',
+          torchvision_version: config.torchvisionVersion,
+          torchaudio_version: config.torchaudioVersion,
+          cuda_version: resolvedCudaVersion,
+          rocm_version: resolvedRocmVersion,
+          extras: config.extras,
+          status: 'pending',
+        };
+
+        const currentLang = i18n.language.split('-')[0]; // e.g., 'zh-CN' -> 'zh'
+
+        // Generate idempotency key to prevent duplicate creation
+        const idempotencyKey = crypto.randomUUID();
+
+        // Create environment
+        const response = await fetch(`/api/environments/create?lang=${currentLang}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify({
+            env_config: envConfig,
+            custom_steps: null, // No custom steps from wizard
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to create environment');
+
+        // Navigate to v2 installation page with the new envId
+        navigate(`/environments/${newEnvId}/install`);
+      } catch (error) {
+        console.error('Failed to create environment:', error);
+        // For now, just log the error. In a real app, you'd show a toast or error message
+        alert('Failed to create environment. Please try again.');
+      }
+    }
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
-    else navigate('/environments');
+    if (step > 1) {
+      setStep(step - 1);
+    }
   };
 
+  const handleCancel = () => {
+    setShowCancelDialog(true);
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelDialog(false);
+    reset();
+    navigate('/environments');
+  };
+
+  const handleCancelDialog = () => {
+    setShowCancelDialog(false);
+  };
+
+  const CurrentStepComponent = STEPS[step - 1].component;
+
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8 py-8">
       {/* Header */}
       <div>
         <h1 className="text-content-primary text-2xl font-bold">{t('wizard.title')}</h1>
@@ -39,12 +205,12 @@ export function EnvironmentWizard() {
       </div>
 
       {/* Progress Steps */}
-      <div className="relative flex justify-between">
-        <div className="bg-border-default absolute top-1/2 h-0.5 w-full -translate-y-1/2" />
+      <div className="relative flex justify-between px-2">
+        <div className="bg-border-default absolute top-1/2 left-0 -z-10 h-0.5 w-full -translate-y-1/2" />
         {STEPS.map((s) => (
           <div
             key={s.id}
-            className="bg-surface-primary relative z-10 flex flex-col items-center gap-2 px-2"
+            className="bg-surface-primary flex flex-col items-center gap-2 px-2"
           >
             <div
               className={cn(
@@ -58,7 +224,7 @@ export function EnvironmentWizard() {
             </div>
             <span
               className={cn(
-                'text-xs font-medium',
+                'hidden text-xs font-medium sm:block',
                 step >= s.id
                   ? 'text-blue-600 dark:text-blue-500'
                   : 'text-content-tertiary',
@@ -71,225 +237,44 @@ export function EnvironmentWizard() {
       </div>
 
       {/* Step Content */}
-      <Card>
-        <CardContent className="pt-6">
-          {step === 1 && (
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="text-content-primary text-sm font-medium">
-                  Repository Type
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => updateConfig({ repoType: 'official' })}
-                    className={cn(
-                      'flex flex-col items-center gap-2 rounded-lg border p-4 transition-all',
-                      config.repoType === 'official'
-                        ? 'border-blue-600 bg-blue-600/10 text-blue-600 dark:text-blue-500'
-                        : 'border-border-default bg-surface-secondary hover:border-border-subtle',
-                    )}
-                  >
-                    <span className="font-bold">Official LeRobot</span>
-                    <span className="text-content-secondary text-xs">Hugging Face</span>
-                  </button>
-                  <button
-                    onClick={() => updateConfig({ repoType: 'custom' })}
-                    className={cn(
-                      'flex flex-col items-center gap-2 rounded-lg border p-4 transition-all',
-                      config.repoType === 'custom'
-                        ? 'border-blue-600 bg-blue-600/10 text-blue-600 dark:text-blue-500'
-                        : 'border-border-default bg-surface-secondary hover:border-border-subtle',
-                    )}
-                  >
-                    <span className="font-bold">Custom URL</span>
-                    <span className="text-content-secondary text-xs">
-                      Git Repository
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-content-primary text-sm font-medium">
-                  Version / Tag
-                </div>
-                <select
-                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  value={config.version}
-                  onChange={(e) => updateConfig({ version: e.target.value })}
-                >
-                  <option value="v2.0">v2.0 (Latest Stable)</option>
-                  <option value="v1.0">v1.0</option>
-                  <option value="main">main (Nightly)</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-6">
-              {/* Hardware Detection Card */}
-              <div className="border-info-border bg-info-surface rounded-lg border p-4">
-                <div className="flex items-start gap-3">
-                  <Info className="text-info-icon mt-0.5 h-5 w-5" />
-                  <div>
-                    <h3 className="text-info-content font-medium">Hardware Detected</h3>
-                    <p className="text-info-content text-sm opacity-90">
-                      NVIDIA RTX 4090 (Driver 535.12)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-content-primary text-sm font-medium">
-                  Python Version
-                </div>
-                <select
-                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  value={config.pythonVersion}
-                  onChange={(e) => updateConfig({ pythonVersion: e.target.value })}
-                >
-                  <option value="3.10">3.10 (Recommended)</option>
-                  <option value="3.11">3.11</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-content-primary text-sm font-medium">
-                  PyTorch Version
-                </div>
-                <div className="relative">
-                  <select
-                    className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
-                    value={config.torchVersion}
-                    onChange={(e) => updateConfig({ torchVersion: e.target.value })}
-                  >
-                    <option value="2.1.2+cu121">2.1.2+cu121 (Recommended)</option>
-                    <option value="2.4.0+cu121">2.4.0+cu121</option>
-                    <option value="cpu">CPU Only</option>
-                  </select>
-                  <div className="absolute top-1/2 right-8 -translate-y-1/2">
-                    <span className="bg-success-surface text-success-icon rounded px-2 py-0.5 text-xs font-medium">
-                      Recommended
-                    </span>
-                  </div>
-                </div>
-                <p className="text-content-tertiary text-xs">
-                  Compatible with your NVIDIA Driver and LeRobot v2.0.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <p className="text-content-secondary text-sm">
-                Select the robots you want to support. This will install additional
-                dependencies.
-              </p>
-              <div className="grid gap-3">
-                {['aloha', 'pusht', 'xarm', 'stretch'].map((robot) => (
-                  <label
-                    key={robot}
-                    className={cn(
-                      'flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors',
-                      config.selectedRobots.includes(robot)
-                        ? 'border-blue-600 bg-blue-600/10'
-                        : 'border-border-default bg-surface-secondary hover:bg-surface-tertiary',
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className="border-border-default bg-surface-secondary h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
-                      checked={config.selectedRobots.includes(robot)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          updateConfig({
-                            selectedRobots: [...config.selectedRobots, robot],
-                          });
-                        } else {
-                          updateConfig({
-                            selectedRobots: config.selectedRobots.filter(
-                              (r) => r !== robot,
-                            ),
-                          });
-                        }
-                      }}
-                    />
-                    <span className="text-content-primary font-medium capitalize">
-                      {robot}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-6">
-              <div className="border-border-default bg-surface-tertiary space-y-3 rounded-lg border p-4">
-                <h3 className="text-content-primary font-medium">Summary</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-content-tertiary">Repository</div>
-                  <div className="text-content-primary">
-                    {config.repoUrl} ({config.version})
-                  </div>
-                  <div className="text-content-tertiary">Python</div>
-                  <div className="text-content-primary">{config.pythonVersion}</div>
-                  <div className="text-content-tertiary">PyTorch</div>
-                  <div className="text-content-primary">{config.torchVersion}</div>
-                  <div className="text-content-tertiary">Robots</div>
-                  <div className="text-content-primary">
-                    {config.selectedRobots.length > 0
-                      ? config.selectedRobots.join(', ')
-                      : 'None'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-warning-border bg-warning-surface flex gap-3 rounded-lg border p-4">
-                <AlertTriangle className="text-warning-icon h-5 w-5 shrink-0" />
-                <p className="text-warning-content text-sm">
-                  Note: This process requires an active internet connection to download
-                  dependencies.
-                </p>
-              </div>
-
-              <div>
-                <button
-                  onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-500 dark:hover:text-blue-400"
-                >
-                  {isAdvancedOpen ? 'Hide' : 'Show'} Advanced: Edit Install Script
-                </button>
-
-                {isAdvancedOpen && (
-                  <div className="border-border-default bg-surface-tertiary text-content-secondary mt-2 rounded-lg border p-4 font-mono text-xs">
-                    <p># Generated Install Script</p>
-                    <p>uv venv .venv --python {config.pythonVersion}</p>
-                    <p>source .venv/bin/activate</p>
-                    <p>uv pip install torch=={config.torchVersion}</p>
-                    <p>cd src/lerobot</p>
-                    <p>uv pip install -e .[{config.selectedRobots.join(',')}]</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+      <Card className="flex min-h-[400px] flex-col">
+        <CardContent className="flex-1 pt-6">
+          <CurrentStepComponent />
         </CardContent>
         <CardFooter className="border-border-default flex justify-between border-t p-6">
-          <Button variant="ghost" onClick={handleBack}>
-            {step === 1 ? t('wizard.buttons.cancel') : t('wizard.buttons.back')}
+          {/* Left: Cancel button */}
+          <Button variant="secondary" onClick={handleCancel}>
+            {t('wizard.buttons.cancel')}
           </Button>
-          <Button onClick={handleNext}>
-            {step === 4
-              ? t('wizard.buttons.createEnvironment')
-              : t('wizard.buttons.next')}
-            {step < 4 && <ChevronRight className="ml-2 h-4 w-4" />}
-          </Button>
+
+          {/* Right: Navigation buttons */}
+          <div className="flex gap-3">
+            {step > 1 && (
+              <Button variant="ghost" onClick={handleBack}>
+                {t('wizard.buttons.back')}
+              </Button>
+            )}
+            <Button onClick={handleNext} disabled={!isStepValid()}>
+              {step === STEPS.length
+                ? t('wizard.buttons.create')
+                : t('wizard.buttons.next')}
+              {step < STEPS.length && <ChevronRight className="ml-2 h-4 w-4" />}
+            </Button>
+          </div>
         </CardFooter>
       </Card>
+
+      {/* Cancel Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelDialog}
+        title={t('wizard.cancelDialog.title')}
+        message={t('wizard.cancelDialog.message')}
+        confirmText={t('wizard.cancelDialog.confirm')}
+        cancelText={t('wizard.cancelDialog.stay')}
+        onConfirm={handleConfirmCancel}
+        onCancel={handleCancelDialog}
+        variant="danger"
+      />
     </div>
   );
 }
