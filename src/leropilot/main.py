@@ -10,7 +10,6 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from leropilot import __version__
-from leropilot.core.app_config import get_config
 from leropilot.logger import get_logger
 from leropilot.middleware import IdempotencyMiddleware
 from leropilot.routers import app_config_api as config_router
@@ -18,6 +17,7 @@ from leropilot.routers import environments_api as environments_router
 from leropilot.routers import repositories_api as repositories_router
 from leropilot.routers import tools_api as tools_router
 from leropilot.routers import web_sockets_api as terminal_router
+from leropilot.services.config import get_config
 from leropilot.utils import get_static_dir
 
 # Configure basic logging early to capture config loading messages
@@ -110,7 +110,7 @@ def run_server(port: int | None = None, open_browser: bool = True) -> None:
     import threading
     import webbrowser
 
-    from leropilot.core.app_config import get_config, save_config
+    from leropilot.services.config import get_config, save_config
 
     config = get_config()
 

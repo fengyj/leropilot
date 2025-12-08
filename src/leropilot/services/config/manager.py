@@ -20,7 +20,8 @@ def _get_resources_dir() -> Path:
         return base_path / "leropilot" / "resources"
     else:
         # Development environment
-        return Path(__file__).parent.parent / "resources"
+        # Path: services/config/manager.py -> parent.parent.parent = leropilot
+        return Path(__file__).parent.parent.parent / "resources"
 
 
 class AppConfigManager:

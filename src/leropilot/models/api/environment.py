@@ -23,15 +23,29 @@ class ExecuteRequest(BaseModel):
     execution_id: str | None = None
 
 
+class EnvironmentListItem(BaseModel):
+    """Environment item for list display."""
+
+    id: str
+    name: str
+    display_name: str
+    repo_id: str
+    repo_url: str
+    ref: str
+    python_version: str
+    torch_version: str
+    status: str
+    error_message: str | None = None
+
+
 class ExtraInfo(BaseModel):
-    """Extra information for environment."""
+    """Extra information for repository extras."""
 
     id: str
     name: str
     description: str
-    category: str = "other"
-    category_label: str = ""
-    selected: bool = False
+    category: str
+    category_label: str
 
 
 class GenerateStepsRequest(BaseModel):

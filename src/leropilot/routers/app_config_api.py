@@ -4,8 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from leropilot.logger import get_logger
 from leropilot.models.app_config import AppConfig
-
-from ..core.app_config import (
+from leropilot.services.config import (
     get_config,
     reset_config_business_logic,
     update_config_business_logic,

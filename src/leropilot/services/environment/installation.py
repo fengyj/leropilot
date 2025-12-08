@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from leropilot.core import EnvironmentInstallationConfigService, I18nService
 from leropilot.logger import get_logger
 from leropilot.models.app_config import AppConfig
 from leropilot.models.environment import (
@@ -19,6 +18,8 @@ from leropilot.models.installation import (
     EnvironmentInstallStepTemplate,
     VersionConfig,
 )
+from leropilot.services.config import EnvironmentInstallationConfigService
+from leropilot.services.i18n import I18nService
 
 from .manager import EnvironmentManager
 
@@ -166,10 +167,10 @@ class InstallationManager:
         # Check if there is a status file on disk that is newer
         if installation:
             try:
-                from leropilot.core.app_config import get_config
+                from .registry import get_path_resolver
 
-                config = get_config()
-                env_dir = config.paths.get_environment_path(installation.env_config.id)
+                path_resolver = get_path_resolver()
+                env_dir = path_resolver.get_environment_path(installation.env_config.id)
                 status_file = env_dir / "installation_status.json"
 
                 if status_file.exists():
@@ -289,14 +290,17 @@ class EnvironmentInstallationPlanGenerator:
         Returns:
             Complete installation plan with all required information
         """
-        from leropilot.core.app_config import get_config
+        from leropilot.services.config import get_config
+
+        from .registry import get_path_resolver
 
         config = get_config()
+        path_resolver = get_path_resolver()
 
         # Calculate all paths
-        env_dir = config.paths.get_environment_path(env_config.id)
+        env_dir = path_resolver.get_environment_path(env_config.id)
         repo_dir = config.paths.get_repo_path(env_config.repo_id)
-        venv_path = config.paths.get_environment_venv_path(env_config.id)
+        venv_path = path_resolver.get_environment_venv_path(env_config.id)
         log_file = env_dir / "installation.log"
 
         # Get version config from service
@@ -407,13 +411,16 @@ class EnvironmentInstallationPlanGenerator:
         Returns:
             List of resolved command strings
         """
-        from leropilot.core.app_config import get_config
+        from leropilot.services.config import get_config
+
+        from .registry import get_path_resolver
 
         app_config = get_config()
+        path_resolver = get_path_resolver()
 
         # Build variable mapping
-        venv_path = config.paths.get_environment_venv_path(env_config.id)
-        venv_tool_path = config.paths.get_environment_bin_path(env_config.id)
+        venv_path = path_resolver.get_environment_venv_path(env_config.id)
+        venv_tool_path = path_resolver.get_environment_bin_path(env_config.id)
         cuda_tag = self._get_cuda_tag(env_config)
         pypi_mirror = self._get_pypi_mirror_param(app_config)
         repo_path = config.paths.get_repo_path(env_config.repo_id)
@@ -547,8 +554,12 @@ class EnvironmentInstallationPlanGenerator:
         if not step_tmpl.env_vars:
             return {}
 
+        from .registry import get_path_resolver
+
+        path_resolver = get_path_resolver()
+
         # Build variable mapping for substitution
-        venv_path = config.paths.get_environment_venv_path(env_config.id)
+        venv_path = path_resolver.get_environment_venv_path(env_config.id)
         repo_path = config.paths.get_repo_path(env_config.repo_id)
 
         variables = {

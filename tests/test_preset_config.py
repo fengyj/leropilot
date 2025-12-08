@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from leropilot.core.app_config import AppConfigManager
+from leropilot.services.config.manager import AppConfigManager
 
 
 def test_preset_config_loaded_for_first_time_user(tmp_path: Path) -> None:

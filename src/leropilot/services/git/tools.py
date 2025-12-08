@@ -16,9 +16,9 @@ from typing import Any
 
 import httpx
 
-from leropilot.core.app_config import get_config
-from leropilot.core.i18n import I18nService
 from leropilot.logger import get_logger
+from leropilot.services.config import get_config
+from leropilot.services.i18n import I18nService
 from leropilot.utils import get_resources_dir
 from leropilot.utils.subprocess_executor import SubprocessExecutor
 

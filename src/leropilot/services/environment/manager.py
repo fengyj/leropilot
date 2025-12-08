@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 
 from leropilot.logger import get_logger
+from leropilot.models.api.environment import EnvironmentListItem
 from leropilot.models.environment import EnvironmentConfig
+
+from .registry import get_path_resolver, get_registry
 
 logger = get_logger(__name__)
 
@@ -14,7 +17,7 @@ class EnvironmentManager:
 
     def __init__(self) -> None:
         """Initialize environment manager."""
-        from leropilot.core.app_config import get_config
+        from leropilot.services.config import get_config
 
         self.config = get_config()
         # Ensure the config provides environments_dir; mypy needs this asserted before assignment
@@ -43,7 +46,8 @@ class EnvironmentManager:
         Args:
             env_config: Environment configuration
         """
-        env_dir = self.environments_dir / env_config.id
+        path_resolver = get_path_resolver()
+        env_dir = path_resolver.get_environment_path(env_config.id)
         config_file = env_dir / "config.json"
         state_file = env_dir / "installation_state.json"
 
@@ -73,7 +77,18 @@ class EnvironmentManager:
         Returns:
             Environment configuration or None if not found
         """
-        env_dir = self.environments_dir / env_id
+        # First check if environment exists in registry
+        registry = get_registry()
+        entry = registry.get_by_id(env_id)
+        if entry is None:
+            return None
+
+        path_resolver = get_path_resolver()
+        try:
+            env_dir = path_resolver.get_environment_path(env_id)
+        except ValueError:
+            return None
+
         config_file = env_dir / "config.json"
         state_file = env_dir / "installation_state.json"
 
@@ -92,22 +107,32 @@ class EnvironmentManager:
 
         return None
 
-    def list_environments(self) -> list[EnvironmentConfig]:
+    def list_environments(self) -> list[EnvironmentListItem]:
         """
-        List all environments.
+        List all environments from the registry.
 
         Returns:
-            List of environment configurations
+            List of environment data for the UI
         """
-        if not self.environments_dir.exists():
-            return []
+        registry = get_registry()
+        entries = registry.list_all()
 
         environments = []
-        for env_dir in self.environments_dir.iterdir():
-            if env_dir.is_dir():
-                env_config = self.load_environment_config(env_dir.name)
-                if env_config:
-                    environments.append(env_config)
+        for entry in entries:
+            environments.append(
+                EnvironmentListItem(
+                    id=entry.id,
+                    name=entry.name,
+                    display_name=entry.display_name,
+                    repo_id=entry.repo_id,
+                    repo_url=entry.repo_url,
+                    ref=entry.ref,
+                    python_version=entry.python_version,
+                    torch_version=entry.torch_version,
+                    status=entry.status,
+                    error_message=entry.error_message,
+                )
+            )
 
         return environments
 
@@ -115,18 +140,84 @@ class EnvironmentManager:
         """
         Delete an environment.
 
+        Removes the environment directory and unregisters from registry.
+
         Args:
             env_id: Environment ID
 
         Returns:
             True if deleted successfully
         """
-        env_dir = self.environments_dir / env_id
-        if not env_dir.exists():
+        registry = get_registry()
+        path_resolver = get_path_resolver()
+
+        # Check if environment exists in registry
+        entry = registry.get_by_id(env_id)
+        if entry is None:
             return False
 
-        import shutil
+        try:
+            env_dir = path_resolver.get_environment_path(env_id)
+        except ValueError:
+            # Not in registry, but try to unregister anyway
+            registry.unregister(env_id)
+            return False
 
-        shutil.rmtree(env_dir)
+        # Delete directory if it exists
+        if env_dir.exists():
+            import shutil
+
+            shutil.rmtree(env_dir)
+            logger.info(f"Deleted environment directory: {env_dir}")
+
+        # Unregister from registry
+        registry.unregister(env_id)
         logger.info(f"Deleted environment: {env_id}")
         return True
+
+    def register_environment(self, env_config: EnvironmentConfig) -> None:
+        """
+        Register a new environment in the registry.
+
+        This should be called BEFORE creating the environment directory.
+
+        Args:
+            env_config: Environment configuration
+        """
+        registry = get_registry()
+        registry.register(env_config)
+        logger.info(f"Registered environment: id={env_config.id}, name={env_config.name}")
+
+    def update_environment_status(
+        self,
+        env_id: str,
+        status: str,
+        error_message: str | None = None,
+    ) -> bool:
+        """
+        Update the status of an environment in the registry.
+
+        Args:
+            env_id: Environment ID
+            status: New status
+            error_message: Optional error message
+
+        Returns:
+            True if updated successfully
+        """
+        registry = get_registry()
+        return registry.update_status(env_id, status, error_message)  # type: ignore
+
+    def update_environment_python_version(self, env_id: str, python_version: str) -> bool:
+        """
+        Update the Python version of an environment in the registry.
+
+        Args:
+            env_id: Environment ID
+            python_version: Actual Python version used in the virtual environment
+
+        Returns:
+            True if updated successfully
+        """
+        registry = get_registry()
+        return registry.update_python_version(env_id, python_version)

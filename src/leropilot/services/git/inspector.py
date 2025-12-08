@@ -5,8 +5,8 @@ from pathlib import Path
 
 import tomllib
 
-from leropilot.core.i18n import I18nService
 from leropilot.logger import get_logger
+from leropilot.services.i18n import I18nService
 
 logger = get_logger(__name__)
 

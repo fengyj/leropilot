@@ -6,7 +6,6 @@ from collections.abc import AsyncGenerator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from leropilot.core import EnvironmentInstallationConfigService, GPUDetector, I18nService
 from leropilot.logger import get_logger
 from leropilot.models.api.repository import (
     RepositoryInfo,
@@ -14,10 +13,11 @@ from leropilot.models.api.repository import (
     VersionCompatibilityEntry,
     VersionInfo,
 )
+from leropilot.services.config import EnvironmentInstallationConfigService, get_config
 from leropilot.services.git import GitService, GitToolManager
+from leropilot.services.hardware import GPUDetector
+from leropilot.services.i18n import I18nService
 from leropilot.utils import get_resources_dir
-
-from ..core.app_config import get_config
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/repositories", tags=["repositories"])

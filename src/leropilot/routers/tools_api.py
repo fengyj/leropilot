@@ -84,7 +84,7 @@ async def download_bundled_git() -> StreamingResponse:
     """
     Download and install bundled Git.
     """
-    from leropilot.core.app_config import get_config
+    from leropilot.services.config import get_config
 
     config = get_config()
     lang = config.ui.preferred_language
@@ -96,7 +96,7 @@ async def download_bundled_git() -> StreamingResponse:
     def config_updater() -> None:
         config = get_config()
         config.tools.git.type = "bundled"
-        from leropilot.core.app_config import save_config
+        from leropilot.services.config import save_config
 
         save_config(config)
 

@@ -174,8 +174,18 @@ class EnvironmentInstallationExecutor:
             self.installation.status = "error"
             # Update env_config status to error
             self.installation.env_config.status = "error"
-            self.installation.env_config.error_message = f"Step '{step.name}' failed with exit code {exit_code}"
+            error_message = f"Step '{step.name}' failed with exit code {exit_code}"
+            self.installation.env_config.error_message = error_message
             self._save_state()
+
+            # Update registry status to error
+            try:
+                from leropilot.services.environment import get_env_manager
+
+                env_manager = get_env_manager()
+                env_manager.update_environment_status(self.env_id, "error", error_message)
+            except Exception as e:
+                logger.warning(f"Failed to update environment status in registry: {e}")
 
             return {"status": "failed", "error": error_msg}
 
@@ -220,6 +230,21 @@ class EnvironmentInstallationExecutor:
             self.installation.env_config.status = "ready"
             self.installation.completed_at = datetime.now()
             self._save_state()
+
+            # Update registry status to ready and get actual Python version
+            try:
+                from leropilot.services.environment import get_env_manager
+
+                env_manager = get_env_manager()
+
+                # Get actual Python version from virtual environment
+                actual_python_version = self._get_actual_python_version()
+                if actual_python_version:
+                    env_manager.update_environment_python_version(self.env_id, actual_python_version)
+
+                env_manager.update_environment_status(self.env_id, "ready")
+            except Exception as e:
+                logger.warning(f"Failed to update environment status in registry: {e}")
 
             complete_msg = "✨ Installation completed successfully!"
             self.pty_session.write_system_message(complete_msg, color="green")
@@ -341,5 +366,30 @@ class EnvironmentInstallationExecutor:
                     return EnvironmentConfig(**data["env_config"])
         except Exception as e:
             logger.error(f"Failed to load env config: {e}")
+
+        return None
+
+    def _get_actual_python_version(self) -> str | None:
+        """Get the actual Python version used in the virtual environment."""
+        if not self.plan or not hasattr(self.plan, "venv_path"):
+            return None
+
+        venv_path = Path(self.plan.venv_path)
+        python_exe = venv_path / "bin" / "python"
+
+        if not python_exe.exists():
+            return None
+
+        try:
+            import subprocess
+
+            result = subprocess.run([str(python_exe), "--version"], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                # Output format: "Python 3.10.12"
+                version_output = result.stdout.strip()
+                if version_output.startswith("Python "):
+                    return version_output.split(" ")[1]
+        except Exception as e:
+            logger.warning(f"Failed to get Python version from venv: {e}")
 
         return None

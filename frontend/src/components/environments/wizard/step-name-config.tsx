@@ -5,6 +5,7 @@ import { cn } from '../../../utils/cn';
 
 interface Environment {
   id: string;
+  name: string;
   display_name: string;
 }
 
@@ -120,8 +121,8 @@ export function StepNameConfig() {
     let counter = 1;
 
     // Check for duplicates and increment
-    // We check against both ID and Display Name to be safe and avoid confusion
-    while (existingEnvs.some((e) => e.id === name || e.display_name === name)) {
+    // We check against name (internal directory name) to prevent conflicts
+    while (existingEnvs.some((e) => e.name === name)) {
       name = `${baseName}-${counter}`;
       counter++;
     }
@@ -204,12 +205,12 @@ export function StepNameConfig() {
       }
     }
 
-    // Check if name exists in existingEnvs (as ID or Display Name)
-    // We primarily care about ID uniqueness for the system, but checking Display Name is good for UX.
-    // The prompt says "check name cannot be duplicate with existing ones".
-    const isDuplicate = existingEnvs.some(
-      (e) => e.id === name || e.display_name === name,
-    );
+    // Check if name exists in existingEnvs (as name for internal name, as display_name for friendly name)
+    // For internal name validation, we check the name field (directory name)
+    // For friendly name validation, we check display_name field
+    const isDuplicate = isInternal
+      ? existingEnvs.some((e) => e.name === name)
+      : existingEnvs.some((e) => e.display_name === name);
 
     if (isDuplicate) {
       setError(t('wizard.nameConfig.duplicateError'));

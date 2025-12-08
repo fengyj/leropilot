@@ -76,51 +76,56 @@ def get_logger(name: str) -> structlog.BoundLogger:
     Returns:
         Configured logger instance
     """
-    from .core.app_config import get_config
+    # Use a global variable to cache the configuration
+    if not hasattr(get_logger, "_configured"):
+        from leropilot.services.config import get_config
 
-    config = get_config()
-    log_dir = config.paths.logs_dir
-    log_file_path = None
+        config = get_config()
+        log_dir = config.paths.logs_dir
+        log_file_path = None
 
-    if log_dir:
-        log_dir.mkdir(parents=True, exist_ok=True)
-        # Use a fixed log file name
-        log_file_path = log_dir / "leropilot.log"
+        if log_dir:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            # Use a fixed log file name
+            log_file_path = log_dir / "leropilot.log"
 
-    # Map string level to integer
-    level_map = {
-        "INFO": 20,
-        "DEBUG": 10,
-        "TRACE": 5,
-    }
-    log_level = level_map.get(config.advanced.log_level, 20)
+        # Map string level to integer
+        level_map = {
+            "INFO": 20,
+            "DEBUG": 10,
+            "TRACE": 5,
+        }
+        log_level = level_map.get(config.advanced.log_level, 20)
 
-    # Create processors
-    ProcessorCallable = Callable[
-        [Any, str, MutableMapping[str, Any]],
-        Mapping[str, Any] | str | bytes | bytearray | tuple[Any, ...],
-    ]
+        # Create processors
+        ProcessorCallable = Callable[
+            [Any, str, MutableMapping[str, Any]],
+            Mapping[str, Any] | str | bytes | bytearray | tuple[Any, ...],
+        ]
 
-    processors: list[ProcessorCallable] = [
-        structlog.processors.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-    ]
+        processors: list[ProcessorCallable] = [
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+        ]
 
-    # Add file writer processor if log file is configured
-    if log_file_path:
-        max_bytes = config.advanced.log_max_size_mb * 1024 * 1024  # Convert MB to bytes
-        backup_count = config.advanced.log_backup_count
-        processors.append(cast(ProcessorCallable, FileWriterProcessor(log_file_path, max_bytes, backup_count)))
+        # Add file writer processor if log file is configured
+        if log_file_path:
+            max_bytes = config.advanced.log_max_size_mb * 1024 * 1024  # Convert MB to bytes
+            backup_count = config.advanced.log_backup_count
+            processors.append(cast(ProcessorCallable, FileWriterProcessor(log_file_path, max_bytes, backup_count)))
 
-    # Add console output (JSON format for consistency)
-    processors.append(structlog.processors.JSONRenderer())
+        # Add console output (JSON format for consistency)
+        processors.append(structlog.processors.JSONRenderer())
 
-    structlog.configure(
-        processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(log_level),
-        context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
-        cache_logger_on_first_use=False,  # Disable cache to allow level updates
-    )
+        structlog.configure(
+            processors=processors,
+            wrapper_class=structlog.make_filtering_bound_logger(log_level),
+            context_class=dict,
+            logger_factory=structlog.PrintLoggerFactory(),
+            cache_logger_on_first_use=False,  # Disable cache to allow level updates
+        )
+
+        # Mark as configured
+        get_logger._configured = True  # type: ignore[attr-defined]
 
     return cast(structlog.BoundLogger, structlog.get_logger(name))

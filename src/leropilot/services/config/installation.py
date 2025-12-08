@@ -11,14 +11,11 @@ This module handles loading and querying environment_installation_config.json, w
 import json
 from pathlib import Path
 
-from leropilot.logger import get_logger
 from leropilot.models.environment import EnvironmentConfig
 from leropilot.models.installation import (
     EnvironmentInstallationConfig,
     VersionConfig,
 )
-
-logger = get_logger(__name__)
 
 
 class EnvironmentInstallationConfigService:
@@ -32,6 +29,10 @@ class EnvironmentInstallationConfigService:
             config_file: Path to environment_installation_config.json
         """
         self.config_file = config_file
+        # Import logger lazily to avoid circular imports
+        from leropilot.logger import get_logger
+
+        self._logger = get_logger(__name__)
         self._config: EnvironmentInstallationConfig | None = None
         self._load()
 
@@ -42,13 +43,13 @@ class EnvironmentInstallationConfigService:
                 with open(self.config_file, encoding="utf-8") as f:
                     data = json.load(f)
                 self._config = EnvironmentInstallationConfig(**data)
-                logger.info(f"Loaded installation config from {self.config_file}")
+                self._logger.info(f"Loaded installation config from {self.config_file}")
             else:
-                logger.warning(f"Installation config file not found: {self.config_file}")
+                self._logger.warning(f"Installation config file not found: {self.config_file}")
                 # Create minimal default config
                 self._config = EnvironmentInstallationConfig(repositories={})
         except Exception as e:
-            logger.error(f"Failed to load installation config: {e}")
+            self._logger.error(f"Failed to load installation config: {e}")
             self._config = EnvironmentInstallationConfig(repositories={})
 
     def get_config_for_env(self, env_config: EnvironmentConfig) -> VersionConfig | None:
@@ -69,7 +70,7 @@ class EnvironmentInstallationConfigService:
             Resolved version configuration, or None if not found
         """
         if not self._config:
-            logger.warning("No installation config loaded")
+            self._logger.warning("No installation config loaded")
             return None
 
         # Step 1: Resolve repository
@@ -78,7 +79,7 @@ class EnvironmentInstallationConfigService:
             # Fallback to official
             repo_config = self._config.repositories.get("https://github.com/huggingface/lerobot.git")
             if not repo_config:
-                logger.warning(f"No config found for repo {repo_url} or Lerobot official")
+                self._logger.warning(f"No config found for repo {repo_url} or Lerobot official")
                 return None
 
         # Step 2: Resolve version
@@ -87,7 +88,7 @@ class EnvironmentInstallationConfigService:
             # Try main branch as fallback
             version_config = repo_config.versions.get("main")
             if not version_config:
-                logger.warning(f"No config found for version {ref} or main branch")
+                self._logger.warning(f"No config found for version {ref} or main branch")
                 return None
             # Only log if we are not just checking for existence (optional)
             # logger.info(f"Using main branch config as fallback for {repo_url}@{ref}")

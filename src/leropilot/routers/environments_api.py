@@ -6,19 +6,13 @@ from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
 
-from leropilot.core import (
-    EnvironmentInstallationConfigService,
-    ExtrasMetadataService,
-    GPUDetector,
-    I18nService,
-    RepositoryExtrasInspector,
-)
 from leropilot.logger import get_logger
 from leropilot.models.api.environment import (
     CancelInstallationResponse,
     CreateEnvironmentRequest,
     CreateEnvironmentResponse,
     DeleteEnvironmentResponse,
+    EnvironmentListItem,
     ExecuteInstallationResponse,
     ExecuteRequest,
     ExtraInfo,
@@ -35,6 +29,7 @@ from leropilot.models.environment import (
     EnvironmentInstallationPlan,
     EnvironmentInstallStep,
 )
+from leropilot.services.config import EnvironmentInstallationConfigService, get_config
 from leropilot.services.environment import (
     EnvironmentInstallationExecutor,
     EnvironmentInstallationPlanGenerator,
@@ -42,9 +37,10 @@ from leropilot.services.environment import (
     InstallationManager,
     TerminalService,
 )
+from leropilot.services.git import ExtrasMetadataService, RepositoryExtrasInspector
+from leropilot.services.hardware import GPUDetector
+from leropilot.services.i18n import I18nService
 from leropilot.utils import get_resources_dir
-
-from ..core.app_config import get_config
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/environments", tags=["environments"])
@@ -65,7 +61,9 @@ def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, G
 @lru_cache
 def get_env_manager() -> EnvironmentManager:
     """Get or initialize environment manager (singleton)."""
-    return EnvironmentManager()
+    from leropilot.services.environment import get_env_manager as _get_env_manager
+
+    return _get_env_manager()
 
 
 @lru_cache
@@ -106,13 +104,13 @@ async def get_has_environments() -> HasEnvironmentsResponse:
     return HasEnvironmentsResponse(has_environments=has_envs)
 
 
-@router.get("", response_model=list[EnvironmentConfig])
-async def list_environments() -> list[EnvironmentConfig]:
+@router.get("", response_model=list[EnvironmentListItem])
+async def list_environments() -> list[EnvironmentListItem]:
     """
     List all environments.
 
     Returns:
-        List of environment configurations
+        List of environment list items
     """
     env_manager = get_env_manager()
     return env_manager.list_environments()
@@ -250,20 +248,27 @@ async def create_environment(
     try:
         config_service, i18n_service, _ = get_services()
         executor = get_installation_executor()
+        env_manager = get_env_manager()
+
+        # Register environment in registry FIRST (before any path resolution)
+        # This is required because path resolution depends on the registry
+        env_manager.register_environment(request.env_config)
 
         # Use custom steps if provided, otherwise generate from config
         if request.custom_steps:
             logger.info(f"Using {len(request.custom_steps)} custom steps from advanced editor")
             # Create plan with custom steps
-            from leropilot.core.app_config import get_config
+            from leropilot.services.config import get_config
+            from leropilot.services.environment import get_path_resolver
 
             config = get_config()
+            path_resolver = get_path_resolver()
             env_config = request.env_config
 
             # Calculate paths
-            env_dir = config.paths.get_environment_path(env_config.id)
+            env_dir = path_resolver.get_environment_path(env_config.id)
             repo_dir = config.paths.get_repo_path(env_config.repo_id)
-            venv_path = config.paths.get_environment_venv_path(env_config.id)
+            venv_path = path_resolver.get_environment_venv_path(env_config.id)
             log_file = env_dir / "installation.log"
 
             # Prepare environment variables
@@ -475,8 +480,10 @@ async def start_installation(env_id: str) -> StartInstallationResponse:
             )
 
         logger.info(f"Creating new installation executor for env_id: {env_id}")
-        config = get_config()
-        env_dir = config.paths.get_environment_path(env_id)
+        from leropilot.services.environment import get_path_resolver
+
+        path_resolver = get_path_resolver()
+        env_dir = path_resolver.get_environment_path(env_id)
         executor = EnvironmentInstallationExecutor(env_id, str(env_dir))
 
         result = executor.start()
@@ -551,8 +558,10 @@ async def get_installation_status(env_id: str) -> InstallationStatusResponse:
     # If not in memory, try to load from disk
     if not executor:
         try:
-            config = get_config()
-            env_dir = config.paths.get_environment_path(env_id)
+            from leropilot.services.environment import get_path_resolver
+
+            path_resolver = get_path_resolver()
+            env_dir = path_resolver.get_environment_path(env_id)
             if env_dir.exists():
                 executor = EnvironmentInstallationExecutor(env_id, str(env_dir))
                 # This will load existing state if available
@@ -616,9 +625,11 @@ async def open_terminal(env_id: str) -> OpenTerminalResponse:
         )
 
     # Get paths
-    config = get_config()
-    env_dir = config.paths.get_environment_path(env_id)
-    venv_path = config.paths.get_environment_venv_path(env_id)
+    from leropilot.services.environment import get_path_resolver
+
+    path_resolver = get_path_resolver()
+    env_dir = path_resolver.get_environment_path(env_id)
+    venv_path = path_resolver.get_environment_venv_path(env_id)
 
     try:
         TerminalService.open_terminal(env_dir, venv_path)
