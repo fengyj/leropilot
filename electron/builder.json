@@ -1,6 +1,7 @@
 {
   "appId": "com.leropilot.app",
   "productName": "LeRoPilot",
+  "publish": null,
   "files": [
     "main.js",
     "preload.js",

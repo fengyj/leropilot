@@ -9,6 +9,9 @@ on:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   package-pyinstaller:
     name: Package PyInstaller on ${{ matrix.os }}
@@ -403,7 +406,6 @@ jobs:
           cd electron
           npm run build
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_NAME_PREFIX: ${{ env.ARTIFACT_NAME_PREFIX }}
           ARTIFACT_VERSION_SUFFIX: ${{ env.ARTIFACT_VERSION_SUFFIX }}
 
