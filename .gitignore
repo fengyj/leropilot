@@ -72,6 +72,9 @@ src/leropilot/static/
 # Application data
 .leropilot/
 
+# Example/test output files
+output/
+
 # Environment variables
 .env
 .env.local

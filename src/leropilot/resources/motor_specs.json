@@ -1,0 +1,142 @@
+{
+    "dynamixel": {
+        "XL330-M077": {
+            "model_ids": [
+                1190
+            ],
+            "temp_warning": 50,
+            "temp_critical": 55,
+            "temp_max": 60,
+            "voltage_min": 3.7,
+            "voltage_max": 6.0,
+            "current_max": 400,
+            "current_peak": 1500,
+            "datasheet_url": "https://emanual.robotis.com/docs/en/dxl/x/xl330-m077/"
+        },
+        "XL330-M288": {
+            "model_ids": [
+                1200
+            ],
+            "temp_warning": 50,
+            "temp_critical": 55,
+            "temp_max": 60,
+            "voltage_min": 3.7,
+            "voltage_max": 6.0,
+            "current_max": 400,
+            "current_peak": 1500,
+            "datasheet_url": "https://emanual.robotis.com/docs/en/dxl/x/xl330-m288/"
+        },
+        "XL430-W250": {
+            "model_ids": [
+                1060
+            ],
+            "temp_warning": 60,
+            "temp_critical": 68,
+            "temp_max": 72,
+            "voltage_min": 6.5,
+            "voltage_max": 12.0,
+            "current_max": 1000,
+            "current_peak": 1400,
+            "datasheet_url": "https://emanual.robotis.com/docs/en/dxl/x/xl430-w250/"
+        },
+        "XC430-W150": {
+            "model_ids": [
+                1070
+            ],
+            "temp_warning": 65,
+            "temp_critical": 75,
+            "temp_max": 80,
+            "voltage_min": 6.5,
+            "voltage_max": 14.8,
+            "current_max": 1000,
+            "current_peak": 1400,
+            "datasheet_url": "https://emanual.robotis.com/docs/en/dxl/x/xc430-w150/"
+        },
+        "XM430-W350": {
+            "model_ids": [
+                1020
+            ],
+            "temp_warning": 65,
+            "temp_critical": 75,
+            "temp_max": 80,
+            "voltage_min": 10.0,
+            "voltage_max": 14.8,
+            "current_max": 2300,
+            "current_peak": 4100,
+            "datasheet_url": "https://emanual.robotis.com/docs/en/dxl/x/xm430-w350/"
+        }
+    },
+    "feetech": {
+        "STS3215": {
+            "model_ids": [
+                3215,
+                1545,
+                49153,
+                49220,
+                49222
+            ],
+            "description": "SO-100/101 Standard. Datasheet: https://www.waveshare.com/wiki/STS3215_Servo",
+            "temp_warning": 60,
+            "temp_critical": 70,
+            "temp_max": 80,
+            "voltage_min": 5.5,
+            "voltage_max": 12.6,
+            "current_max": 1000,
+            "current_peak": 2200
+        },
+        "STS3032": {
+            "model_ids": [
+                777
+            ],
+            "description": "SO-100/101 Variant. High speed/torque.",
+            "temp_warning": 60,
+            "temp_critical": 70,
+            "temp_max": 80,
+            "voltage_min": 5.5,
+            "voltage_max": 12.6,
+            "current_max": 1000,
+            "current_peak": 2200
+        },
+        "SCS0009": {
+            "model_ids": [
+                9
+            ],
+            "description": "Micro Servo. Datasheet: https://www.waveshare.com/wiki/SCS0009_Servo",
+            "temp_warning": 60,
+            "temp_critical": 70,
+            "temp_max": 80,
+            "voltage_min": 4.8,
+            "voltage_max": 7.4,
+            "current_max": 500,
+            "current_peak": 1000
+        }
+    },
+    "damiao": {
+        "DM4310": {
+            "model_ids": [
+                17168
+            ],
+            "description": "OpenArm Joint. ID 0x4310. Metal Gear/Case.",
+            "temp_warning": 75,
+            "temp_critical": 90,
+            "temp_max": 100,
+            "voltage_min": 12.0,
+            "voltage_max": 30.0,
+            "current_max": 4000,
+            "current_peak": 12000
+        },
+        "DM6006": {
+            "model_ids": [
+                24582
+            ],
+            "description": "OpenArm Base. ID 0x6006. Metal Gear/Case.",
+            "temp_warning": 75,
+            "temp_critical": 90,
+            "temp_max": 100,
+            "voltage_min": 24.0,
+            "voltage_max": 48.0,
+            "current_max": 6000,
+            "current_peak": 20000
+        }
+    }
+}

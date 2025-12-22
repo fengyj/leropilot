@@ -17,6 +17,7 @@ from leropilot.routers import environments_api as environments_router
 from leropilot.routers import repositories_api as repositories_router
 from leropilot.routers import tools_api as tools_router
 from leropilot.routers import web_sockets_api as terminal_router
+from leropilot.routers import hardware_api as hardware_router
 from leropilot.services.config import get_config
 from leropilot.utils import get_static_dir
 
@@ -74,6 +75,8 @@ app.include_router(environments_router.router)
 app.include_router(repositories_router.router)
 app.include_router(terminal_router.router)
 app.include_router(tools_router.router)
+app.include_router(hardware_router.router)
+
 
 
 def serve_static() -> None:
