@@ -14,16 +14,15 @@ This example shows:
 - Validating against motor protection rules
 """
 
-import logging
 import json
+import logging
 from pathlib import Path
-from leropilot.services.hardware.motors import MotorService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def load_motor_specs():
+def load_motor_specs() -> dict:
     """Load motor specifications from resource file"""
     spec_file = Path(__file__).parent.parent.parent / "src" / "leropilot" / "resources" / "motor_specs.json"
     if spec_file.exists():
@@ -32,7 +31,7 @@ def load_motor_specs():
     return {}
 
 
-def main():
+def main() -> None:
     """Demonstrate motor protection checking"""
     print("\n" + "=" * 80)
     print("MOTOR PROTECTION VIOLATION DETECTION")
@@ -42,8 +41,6 @@ def main():
     specs = load_motor_specs()
     print(f"\n✅ Loaded {len(specs)} motor specifications")
 
-    service = MotorService()
-
     # Example motors to check
     test_cases = [
         {
@@ -51,7 +48,7 @@ def main():
             "brand": "dynamixel",
             "model": "XL430-W250",
             "position": 2048,  # Valid (within 0-4095)
-            "current": 500,    # Valid (within limit)
+            "current": 500,  # Valid (within limit)
         },
         {
             "motor_id": 2,
@@ -71,8 +68,8 @@ def main():
             "motor_id": 1,
             "brand": "feetech",
             "model": "STS3215",
-            "position": 500,   # Valid (within 0-1023)
-            "current": 800,    # Valid
+            "position": 500,  # Valid (within 0-1023)
+            "current": 800,  # Valid
         },
         {
             "motor_id": 2,

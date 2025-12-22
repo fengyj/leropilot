@@ -6,9 +6,8 @@ Uses ROBOTIS dynamixel-sdk for protocol handling.
 """
 
 import logging
-from typing import List, Dict, Optional
 
-from leropilot.models.hardware import MotorInfo, MotorTelemetry, MotorBrand
+from leropilot.models.hardware import MotorInfo, MotorTelemetry
 from leropilot.services.hardware.drivers.base import BaseMotorDriver
 
 logger = logging.getLogger(__name__)
@@ -16,16 +15,11 @@ logger = logging.getLogger(__name__)
 # Try to import dynamixel SDK; gracefully degrade if not available
 try:
     from dynamixel_sdk import (
-        PortHandler,
-        PacketHandler,
-        GroupBulkRead,
-        GroupBulkWrite,
-        DXL_HIWORD,
-        DXL_LOWORD,
-        DXL_HIBYTE,
-        DXL_LOBYTE,
         COMM_SUCCESS,
+        PacketHandler,
+        PortHandler,
     )
+
     HAS_DYNAMIXEL_SDK = True
 except ImportError:
     logger.warning("dynamixel-sdk not installed; Dynamixel driver will be limited")
@@ -92,7 +86,7 @@ MODEL_NUMBER_MAP = {
 class DynamixelDriver(BaseMotorDriver):
     """Driver for Dynamixel Protocol 2.0 motors"""
 
-    def __init__(self, interface: str, baud_rate: int = 1000000):
+    def __init__(self, interface: str, baud_rate: int = 1000000) -> None:
         """
         Initialize Dynamixel driver.
 
@@ -101,8 +95,8 @@ class DynamixelDriver(BaseMotorDriver):
             baud_rate: Serial baud rate (default: 1000000)
         """
         super().__init__(interface, baud_rate)
-        self.port_handler: Optional[PortHandler] = None
-        self.packet_handler: Optional[PacketHandler] = None
+        self.port_handler: PortHandler | None = None
+        self.packet_handler: PacketHandler | None = None
 
         if not HAS_DYNAMIXEL_SDK:
             logger.warning("Dynamixel SDK not available; install with: pip install dynamixel-sdk")
@@ -172,7 +166,7 @@ class DynamixelDriver(BaseMotorDriver):
             logger.debug(f"Ping exception for motor {motor_id}: {e}")
             return False
 
-    def scan_motors(self, scan_range: Optional[List[int]] = None) -> List[MotorInfo]:
+    def scan_motors(self, scan_range: list[int] | None = None) -> list[MotorInfo]:
         """
         Scan motor bus and discover all motors.
 
@@ -182,6 +176,10 @@ class DynamixelDriver(BaseMotorDriver):
         Returns:
             List of discovered motors
         """
+        if self.packet_handler is None or self.port_handler is None:
+            logger.error("Not connected to motor bus")
+            return []
+
         if scan_range is None:
             scan_range = list(range(0, 253))
 
@@ -212,7 +210,7 @@ class DynamixelDriver(BaseMotorDriver):
         logger.info(f"Scan complete: found {len(discovered)} motors")
         return discovered
 
-    def _read_register(self, motor_id: int, address: int, length: int) -> Optional[int]:
+    def _read_register(self, motor_id: int, address: int, length: int) -> int | None:
         """
         Read a register value from the motor.
 
@@ -295,7 +293,7 @@ class DynamixelDriver(BaseMotorDriver):
             logger.error(f"Error writing register {address} to motor {motor_id}: {e}")
             return False
 
-    def read_telemetry(self, motor_id: int) -> Optional[MotorTelemetry]:
+    def read_telemetry(self, motor_id: int) -> MotorTelemetry | None:
         """
         Read real-time telemetry from a single motor.
 
@@ -316,6 +314,14 @@ class DynamixelDriver(BaseMotorDriver):
 
             if any(x is None for x in [position, velocity, current, voltage, temperature, goal_position]):
                 return None
+
+            # At this point, all values are guaranteed to be not None
+            assert position is not None
+            assert velocity is not None
+            assert current is not None
+            assert voltage is not None
+            assert temperature is not None
+            assert goal_position is not None
 
             # Convert raw values to physical units
             # Position: raw value to radians (Dynamixel 4096 counts per revolution)
@@ -347,12 +353,13 @@ class DynamixelDriver(BaseMotorDriver):
                 voltage=voltage_v,
                 moving=moving,
                 goal_position=goal_position_rad,
+                error=0,
             )
         except Exception as e:
             logger.error(f"Failed to read telemetry from motor {motor_id}: {e}")
             return None
 
-    def read_bulk_telemetry(self, motor_ids: List[int]) -> Dict[int, MotorTelemetry]:
+    def read_bulk_telemetry(self, motor_ids: list[int]) -> dict[int, MotorTelemetry]:
         """
         Read telemetry from multiple motors efficiently using bulk read.
 
@@ -369,7 +376,7 @@ class DynamixelDriver(BaseMotorDriver):
                 result[motor_id] = telemetry
         return result
 
-    def set_position(self, motor_id: int, position: int, speed: Optional[int] = None) -> bool:
+    def set_position(self, motor_id: int, position: int, speed: int | None = None) -> bool:
         """
         Set motor target position.
 
@@ -433,7 +440,7 @@ class DynamixelDriver(BaseMotorDriver):
             logger.error(f"Failed to reboot motor {motor_id}: {e}")
             return False
 
-    def bulk_set_torque(self, motor_ids: List[int], enabled: bool) -> bool:
+    def bulk_set_torque(self, motor_ids: list[int], enabled: bool) -> bool:
         """
         Set torque for multiple motors at once using sync write.
 

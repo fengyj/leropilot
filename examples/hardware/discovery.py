@@ -12,13 +12,14 @@ Usage:
 """
 
 import logging
+
 from leropilot.services.hardware.discovery import DiscoveryService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     """Discover and display all hardware"""
     service = DiscoveryService()
 

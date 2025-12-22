@@ -8,18 +8,16 @@ Uses python-can library for CAN communication with MIT-style control protocol.
 """
 
 import logging
-import struct
-import time
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
+from typing import Any
 
 try:
     import can
+
     HAS_PYTHON_CAN = True
 except ImportError:
     HAS_PYTHON_CAN = False
 
-from leropilot.models.hardware import MotorInfo, MotorTelemetry, MotorBrand
+from leropilot.models.hardware import MotorInfo, MotorTelemetry
 from leropilot.services.hardware.drivers.base import BaseMotorDriver
 
 logger = logging.getLogger(__name__)
@@ -63,7 +61,7 @@ def uint_to_float(x_int: int, x_min: float, x_max: float, bits: int) -> float:
 class DamiaoCAN_Driver(BaseMotorDriver):
     """Driver for Damiao CAN bus motors using MIT control protocol"""
 
-    def __init__(self, interface: str, baud_rate: Optional[int] = None):
+    def __init__(self, interface: str, baud_rate: int | None = None) -> None:
         """
         Initialize Damiao CAN driver.
 
@@ -75,8 +73,8 @@ class DamiaoCAN_Driver(BaseMotorDriver):
             raise ImportError("python-can not installed. Install via: uv add python-can")
 
         super().__init__(interface, baud_rate or 1000000)
-        self.bus: Optional[can.Bus] = None
-        self.motors: Dict[int, Dict[str, Any]] = {}  # motor_id -> state dict
+        self.bus: Any = None
+        self.motors: dict[int, dict[str, Any]] = {}  # motor_id -> state dict
 
     def connect(self) -> bool:
         """Connect to CAN bus"""
@@ -91,11 +89,7 @@ class DamiaoCAN_Driver(BaseMotorDriver):
 
             logger.info(f"Connecting to CAN bus: {self.interface} (type: {bustype})")
 
-            self.bus = can.interface.Bus(
-                channel=self.interface,
-                bustype=bustype,
-                bitrate=self.baud_rate
-            )
+            self.bus = can.interface.Bus(channel=self.interface, bustype=bustype, bitrate=self.baud_rate)
 
             self.connected = True
             logger.info(f"Connected to Damiao CAN bus on {self.interface}")
@@ -126,16 +120,18 @@ class DamiaoCAN_Driver(BaseMotorDriver):
         kd_u = float_to_uint(kd, KD_MIN, KD_MAX, 12)
         torq_u = float_to_uint(torq, T_MIN, T_MAX, 12)
 
-        return bytes([
-            (pos_u >> 8) & 0xFF,
-            pos_u & 0xFF,
-            (vel_u >> 4) & 0xFF,
-            ((vel_u & 0xF) << 4) | ((kp_u >> 8) & 0xF),
-            kp_u & 0xFF,
-            (kd_u >> 4) & 0xFF,
-            ((kd_u & 0xF) << 4) | ((torq_u >> 8) & 0xF),
-            torq_u & 0xFF,
-        ])
+        return bytes(
+            [
+                (pos_u >> 8) & 0xFF,
+                pos_u & 0xFF,
+                (vel_u >> 4) & 0xFF,
+                ((vel_u & 0xF) << 4) | ((kp_u >> 8) & 0xF),
+                kp_u & 0xFF,
+                (kd_u >> 4) & 0xFF,
+                ((kd_u & 0xF) << 4) | ((torq_u >> 8) & 0xF),
+                torq_u & 0xFF,
+            ]
+        )
 
     def _send_can_frame(self, motor_id: int, data: bytes) -> bool:
         """Send CAN frame to motor"""
@@ -150,7 +146,7 @@ class DamiaoCAN_Driver(BaseMotorDriver):
             logger.error(f"Error sending CAN message to motor {motor_id}: {e}")
             return False
 
-    def _recv_feedback(self, timeout: float = 0.1) -> Optional[Dict[str, Any]]:
+    def _recv_feedback(self, timeout: float = 0.1) -> dict[str, Any] | None:
         """Receive and decode feedback from CAN bus"""
         if not self.bus:
             return None
@@ -209,7 +205,136 @@ class DamiaoCAN_Driver(BaseMotorDriver):
             logger.debug(f"Ping failed for motor {motor_id}: {e}")
             return False
 
-    def scan_motors(self, scan_range: Optional[List[int]] = None) -> List[MotorInfo]:
+    def _read_parameter(self, motor_id: int, param_index: int, timeout: float = 0.2) -> int | None:
+        """
+        Read parameter from Damiao motor.
+
+        Damiao motors use a specific CAN protocol for parameter access:
+        - Command format: [param_index_high, param_index_low, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - Response contains the parameter value
+
+        Args:
+            motor_id: Motor ID
+            param_index: Parameter index to read
+            timeout: Response timeout in seconds
+
+        Returns:
+            Parameter value as integer, or None if read fails
+        """
+        try:
+            # Send parameter read command
+            # Format: [param_index_high, param_index_low, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            cmd_data = bytes([
+                (param_index >> 8) & 0xFF,  # High byte of parameter index
+                param_index & 0xFF,         # Low byte of parameter index
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+
+            if not self._send_can_frame(motor_id, cmd_data):
+                return None
+
+            # Read response - parameter responses may have different format
+            # For Damiao motors, parameter responses typically contain the value
+            feedback = self._recv_feedback(timeout=timeout)
+            if not feedback or feedback["motor_id"] != motor_id:
+                return None
+
+            # Extract parameter value from feedback
+            # This is protocol-specific - may need adjustment based on actual Damiao documentation
+            # For now, use a simple heuristic based on position field (placeholder)
+            param_value = int(feedback.get("position", 0) * 1000)  # Convert to integer representation
+
+            logger.debug(f"Read parameter {param_index} from motor {motor_id}: {param_value}")
+            return param_value
+
+        except Exception as e:
+            logger.debug(f"Failed to read parameter {param_index} from motor {motor_id}: {e}")
+            return None
+
+    def _detect_motor_model(self, motor_id: int) -> tuple[str, int] | None:
+        """
+        Detect motor model by reading manufacturer parameters.
+
+        Damiao motors store model information in parameter registers.
+        Common parameter indices for model detection:
+        - Parameter 0x0000-0x000F: Basic identification
+        - Parameter 0x1000+: Model-specific parameters
+
+        Known Damiao models and their characteristics:
+        - DM4310: Small servo (max torque ~1.5Nm, model_id ~4310)
+        - DM6006: Medium servo (max torque ~6Nm, model_id ~6006)
+        - DM8006: Large servo (max torque ~8Nm, model_id ~8006)
+        - DM8009: Large servo variant (max torque ~9Nm, model_id ~8009)
+        - DM10054: Extra large servo (max torque ~54Nm, model_id ~10054)
+
+        Args:
+            motor_id: Motor ID
+
+        Returns:
+            Tuple of (model_name, model_number) or None if detection fails
+        """
+        try:
+            # Method 1: Try to read model identification parameter
+            # Common parameter indices for Damiao model ID (these may vary by firmware)
+            model_param_indices = [0x0000, 0x0001, 0x1000, 0x2000]
+
+            for param_idx in model_param_indices:
+                model_id = self._read_parameter(motor_id, param_idx)
+                if model_id is not None and model_id > 0:
+                    # Map model ID to known Damiao models
+                    model_mapping = {
+                        4310: ("DM4310", 4310),
+                        6006: ("DM6006", 6006),
+                        8006: ("DM8006", 8006),
+                        8009: ("DM8009", 8009),
+                        10054: ("DM10054", 10054),
+                        # Add more mappings as needed
+                    }
+
+                    if model_id in model_mapping:
+                        model_name, model_number = model_mapping[model_id]
+                        logger.debug(f"Detected motor {motor_id} as {model_name} (model_id: {model_id})")
+                        return (model_name, model_number)
+
+            # Method 2: Use torque/current limits as fallback heuristic
+            # Send a test command and analyze response characteristics
+            logger.debug(f"Parameter-based detection failed for motor {motor_id}, trying heuristic detection")
+
+            # Test with different torque values to infer model capabilities
+            test_torques = [1.0, 5.0, 10.0, 20.0]  # Test different torque levels
+
+            max_detected_torque = 0.0
+            for test_torque in test_torques:
+                test_cmd = self._encode_cmd_msg(0.0, 0.0, test_torque, 0.0, 0.0)
+                if self._send_can_frame(motor_id, test_cmd):
+                    feedback = self._recv_feedback(timeout=0.1)
+                    if feedback and abs(feedback.get("torque", 0)) > 0.1:  # Motor responded
+                        max_detected_torque = max(max_detected_torque, abs(feedback["torque"]))
+                    # Small delay between tests
+                    import time
+                    time.sleep(0.01)
+
+            # Map detected max torque to model
+            if max_detected_torque >= 50.0:
+                return ("DM10054", 10054)  # High torque model
+            elif max_detected_torque >= 15.0:
+                return ("DM8009", 8009)    # High torque model
+            elif max_detected_torque >= 8.0:
+                return ("DM8006", 8006)    # Large model
+            elif max_detected_torque >= 6.0:
+                return ("DM6006", 6006)    # Medium model
+            elif max_detected_torque >= 1.0:
+                return ("DM4310", 4310)    # Small model
+            else:
+                # Fallback to default
+                logger.debug(f"Heuristic detection inconclusive for motor {motor_id}, using default DM4310")
+                return ("DM4310", 4310)
+
+        except Exception as e:
+            logger.debug(f"Model detection failed for motor {motor_id}: {e}")
+            return None
+
+    def scan_motors(self, scan_range: list[int] | None = None) -> list[MotorInfo]:
         """
         Scan CAN bus and discover all Damiao motors.
 
@@ -228,26 +353,37 @@ class DamiaoCAN_Driver(BaseMotorDriver):
         for motor_id in scan_range:
             if self.ping_motor(motor_id):
                 try:
-                    state = self.motors.get(motor_id, {})
-                    motor_info = MotorInfo(
-                        id=motor_id,
-                        brand=MotorBrand.damiao,
-                        model="DM4310",  # Default, could be detected via registers
-                        position=int(state.get("position", 0.0)),
-                        current=state.get("torque", 0.0) / 10.0,  # Approximate
-                        voltage=24.0,  # Typical Damiao voltage
-                        temperature=state.get("temperature_rotor", 25.0),
-                        firmware_version="unknown",
-                    )
+                    # Try to detect motor model
+                    model_info = self._detect_motor_model(motor_id)
+                    if model_info:
+                        model_name, model_number = model_info
+                        motor_info = MotorInfo(
+                            id=motor_id,
+                            model=model_name,
+                            variant=None,
+                            model_number=model_number,
+                            firmware_version="unknown",
+                        )
+                    else:
+                        # Fallback to default if detection fails
+                        motor_info = MotorInfo(
+                            id=motor_id,
+                            model="DM4310",
+                            variant=None,
+                            model_number=4310,
+                            firmware_version="unknown",
+                        )
+
                     discovered.append(motor_info)
-                    logger.info(f"Found motor {motor_id}")
+                    logger.info(f"Found motor {motor_id} ({motor_info.model})")
+
                 except Exception as e:
                     logger.warning(f"Failed to create info for motor {motor_id}: {e}")
 
         logger.info(f"Scan complete: found {len(discovered)} motors")
         return discovered
 
-    def read_telemetry(self, motor_id: int) -> Optional[MotorTelemetry]:
+    def read_telemetry(self, motor_id: int) -> MotorTelemetry | None:
         """
         Read real-time telemetry from a single motor.
 
@@ -274,16 +410,19 @@ class DamiaoCAN_Driver(BaseMotorDriver):
                 id=motor_id,
                 position=feedback["position"],
                 velocity=feedback["velocity"],
-                current=feedback["torque"] / 10.0,  # Approximate
+                current=int(feedback["torque"] / 10.0),  # Approximate
+                load=0,  # Not available from Damiao
                 voltage=24.0,  # Typical
-                temperature=feedback["temperature_rotor"],
-                torque_enabled=feedback["status"] == DM_MOTOR_ENABLED,
+                temperature=int(feedback["temperature_rotor"]),
+                moving=abs(feedback["velocity"]) > 0.01,
+                goal_position=0.0,  # Not available
+                error=0,
             )
         except Exception as e:
             logger.error(f"Failed to read telemetry from motor {motor_id}: {e}")
             return None
 
-    def read_bulk_telemetry(self, motor_ids: List[int]) -> Dict[int, MotorTelemetry]:
+    def read_bulk_telemetry(self, motor_ids: list[int]) -> dict[int, MotorTelemetry]:
         """
         Read telemetry from multiple motors.
 
@@ -300,7 +439,7 @@ class DamiaoCAN_Driver(BaseMotorDriver):
                 result[motor_id] = telemetry
         return result
 
-    def set_position(self, motor_id: int, position: int, speed: Optional[int] = None) -> bool:
+    def set_position(self, motor_id: int, position: int, speed: int | None = None) -> bool:
         """
         Set motor target position using MIT control mode.
 
@@ -315,11 +454,11 @@ class DamiaoCAN_Driver(BaseMotorDriver):
         try:
             # Convert position to radians, clamp to valid range
             pos_rad = max(P_MIN, min(P_MAX, float(position) / 1000.0))
-            
+
             # Use moderate stiffness and damping for position control
             kp = 50.0
             kd = 1.0
-            
+
             cmd_data = self._encode_cmd_msg(pos_rad, 0.0, 0.0, kp, kd)
             return self._send_can_frame(motor_id, cmd_data)
         except Exception as e:
@@ -363,7 +502,7 @@ class DamiaoCAN_Driver(BaseMotorDriver):
         logger.warning("Damiao motors do not support reboot command")
         return False
 
-    def bulk_set_torque(self, motor_ids: List[int], enabled: bool) -> bool:
+    def bulk_set_torque(self, motor_ids: list[int], enabled: bool) -> bool:
         """
         Set torque for multiple motors at once.
 

@@ -7,11 +7,10 @@ Directly implements SCS protocol without external SDK dependencies.
 
 import logging
 import time
-from typing import List, Dict, Optional
 
 import serial
 
-from leropilot.models.hardware import MotorInfo, MotorTelemetry, MotorBrand
+from leropilot.models.hardware import MotorInfo, MotorTelemetry
 from leropilot.services.hardware.drivers.base import BaseMotorDriver
 
 logger = logging.getLogger(__name__)
@@ -39,40 +38,34 @@ PROTOCOL_END = 0  # Little-endian
 # Format: model_number: (base_model, variant)
 MODEL_NAMES = {
     # Standard models (mappings from LeRobot and Feetech docs)
-    0x0309: ("STS3215", None),   # 777
+    0x0309: ("STS3215", None),  # 777
     0x0504: ("SCS0009", None),  # 1284
-    0x0600: ("SCS09", None),    # 1536
-    0x0700: ("SCS15", None),    # 1792
-    0x0800: ("SCS20", None),    # 2048
-    0x0A00: ("SCS25", None),    # 2560
-    0x0C00: ("SCS30", None),    # 3072
-    0x0E00: ("SCS35", None),    # 3584
-    0x1000: ("SCS40", None),    # 4096
+    0x0600: ("SCS09", None),  # 1536
+    0x0700: ("SCS15", None),  # 1792
+    0x0800: ("SCS20", None),  # 2048
+    0x0A00: ("SCS25", None),  # 2560
+    0x0C00: ("SCS30", None),  # 3072
+    0x0E00: ("SCS35", None),  # 3584
+    0x1000: ("SCS40", None),  # 4096
     0x0609: ("STS3215", None),  # 1545
     0x0C8F: ("STS3215", None),  # 3215
     0x0909: ("STS3250", None),  # 2313
     0x0B09: ("STS3250", None),  # 2825
-    0x2C08: ("SM8512BL", None), # 11272
-    
+    0x2C08: ("SM8512BL", None),  # 11272
     # SO-101 specific variants (C001, C044, C046)
     0xC001: ("STS3215", "C001"),
     0xC044: ("STS3215", "C044"),
     0xC046: ("STS3215", "C046"),
-    
     # Legacy/Other mappings
     0x0E: ("SCS0009", None),
     0x00: ("STS3215", None),
-    
-    # Decimal fallbacks for safety
-    777: ("STS3215", None),
-    1284: ("SCS0009", None),
 }
 
 
 class FeetechDriver(BaseMotorDriver):
     """Driver for Feetech SCS servo motors using raw serial communication"""
 
-    def __init__(self, interface: str, baud_rate: int = 1000000):
+    def __init__(self, interface: str, baud_rate: int = 1000000) -> None:
         """
         Initialize Feetech driver.
 
@@ -81,15 +74,13 @@ class FeetechDriver(BaseMotorDriver):
             baud_rate: Serial baud rate (default: 1000000)
         """
         super().__init__(interface, baud_rate)
-        self.serial_port: Optional[serial.Serial] = None
+        self.serial_port: serial.Serial | None = None
         self.connected = False
 
     def connect(self) -> bool:
         """Connect to motor bus via serial port"""
         try:
-            self.serial_port = serial.Serial(
-                self.interface, self.baud_rate, timeout=0.05
-            )
+            self.serial_port = serial.Serial(self.interface, self.baud_rate, timeout=0.05)
             self.connected = True
             logger.info(f"Connected to Feetech motor bus on {self.interface} @ {self.baud_rate} baud")
             return True
@@ -107,51 +98,51 @@ class FeetechDriver(BaseMotorDriver):
             return True
         return False
 
-    def _read_packet(self, motor_id: int, expected_data_len: int) -> Optional[bytes]:
+    def _read_packet(self, motor_id: int, expected_data_len: int) -> bytes | None:
         """
         Read and validate a Feetech response packet.
-        
+
         Args:
             motor_id: Expected motor ID
             expected_data_len: Expected number of data bytes (excluding Error byte)
-            
+
         Returns:
             Validated packet bytes or None
         """
         if not self.serial_port:
             return None
-            
+
         # Read a chunk of data
         resp = self.serial_port.read(64)
         if not resp:
             return None
-            
+
         # Find header 0xFF 0xFF ID
         header_idx = -1
         for i in range(len(resp) - 5):
-            if resp[i] == 0xFF and resp[i+1] == 0xFF and resp[i+2] == motor_id:
+            if resp[i] == 0xFF and resp[i + 1] == 0xFF and resp[i + 2] == motor_id:
                 header_idx = i
                 break
-                
+
         if header_idx == -1:
             return None
-            
+
         resp = resp[header_idx:]
-        
+
         # Expected total length: Header(2) + ID(1) + Length(1) + Error(1) + Data(N) + Checksum(1)
         # Total = 6 + N
         expected_total_len = 6 + expected_data_len
-        
+
         if len(resp) < expected_total_len:
             # Try to read more if needed
             remaining = expected_total_len - len(resp)
             resp += self.serial_port.read(remaining)
-            
+
         if len(resp) < expected_total_len:
             return None
-            
+
         packet = resp[:expected_total_len]
-        
+
         # Validate Checksum
         # Checksum = ~(ID + Length + Error + Params...) & 0xFF
         cs_sum = sum(packet[2:-1])
@@ -159,7 +150,7 @@ class FeetechDriver(BaseMotorDriver):
         if packet[-1] != calculated_cs:
             logger.debug(f"Checksum mismatch for motor {motor_id}: expected {calculated_cs:02X}, got {packet[-1]:02X}")
             return None
-            
+
         return packet
 
     def _feetech_read(self, motor_id: int, addr: int, length: int) -> bytes | None:
@@ -181,21 +172,24 @@ class FeetechDriver(BaseMotorDriver):
         packet_length = 4
         instruction = 0x02  # READ instruction
         checksum = (~(motor_id + packet_length + instruction + addr + length)) & 0xFF
-        packet = bytes([
-            0xFF, 0xFF,  # Header
-            motor_id,    # Motor ID
-            packet_length,  # Packet length
-            instruction,    # Instruction
-            addr,          # Address
-            length,        # Length
-            checksum       # Checksum
-        ])
+        packet = bytes(
+            [
+                0xFF,
+                0xFF,  # Header
+                motor_id,  # Motor ID
+                packet_length,  # Packet length
+                instruction,  # Instruction
+                addr,  # Address
+                length,  # Length
+                checksum,  # Checksum
+            ]
+        )
 
         try:
             self.serial_port.reset_input_buffer()
             self.serial_port.write(packet)
             time.sleep(0.02)  # Wait for response
-            
+
             return self._read_packet(motor_id, length)
         except Exception as e:
             logger.debug(f"Read failed for motor {motor_id}: {e}")
@@ -213,7 +207,7 @@ class FeetechDriver(BaseMotorDriver):
         """
         return self._ping_motor_direct(motor_id)
 
-    def read_telemetry(self, motor_id: int) -> Optional[MotorTelemetry]:
+    def read_telemetry(self, motor_id: int) -> MotorTelemetry | None:
         """
         Read real-time telemetry from a single motor.
 
@@ -296,13 +290,14 @@ class FeetechDriver(BaseMotorDriver):
                 voltage=float(voltage),
                 moving=moving,
                 goal_position=float(goal_position),
+                error=0,
             )
 
         except Exception as e:
             logger.error(f"Failed to read telemetry from motor {motor_id}: {e}")
             return None
 
-    def read_bulk_telemetry(self, motor_ids: List[int]) -> Dict[int, MotorTelemetry]:
+    def read_bulk_telemetry(self, motor_ids: list[int]) -> dict[int, MotorTelemetry]:
         """
         Read telemetry from multiple motors efficiently.
 
@@ -319,7 +314,7 @@ class FeetechDriver(BaseMotorDriver):
                 result[motor_id] = telemetry
         return result
 
-    def scan_motors(self, scan_range: Optional[List[int]] = None) -> List[MotorInfo]:
+    def scan_motors(self, scan_range: list[int] | None = None) -> list[MotorInfo]:
         """
         Scan motor bus and discover all motors.
 
@@ -399,7 +394,7 @@ class FeetechDriver(BaseMotorDriver):
         # STS3032 Torque Enable address is 40 (0x28)
         return self._feetech_write(motor_id, ADDR_TORQUE_ENABLE, 1 if enabled else 0, 1)
 
-    def bulk_set_torque(self, motor_ids: List[int], enabled: bool) -> bool:
+    def bulk_set_torque(self, motor_ids: list[int], enabled: bool) -> bool:
         """
         Set torque for multiple motors at once.
 
@@ -428,12 +423,12 @@ class FeetechDriver(BaseMotorDriver):
         """
         if not self.serial_port or not self.connected:
             return False
-            
+
         # Feetech reboot instruction is 0x08
         packet = [0xFF, 0xFF, motor_id, 0x02, 0x08]
         checksum = ~(sum(packet[2:]) & 0xFF) & 0xFF
         packet.append(checksum)
-        
+
         try:
             self.serial_port.write(bytearray(packet))
             time.sleep(0.5)  # Wait for reboot
@@ -442,7 +437,7 @@ class FeetechDriver(BaseMotorDriver):
             logger.error(f"Error rebooting motor {motor_id}: {e}")
             return False
 
-    def set_position(self, motor_id: int, position: int, speed: Optional[int] = None) -> bool:
+    def set_position(self, motor_id: int, position: int, speed: int | None = None) -> bool:
         """
         Set motor target position.
 
@@ -498,7 +493,7 @@ class FeetechDriver(BaseMotorDriver):
         # Construct WRITE packet
         packet_length = 3 + length
         instruction = 0x03  # WRITE instruction
-        
+
         params = []
         params.append(addr)
         if length == 1:
@@ -506,9 +501,9 @@ class FeetechDriver(BaseMotorDriver):
         else:
             params.append(value & 0xFF)
             params.append((value >> 8) & 0xFF)
-            
+
         checksum = (~(motor_id + packet_length + instruction + sum(params))) & 0xFF
-        
+
         packet = [0xFF, 0xFF, motor_id, packet_length, instruction] + params + [checksum]
 
         try:
@@ -536,19 +531,22 @@ class FeetechDriver(BaseMotorDriver):
         length = 2
         instruction = 0x01  # PING instruction
         checksum = (~(motor_id + length + instruction)) & 0xFF
-        packet = bytes([
-            0xFF, 0xFF,  # Header
-            motor_id,    # Motor ID
-            length,      # Packet length
-            instruction, # Instruction
-            checksum     # Checksum
-        ])
+        packet = bytes(
+            [
+                0xFF,
+                0xFF,  # Header
+                motor_id,  # Motor ID
+                length,  # Packet length
+                instruction,  # Instruction
+                checksum,  # Checksum
+            ]
+        )
 
         try:
             self.serial_port.reset_input_buffer()
             self.serial_port.write(packet)
             time.sleep(0.02)  # Wait for response
-            
+
             # PING response has 0 data bytes
             resp = self._read_packet(motor_id, 0)
             return resp is not None

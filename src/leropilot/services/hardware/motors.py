@@ -13,26 +13,25 @@ High-level service for:
 Orchestrates driver layer (Feetech, Dynamixel, Damiao) without exposing protocol details.
 """
 
-import logging
-import json
 import importlib.resources
-from typing import List, Dict, Optional, Tuple
+import json
+import logging
 
 from leropilot.models.hardware import (
-    MotorInfo,
-    MotorTelemetry,
-    MotorBrand,
     InterfaceType,
-    ProbeConnectionResult,
-    MotorScanResult,
+    MotorBrand,
+    MotorInfo,
     MotorProtectionParams,
-    ProtectionViolation,
+    MotorScanResult,
+    MotorTelemetry,
+    ProbeConnectionResult,
     ProtectionStatus,
+    ProtectionViolation,
 )
 from leropilot.services.hardware.drivers.base import BaseMotorDriver
-from leropilot.services.hardware.drivers.feetech import FeetechDriver
-from leropilot.services.hardware.drivers.dynamixel import DynamixelDriver
 from leropilot.services.hardware.drivers.damiao import DamiaoCAN_Driver
+from leropilot.services.hardware.drivers.dynamixel import DynamixelDriver
+from leropilot.services.hardware.drivers.feetech import FeetechDriver
 from leropilot.services.hardware.robot_config import RobotConfigService
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ STANDARD_CAN_BITRATES = [1000000, 500000, 250000]
 class MotorService:
     """
     High-level service for motor bus operations and protection monitoring.
-    
+
     Handles:
     - Protocol negotiation and driver selection
     - Motor scanning and control
@@ -55,11 +54,11 @@ class MotorService:
     - Violation detection
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize motor service and load motor specs"""
         self.robot_config = RobotConfigService()
         # Cache stores raw spec data including model_ids
-        self._specs_cache: Dict[str, Dict[str, Dict]] = {}
+        self._specs_cache: dict[str, dict[str, dict]] = {}
         self._load_motor_specs()
         logger.info("MotorService initialized")
 
@@ -73,151 +72,132 @@ class MotorService:
             # Use importlib.resources for robust resource loading
             resource_files = importlib.resources.files("leropilot.resources")
             specs_file = resource_files.joinpath("motor_specs.json")
-            
+
             with specs_file.open("r", encoding="utf-8") as f:
                 specs_data = json.load(f)
-            
+
             # Store raw data to preserve model_ids for lookup
             for brand, models in specs_data.items():
                 self._specs_cache[brand] = {}
                 for model_name, params in models.items():
                     self._specs_cache[brand][model_name] = params
-            
+
             logger.info(f"Loaded motor specs for {len(self._specs_cache)} brands")
         except Exception as e:
             logger.error(f"Error loading motor specs: {e}")
 
-    def get_motor_specs(self, brand: str, model: str) -> Optional[MotorProtectionParams]:
+    def get_motor_specs(self, brand: str, model: str) -> MotorProtectionParams | None:
         """
         Get built-in protection parameters for a motor model.
-        
+
         Args:
             brand: Motor brand (dynamixel, feetech, damiao)
             model: Motor model name (e.g., XL330-M077)
-        
+
         Returns:
             MotorProtectionParams if found, None otherwise
         """
         brand_lower = brand.lower()
         if brand_lower not in self._specs_cache:
             return None
-        
+
         spec_data = self._specs_cache[brand_lower].get(model)
         if spec_data:
             return MotorProtectionParams(**spec_data)
         return None
 
-    def get_spec_by_model_id(self, brand: str, model_id: int) -> Optional[Tuple[str, MotorProtectionParams]]:
+    def get_spec_by_model_id(self, brand: str, model_id: int) -> tuple[str, MotorProtectionParams] | None:
         """
         Look up motor specs by numeric model ID.
-        
+
         Args:
             brand: Motor brand
             model_id: Numeric model ID from motor scan
-        
+
         Returns:
             Tuple of (model_name, MotorProtectionParams) if found, None otherwise
         """
         brand_lower = brand.lower()
         if brand_lower not in self._specs_cache:
             return None
-        
+
         for model_name, spec_data in self._specs_cache[brand_lower].items():
             params = MotorProtectionParams(**spec_data)
             if model_id in params.model_ids:
                 return (model_name, params)
-        
+
         return None
 
     def get_protection_params(
-        self,
-        brand: str,
-        model: str,
-        user_overrides: Optional[Dict[str, float]] = None
-    ) -> Optional[MotorProtectionParams]:
+        self, brand: str, model: str, user_overrides: dict[str, float] | None = None
+    ) -> MotorProtectionParams | None:
         """
         Get effective protection parameters with user overrides applied.
-        
+
         Args:
             brand: Motor brand
             model: Motor model name
             user_overrides: Optional user-defined parameter overrides
-        
+
         Returns:
             MotorProtectionParams with overrides applied, or None if model not found
         """
         builtin_specs = self.get_motor_specs(brand, model)
         if not builtin_specs:
             return None
-        
+
         if not user_overrides:
             return builtin_specs
-        
+
         # Apply overrides
         params_dict = builtin_specs.model_dump()
         params_dict.update(user_overrides)
-        
+
         return MotorProtectionParams(**params_dict)
 
-    def check_violations(
-        self,
-        params: MotorProtectionParams,
-        telemetry: MotorTelemetry
-    ) -> ProtectionStatus:
+    def check_violations(self, params: MotorProtectionParams, telemetry: MotorTelemetry) -> ProtectionStatus:
         """
         Check telemetry data for protection parameter violations.
-        
+
         Args:
             params: Motor protection parameters
             telemetry: Current motor telemetry data
-        
+
         Returns:
             ProtectionStatus with violations list
         """
-        violations: List[ProtectionViolation] = []
-        
+        violations: list[ProtectionViolation] = []
+
         # Check temperature
         if telemetry.temperature >= params.temp_critical:
-            violations.append(ProtectionViolation(
-                type="temp_critical",
-                value=telemetry.temperature,
-                limit=params.temp_critical
-            ))
+            violations.append(
+                ProtectionViolation(type="temp_critical", value=telemetry.temperature, limit=params.temp_critical)
+            )
         elif telemetry.temperature >= params.temp_warning:
-            violations.append(ProtectionViolation(
-                type="temp_warning",
-                value=telemetry.temperature,
-                limit=params.temp_warning
-            ))
-        
+            violations.append(
+                ProtectionViolation(type="temp_warning", value=telemetry.temperature, limit=params.temp_warning)
+            )
+
         # Check voltage
         if telemetry.voltage < params.voltage_min:
-            violations.append(ProtectionViolation(
-                type="voltage_low",
-                value=telemetry.voltage,
-                limit=params.voltage_min
-            ))
+            violations.append(
+                ProtectionViolation(type="voltage_low", value=telemetry.voltage, limit=params.voltage_min)
+            )
         elif telemetry.voltage > params.voltage_max:
-            violations.append(ProtectionViolation(
-                type="voltage_high",
-                value=telemetry.voltage,
-                limit=params.voltage_max
-            ))
-        
+            violations.append(
+                ProtectionViolation(type="voltage_high", value=telemetry.voltage, limit=params.voltage_max)
+            )
+
         # Check current
         if telemetry.current > params.current_peak:
-            violations.append(ProtectionViolation(
-                type="current_peak_exceeded",
-                value=telemetry.current,
-                limit=params.current_peak
-            ))
+            violations.append(
+                ProtectionViolation(type="current_peak_exceeded", value=telemetry.current, limit=params.current_peak)
+            )
         elif telemetry.current > params.current_max:
-            violations.append(ProtectionViolation(
-                type="current_max_exceeded",
-                value=telemetry.current,
-                limit=params.current_max
-            ))
-        
+            violations.append(
+                ProtectionViolation(type="current_max_exceeded", value=telemetry.current, limit=params.current_max)
+            )
+
         # Determine overall status
         if any(v.type in ["temp_critical", "voltage_low", "voltage_high", "current_peak_exceeded"] for v in violations):
             status = "critical"
@@ -225,16 +205,16 @@ class MotorService:
             status = "warning"
         else:
             status = "ok"
-        
+
         return ProtectionStatus(status=status, violations=violations)
 
-    def list_supported_motors(self, brand: Optional[str] = None) -> Dict[str, List[str]]:
+    def list_supported_motors(self, brand: str | None = None) -> dict[str, list[str]]:
         """
         List all supported motor models.
-        
+
         Args:
             brand: Optional brand filter
-        
+
         Returns:
             Dictionary mapping brand to list of model names
         """
@@ -243,11 +223,8 @@ class MotorService:
             if brand_lower in self._specs_cache:
                 return {brand_lower: list(self._specs_cache[brand_lower].keys())}
             return {}
-        
-        return {
-            brand: list(models.keys())
-            for brand, models in self._specs_cache.items()
-        }
+
+        return {brand: list(models.keys()) for brand, models in self._specs_cache.items()}
 
     # ============================================================================
     # Connection Probing and Motor Discovery
@@ -257,9 +234,9 @@ class MotorService:
         self,
         interface: str,
         interface_type: str = "serial",
-        probe_baud_list: Optional[List[int]] = None,
-        probe_motor_ids: Optional[List[int]] = None,
-    ) -> Optional[ProbeConnectionResult]:
+        probe_baud_list: list[int] | None = None,
+        probe_motor_ids: list[int] | None = None,
+    ) -> ProbeConnectionResult | None:
         """
         Probe a communication interface to detect motor brand and parameters.
 
@@ -294,9 +271,7 @@ class MotorService:
         logger.error(f"Unknown interface type: {interface_type}")
         return None
 
-    def _probe_serial_port(
-        self, port: str, baud_list: List[int], motor_ids: List[int]
-    ) -> Optional[ProbeConnectionResult]:
+    def _probe_serial_port(self, port: str, baud_list: list[int], motor_ids: list[int]) -> ProbeConnectionResult | None:
         """Probe a serial port for motors"""
         for baud_rate in baud_list:
             # Try Dynamixel first (most common in robotic arms)
@@ -309,7 +284,7 @@ class MotorService:
                     brand=MotorBrand.DYNAMIXEL,
                     baud_rate=baud_rate,
                     discovered_motors=motors,
-                    suggested_robots=self.robot_config.suggest_robots(MotorBrand.DYNAMIXEL, motors)
+                    suggested_robots=self.robot_config.suggest_robots(MotorBrand.DYNAMIXEL, motors),
                 )
 
             # Try Feetech
@@ -322,15 +297,15 @@ class MotorService:
                     brand=MotorBrand.FEETECH,
                     baud_rate=baud_rate,
                     discovered_motors=motors,
-                    suggested_robots=self.robot_config.suggest_robots(MotorBrand.FEETECH, motors)
+                    suggested_robots=self.robot_config.suggest_robots(MotorBrand.FEETECH, motors),
                 )
 
         logger.warning(f"No motors detected on port {port}")
         return None
 
     def _probe_can_interface(
-        self, interface: str, interface_type: str, motor_ids: List[int]
-    ) -> Optional[ProbeConnectionResult]:
+        self, interface: str, interface_type: str, motor_ids: list[int]
+    ) -> ProbeConnectionResult | None:
         """Probe a CAN interface for Damiao motors"""
         for bitrate in STANDARD_CAN_BITRATES:
             motors = self._try_driver(DamiaoCAN_Driver, interface, bitrate, motor_ids)
@@ -342,7 +317,7 @@ class MotorService:
                     brand=MotorBrand.DAMIAO,
                     baud_rate=bitrate,
                     discovered_motors=motors,
-                    suggested_robots=self.robot_config.suggest_robots(MotorBrand.DAMIAO, motors)
+                    suggested_robots=self.robot_config.suggest_robots(MotorBrand.DAMIAO, motors),
                 )
 
         logger.warning(f"No motors detected on CAN interface {interface}")
@@ -350,8 +325,11 @@ class MotorService:
 
     @staticmethod
     def _try_driver(
-        driver_class, interface: str, rate: int, motor_ids: List[int]
-    ) -> Optional[List[MotorInfo]]:
+        driver_class: type[BaseMotorDriver],
+        interface: str,
+        rate: int,
+        motor_ids: list[int],
+    ) -> list[MotorInfo] | None:
         """
         Try to connect with a driver and detect motors.
 
@@ -384,7 +362,7 @@ class MotorService:
         brand: str,
         interface_type: str = "serial",
         baud_rate: int = 1000000,
-    ) -> Optional[BaseMotorDriver]:
+    ) -> BaseMotorDriver | None:
         """
         Create and connect a motor driver.
 
@@ -398,6 +376,7 @@ class MotorService:
             Connected driver instance or None if connection failed
         """
         try:
+            driver: BaseMotorDriver
             if brand.lower() == "dynamixel":
                 driver = DynamixelDriver(interface, baud_rate)
             elif brand.lower() == "feetech":
@@ -424,7 +403,7 @@ class MotorService:
         brand: str,
         interface_type: str = "serial",
         baud_rate: int = 1000000,
-        scan_range: Optional[List[int]] = None,
+        scan_range: list[int] | None = None,
     ) -> MotorScanResult:
         """
         Scan motor bus and discover all connected motors.
@@ -448,18 +427,17 @@ class MotorService:
 
         try:
             import time
+
             start_time = time.time()
             discovered = driver.scan_motors(scan_range)
             scan_duration_ms = (time.time() - start_time) * 1000
-            
+
             # Get suggested robots based on discovered motors
             suggested = self.robot_config.suggest_robots(MotorBrand(brand.lower()), discovered)
-            
+
             logger.info(f"Scan complete: found {len(discovered)} motors in {scan_duration_ms:.0f}ms")
             return MotorScanResult(
-                motors=discovered, 
-                scan_duration_ms=scan_duration_ms,
-                suggested_robots=suggested if suggested else None
+                motors=discovered, scan_duration_ms=scan_duration_ms, suggested_robots=suggested if suggested else None
             )
         finally:
             driver.disconnect()
@@ -472,7 +450,7 @@ class MotorService:
         self,
         driver: BaseMotorDriver,
         motor_id: int,
-    ) -> Optional[MotorTelemetry]:
+    ) -> MotorTelemetry | None:
         """
         Read telemetry from a single motor.
 
@@ -495,8 +473,8 @@ class MotorService:
         motor_id: int,
         brand: str,
         model: str,
-        user_overrides: Optional[Dict[str, float]] = None,
-    ) -> Optional[MotorTelemetry]:
+        user_overrides: dict[str, float] | None = None,
+    ) -> MotorTelemetry | None:
         """
         Read telemetry from a motor and check protection status.
 
@@ -513,19 +491,19 @@ class MotorService:
         telemetry = self.read_telemetry(driver, motor_id)
         if not telemetry:
             return None
-        
+
         # Get protection parameters
         params = self.get_protection_params(brand, model, user_overrides)
         if params:
             telemetry.protection_status = self.check_violations(params, telemetry)
-        
+
         return telemetry
 
     def read_bulk_telemetry(
         self,
         driver: BaseMotorDriver,
-        motor_ids: List[int],
-    ) -> Dict[int, MotorTelemetry]:
+        motor_ids: list[int],
+    ) -> dict[int, MotorTelemetry]:
         """
         Read telemetry from multiple motors efficiently.
 
@@ -551,7 +529,7 @@ class MotorService:
         driver: BaseMotorDriver,
         motor_id: int,
         position: int,
-        speed: Optional[int] = None,
+        speed: int | None = None,
     ) -> bool:
         """
         Set motor target position.
@@ -574,7 +552,7 @@ class MotorService:
     def bulk_set_position(
         self,
         driver: BaseMotorDriver,
-        positions: Dict[int, int],
+        positions: dict[int, int],
     ) -> bool:
         """
         Set positions for multiple motors.
@@ -622,7 +600,7 @@ class MotorService:
     def bulk_set_torque(
         self,
         driver: BaseMotorDriver,
-        motor_ids: List[int],
+        motor_ids: list[int],
         enabled: bool,
     ) -> bool:
         """
@@ -669,8 +647,8 @@ class MotorService:
 
     def validate_motor_configuration(
         self,
-        motor_infos: List[MotorInfo],
-    ) -> Tuple[bool, List[str]]:
+        motor_infos: list[MotorInfo],
+    ) -> tuple[bool, list[str]]:
         """
         Validate a list of discovered motors for consistency.
 

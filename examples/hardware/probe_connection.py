@@ -14,13 +14,14 @@ Example:
 
 import logging
 import sys
+
 from leropilot.services.hardware.motors import MotorService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     """Probe a serial port for connected motors"""
     if len(sys.argv) < 2:
         print("Usage: python probe_connection.py <port>")
@@ -40,7 +41,7 @@ def main():
         result = service.probe_connection(interface=port)
 
         if result:
-            print(f"✅ Motor Found!")
+            print("✅ Motor Found!")
             print(f"  Interface: {result.interface} ({result.interface_type})")
             print(f"  Brand: {result.brand}")
             print(f"  Baud Rate: {result.baud_rate}")

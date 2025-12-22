@@ -15,13 +15,14 @@ Example:
 
 import logging
 import sys
+
 from leropilot.services.hardware.motors import MotorService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     """Scan a motor bus and enumerate motor IDs"""
     if len(sys.argv) < 3:
         print("Usage: python motor_scan.py <port> <brand> [baud_rate]")
@@ -39,7 +40,7 @@ def main():
     service = MotorService()
 
     print("\n" + "=" * 60)
-    print(f"MOTOR BUS SCAN")
+    print("MOTOR BUS SCAN")
     print(f"Port: {port}")
     print(f"Brand: {brand}")
     print(f"Baud Rate: {baud_rate}")

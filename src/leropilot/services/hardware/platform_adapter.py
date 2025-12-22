@@ -16,25 +16,27 @@ import logging
 import platform
 import subprocess
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 # Try to import platform-specific libraries
 try:
     import serial.tools.list_ports
+
     HAS_PYSERIAL = True
 except ImportError:
     HAS_PYSERIAL = False
 
 try:
     import cv2
+
     HAS_OPENCV = True
 except ImportError:
     HAS_OPENCV = False
 
 try:
     import pyrealsense2 as rs
+
     HAS_REALSENSE = True
 except ImportError:
     HAS_REALSENSE = False
@@ -65,10 +67,10 @@ class SerialPortBackend(ABC):
     """Abstract base for platform-specific serial port discovery"""
 
     @abstractmethod
-    def discover_ports(self) -> List[Dict]:
+    def discover_ports(self) -> list[dict]:
         """
         Discover all serial ports.
-        
+
         Returns:
             List of dicts: {port, description, hwid, serial_number, manufacturer}
         """
@@ -78,7 +80,7 @@ class SerialPortBackend(ABC):
 class WindowsSerialBackend(SerialPortBackend):
     """Windows serial port discovery via COM ports"""
 
-    def discover_ports(self) -> List[Dict]:
+    def discover_ports(self) -> list[dict]:
         """Discover COM ports on Windows"""
         if not HAS_PYSERIAL:
             return []
@@ -115,7 +117,7 @@ class WindowsSerialBackend(SerialPortBackend):
 class UnixSerialBackend(SerialPortBackend):
     """Unix (macOS/Linux) serial port discovery"""
 
-    def discover_ports(self) -> List[Dict]:
+    def discover_ports(self) -> list[dict]:
         """Discover serial ports on macOS/Linux"""
         if not HAS_PYSERIAL:
             return []
@@ -153,12 +155,12 @@ class CameraBackend(ABC):
     """Abstract base for platform-specific camera discovery"""
 
     @abstractmethod
-    def discover_usb_cameras(self) -> List[Dict]:
+    def discover_usb_cameras(self) -> list[dict]:
         """Discover USB video class cameras"""
         pass
 
     @abstractmethod
-    def discover_realsense_cameras(self) -> List[Dict]:
+    def discover_realsense_cameras(self) -> list[dict]:
         """Discover RealSense depth cameras"""
         pass
 
@@ -166,7 +168,7 @@ class CameraBackend(ABC):
 class WindowsCameraBackend(CameraBackend):
     """Windows camera discovery using DirectShow via OpenCV"""
 
-    def discover_usb_cameras(self) -> List[Dict]:
+    def discover_usb_cameras(self) -> list[dict]:
         """Discover USB cameras on Windows (via DirectShow)"""
         if not HAS_OPENCV:
             return []
@@ -179,13 +181,15 @@ class WindowsCameraBackend(CameraBackend):
                 if cap.isOpened():
                     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    discovered.append({
-                        "index": index,
-                        "name": f"Camera {index}",
-                        "width": width,
-                        "height": height,
-                        "type": "USB",
-                    })
+                    discovered.append(
+                        {
+                            "index": index,
+                            "name": f"Camera {index}",
+                            "width": width,
+                            "height": height,
+                            "type": "USB",
+                        }
+                    )
                     logger.info(f"Windows: Found camera {index} ({width}x{height})")
                     cap.release()
 
@@ -195,7 +199,7 @@ class WindowsCameraBackend(CameraBackend):
             logger.error(f"Windows camera discovery error: {e}")
             return []
 
-    def discover_realsense_cameras(self) -> List[Dict]:
+    def discover_realsense_cameras(self) -> list[dict]:
         """Discover RealSense cameras on Windows"""
         if not HAS_REALSENSE:
             return []
@@ -206,12 +210,14 @@ class WindowsCameraBackend(CameraBackend):
             devices = context.query_devices()
 
             for device in devices:
-                discovered.append({
-                    "serial_number": device.get_info(rs.camera_info.serial_number),
-                    "name": device.get_info(rs.camera_info.name),
-                    "type": "RealSense",
-                    "firmware": device.get_info(rs.camera_info.firmware_version),
-                })
+                discovered.append(
+                    {
+                        "serial_number": device.get_info(rs.camera_info.serial_number),
+                        "name": device.get_info(rs.camera_info.name),
+                        "type": "RealSense",
+                        "firmware": device.get_info(rs.camera_info.firmware_version),
+                    }
+                )
                 logger.info(f"Windows: Found RealSense {discovered[-1]['name']}")
 
             logger.info(f"Windows: Found {len(discovered)} RealSense cameras")
@@ -224,7 +230,7 @@ class WindowsCameraBackend(CameraBackend):
 class UnixCameraBackend(CameraBackend):
     """Unix (macOS/Linux) camera discovery"""
 
-    def discover_usb_cameras(self) -> List[Dict]:
+    def discover_usb_cameras(self) -> list[dict]:
         """Discover USB cameras on macOS/Linux"""
         if not HAS_OPENCV:
             return []
@@ -236,13 +242,15 @@ class UnixCameraBackend(CameraBackend):
                 if cap.isOpened():
                     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    discovered.append({
-                        "index": index,
-                        "name": f"Camera {index}",
-                        "width": width,
-                        "height": height,
-                        "type": "USB",
-                    })
+                    discovered.append(
+                        {
+                            "index": index,
+                            "name": f"Camera {index}",
+                            "width": width,
+                            "height": height,
+                            "type": "USB",
+                        }
+                    )
                     logger.info(f"Unix: Found camera {index} ({width}x{height})")
                     cap.release()
 
@@ -252,7 +260,7 @@ class UnixCameraBackend(CameraBackend):
             logger.error(f"Unix camera discovery error: {e}")
             return []
 
-    def discover_realsense_cameras(self) -> List[Dict]:
+    def discover_realsense_cameras(self) -> list[dict]:
         """Discover RealSense cameras on Unix"""
         if not HAS_REALSENSE:
             return []
@@ -263,12 +271,14 @@ class UnixCameraBackend(CameraBackend):
             devices = context.query_devices()
 
             for device in devices:
-                discovered.append({
-                    "serial_number": device.get_info(rs.camera_info.serial_number),
-                    "name": device.get_info(rs.camera_info.name),
-                    "type": "RealSense",
-                    "firmware": device.get_info(rs.camera_info.firmware_version),
-                })
+                discovered.append(
+                    {
+                        "serial_number": device.get_info(rs.camera_info.serial_number),
+                        "name": device.get_info(rs.camera_info.name),
+                        "type": "RealSense",
+                        "firmware": device.get_info(rs.camera_info.firmware_version),
+                    }
+                )
                 logger.info(f"Unix: Found RealSense {discovered[-1]['name']}")
 
             logger.info(f"Unix: Found {len(discovered)} RealSense cameras")
@@ -282,7 +292,7 @@ class CANBackend(ABC):
     """Abstract base for platform-specific CAN interface discovery"""
 
     @abstractmethod
-    def discover_can_interfaces(self) -> List[Dict]:
+    def discover_can_interfaces(self) -> list[dict]:
         """Discover CAN interfaces"""
         pass
 
@@ -290,7 +300,7 @@ class CANBackend(ABC):
 class LinuxCANBackend(CANBackend):
     """Linux CAN interface discovery via SocketCAN"""
 
-    def discover_can_interfaces(self) -> List[Dict]:
+    def discover_can_interfaces(self) -> list[dict]:
         """Discover CAN interfaces on Linux (SocketCAN)"""
         discovered = []
         try:
@@ -312,11 +322,13 @@ class LinuxCANBackend(CANBackend):
                 if ":" in line:
                     interface = line.split(":")[0].strip()
                     state = "UP" if "UP" in line else "DOWN"
-                    discovered.append({
-                        "interface": interface,
-                        "state": state,
-                        "bitrate": 1000000,
-                    })
+                    discovered.append(
+                        {
+                            "interface": interface,
+                            "state": state,
+                            "bitrate": 1000000,
+                        }
+                    )
                     logger.info(f"Linux: Found CAN interface {interface} ({state})")
 
             logger.info(f"Linux: Found {len(discovered)} CAN interfaces")
@@ -329,7 +341,7 @@ class LinuxCANBackend(CANBackend):
 class WindowsCANBackend(CANBackend):
     """Windows CAN backend (via SLCAN adapters only)"""
 
-    def discover_can_interfaces(self) -> List[Dict]:
+    def discover_can_interfaces(self) -> list[dict]:
         """Windows doesn't have native CAN support; only SLCAN adapters appear as serial ports"""
         logger.debug("Windows: CAN support via SLCAN adapters only (discovered as serial ports)")
         return []
@@ -338,7 +350,7 @@ class WindowsCANBackend(CANBackend):
 class MacOSCANBackend(CANBackend):
     """macOS CAN backend (limited support)"""
 
-    def discover_can_interfaces(self) -> List[Dict]:
+    def discover_can_interfaces(self) -> list[dict]:
         """macOS: Limited native CAN support; SLCAN adapters appear as serial ports"""
         logger.debug("macOS: CAN support via SLCAN adapters only (discovered as serial ports)")
         return []
@@ -347,12 +359,12 @@ class MacOSCANBackend(CANBackend):
 class PlatformAdapter:
     """
     Unified platform adapter that delegates to platform-specific backends.
-    
+
     Services use this adapter instead of calling platform-specific code directly,
     ensuring clean separation of concerns and easy testing.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize adapter with platform-specific backends"""
         self.platform = PlatformDetector.get_platform()
         logger.info(f"PlatformAdapter initialized for {self.platform}")
@@ -371,16 +383,16 @@ class PlatformAdapter:
             self.camera_backend = UnixCameraBackend()
             self.can_backend = LinuxCANBackend()
 
-    def discover_serial_ports(self) -> List[Dict]:
+    def discover_serial_ports(self) -> list[dict]:
         """Discover all serial ports"""
         return self.serial_backend.discover_ports()
 
-    def discover_cameras(self) -> List[Dict]:
+    def discover_cameras(self) -> list[dict]:
         """Discover all cameras (USB + RealSense)"""
         usb_cameras = self.camera_backend.discover_usb_cameras()
         realsense_cameras = self.camera_backend.discover_realsense_cameras()
         return usb_cameras + realsense_cameras
 
-    def discover_can_interfaces(self) -> List[Dict]:
+    def discover_can_interfaces(self) -> list[dict]:
         """Discover all CAN interfaces (Linux only)"""
         return self.can_backend.discover_can_interfaces()

@@ -12,7 +12,8 @@ Works cross-platform (Windows/macOS/Linux).
 """
 
 import logging
-from typing import Optional, List, Dict, Generator
+from collections.abc import Generator
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Try to import camera libraries
 try:
     import cv2
+
     HAS_OPENCV = True
 except ImportError:
     HAS_OPENCV = False
@@ -27,6 +29,7 @@ except ImportError:
 
 try:
     import pyrealsense2 as rs
+
     HAS_REALSENSE = True
 except ImportError:
     HAS_REALSENSE = False
@@ -41,14 +44,14 @@ class CameraInfo:
         index: int,
         name: str,
         camera_type: str,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-        fps: Optional[int] = None,
-        serial_number: Optional[str] = None,
-        vid: Optional[str] = None,
-        pid: Optional[str] = None,
-        manufacturer: Optional[str] = None,
-    ):
+        width: int | None = None,
+        height: int | None = None,
+        fps: int | None = None,
+        serial_number: str | None = None,
+        vid: str | None = None,
+        pid: str | None = None,
+        manufacturer: str | None = None,
+    ) -> None:
         self.index = index
         self.name = name
         self.camera_type = camera_type  # "USB" or "RealSense"
@@ -60,7 +63,7 @@ class CameraInfo:
         self.pid = pid  # Product ID
         self.manufacturer = manufacturer  # Manufacturer name
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "index": self.index,
             "name": self.name,
@@ -78,7 +81,7 @@ class CameraInfo:
 class USBCamera:
     """Wrapper for USB video class cameras"""
 
-    def __init__(self, index: int, width: int = 640, height: int = 480, fps: int = 30):
+    def __init__(self, index: int, width: int = 640, height: int = 480, fps: int = 30) -> None:
         """
         Initialize USB camera.
 
@@ -92,7 +95,7 @@ class USBCamera:
         self.width = width
         self.height = height
         self.fps = fps
-        self.cap: Optional[cv2.VideoCapture] = None
+        self.cap: cv2.VideoCapture | None = None
         self.is_open = False
 
     def open(self) -> bool:
@@ -119,7 +122,7 @@ class USBCamera:
             logger.error(f"Error opening USB camera {self.index}: {e}")
             return False
 
-    def capture_frame(self) -> Optional[np.ndarray]:
+    def capture_frame(self) -> np.ndarray | None:
         """
         Capture single frame.
 
@@ -147,12 +150,14 @@ class USBCamera:
         self.is_open = False
         logger.info(f"Closed USB camera {self.index}")
 
-    def __enter__(self):
+    def __enter__(self) -> "USBCamera":
         """Context manager support"""
         self.open()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+    ) -> None:
         """Context manager cleanup"""
         self.close()
 
@@ -160,7 +165,7 @@ class USBCamera:
 class RealSenseCamera:
     """Wrapper for Intel RealSense depth cameras"""
 
-    def __init__(self, serial_number: Optional[str] = None, width: int = 640, height: int = 480, fps: int = 30):
+    def __init__(self, serial_number: str | None = None, width: int = 640, height: int = 480, fps: int = 30) -> None:
         """
         Initialize RealSense camera.
 
@@ -174,8 +179,8 @@ class RealSenseCamera:
         self.width = width
         self.height = height
         self.fps = fps
-        self.pipeline: Optional[rs.pipeline] = None
-        self.config: Optional[rs.config] = None
+        self.pipeline: rs.pipeline | None = None
+        self.config: rs.config | None = None
         self.is_open = False
 
     def open(self) -> bool:
@@ -206,7 +211,7 @@ class RealSenseCamera:
             logger.error(f"Error opening RealSense camera: {e}")
             return False
 
-    def capture_frame(self) -> Optional[Dict[str, np.ndarray]]:
+    def capture_frame(self) -> dict[str, np.ndarray] | None:
         """
         Capture frame from RealSense camera.
 
@@ -244,12 +249,14 @@ class RealSenseCamera:
         self.is_open = False
         logger.info(f"Closed RealSense camera {self.serial_number or 'default'}")
 
-    def __enter__(self):
+    def __enter__(self) -> "RealSenseCamera":
         """Context manager support"""
         self.open()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+    ) -> None:
         """Context manager cleanup"""
         self.close()
 
@@ -257,11 +264,11 @@ class RealSenseCamera:
 class CameraService:
     """High-level camera management service"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize camera service"""
         logger.info("CameraService initialized")
 
-    def list_cameras(self) -> List[CameraInfo]:
+    def list_cameras(self) -> list[CameraInfo]:
         """
         List all available cameras (USB + RealSense).
 
@@ -275,7 +282,7 @@ class CameraService:
             try:
                 # Get camera metadata (platform-specific)
                 camera_metadata = self._get_camera_metadata()
-                
+
                 # Always check at least 10 indices, regardless of metadata count
                 # This ensures we find cameras that WMI might have missed
                 for index in range(10):
@@ -283,32 +290,34 @@ class CameraService:
                     if cap.isOpened():
                         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        
+
                         # Try to match with metadata by index first
                         # If no match, use default values
                         meta = camera_metadata.get(index, {})
-                        name = meta.get('name', f"USB Camera {index}")
-                        serial = meta.get('serial_number')
-                        vid = meta.get('vid')
-                        pid = meta.get('pid')
-                        manufacturer = meta.get('manufacturer', 'Unknown')
-                        
-                        cameras.append(CameraInfo(
-                            index=index,
-                            name=name,
-                            camera_type="USB",
-                            width=width,
-                            height=height,
-                            serial_number=serial,
-                            vid=vid,
-                            pid=pid,
-                            manufacturer=manufacturer
-                        ))
+                        name = meta.get("name", f"USB Camera {index}")
+                        serial = meta.get("serial_number")
+                        vid = meta.get("vid")
+                        pid = meta.get("pid")
+                        manufacturer = meta.get("manufacturer", "Unknown")
+
+                        cameras.append(
+                            CameraInfo(
+                                index=index,
+                                name=name,
+                                camera_type="USB",
+                                width=width,
+                                height=height,
+                                serial_number=serial,
+                                vid=vid,
+                                pid=pid,
+                                manufacturer=manufacturer,
+                            )
+                        )
                         cap.release()
                         logger.debug(f"Found USB camera {index}: {name}")
             except Exception as e:
                 logger.error(f"Error enumerating USB cameras: {e}")
-        
+
         # Enumerate RealSense cameras
         if HAS_REALSENSE:
             try:
@@ -318,28 +327,26 @@ class CameraService:
                 for i, device in enumerate(devices):
                     sn = device.get_info(rs.camera_info.serial_number)
                     name = device.get_info(rs.camera_info.name)
-                    cameras.append(CameraInfo(
-                        index=i,
-                        name=f"{name} (SN: {sn})",
-                        camera_type="RealSense",
-                        serial_number=sn
-                    ))
+                    cameras.append(
+                        CameraInfo(index=i, name=f"{name} (SN: {sn})", camera_type="RealSense", serial_number=sn)
+                    )
             except Exception as e:
                 logger.error(f"Error enumerating RealSense cameras: {e}")
 
         logger.info(f"Found {len(cameras)} cameras")
         return cameras
-    
-    def _get_camera_metadata(self) -> Dict[int, Dict]:
+
+    def _get_camera_metadata(self) -> dict[int, dict]:
         """
         Get camera metadata (name, serial number, VID/PID) for each camera index.
-        
+
         Returns:
             Dictionary mapping camera index to metadata dict
         """
         import platform
+
         system = platform.system()
-        
+
         if system == "Windows":
             return self._get_camera_metadata_windows()
         elif system == "Linux":
@@ -349,222 +356,214 @@ class CameraService:
         else:
             logger.warning(f"Camera metadata not supported on {system}")
             return {}
-    
-    def _get_camera_metadata_windows(self) -> Dict[int, Dict]:
+
+    def _get_camera_metadata_windows(self) -> dict[int, dict]:
         """Get camera metadata on Windows using wmi package"""
         try:
             try:
                 import wmi  # type: ignore[import-not-found]
+
                 use_wmi = True
             except ImportError:
                 logger.debug("wmi package not installed, falling back to PowerShell")
                 use_wmi = False
-            
+
             camera_map = {}
-            
+
             if use_wmi:
                 # Use wmi package for better device information
                 c = wmi.WMI()
-                
+
                 # Collect all camera devices from WMI
                 wmi_cameras = []
                 for driver in c.Win32_PnPSignedDriver():
                     device_class = driver.DeviceClass or ""
                     device_name = (driver.DeviceName or "").lower()
                     device_id = (driver.DeviceID or "").upper()
-                    
+
                     # Check for camera-related devices (exclude audio)
                     is_camera = (
-                        device_class in ("Image", "Camera") or
-                        "camera" in device_name or
-                        "webcam" in device_name
+                        device_class in ("Image", "Camera") or "camera" in device_name or "webcam" in device_name
                     )
-                    
+
                     is_audio = (
-                        "audio" in device_name or
-                        "microphone" in device_name or
-                        "sound" in device_name or
-                        "INTELAUDIO" in device_id
+                        "audio" in device_name
+                        or "microphone" in device_name
+                        or "sound" in device_name
+                        or "INTELAUDIO" in device_id
                     )
-                    
+
                     if not is_camera or is_audio:
                         continue
-                    
+
                     # Extract VID/PID/Serial from DeviceID
                     # Format: USB\VID_xxxx&PID_yyyy\serial
                     vid, pid, serial = None, None, None
-                    if 'VID_' in device_id and 'PID_' in device_id:
-                        parts = device_id.split('\\')
+                    if "VID_" in device_id and "PID_" in device_id:
+                        parts = device_id.split("\\")
                         for part in parts:
-                            if 'VID_' in part:
-                                vid = part.split('VID_')[1].split('&')[0]
-                            if 'PID_' in part:
-                                pid = part.split('PID_')[1].split('&')[0] if '&' in part else part.split('PID_')[1]
+                            if "VID_" in part:
+                                vid = part.split("VID_")[1].split("&")[0]
+                            if "PID_" in part:
+                                pid = part.split("PID_")[1].split("&")[0] if "&" in part else part.split("PID_")[1]
                         # Serial number is usually the last part
-                        if len(parts) >= 3 and parts[-1] and parts[-1] not in ['0', '0000', '']:
+                        if len(parts) >= 3 and parts[-1] and parts[-1] not in ["0", "0000", ""]:
                             serial = parts[-1]
-                    
-                    wmi_cameras.append({
-                        'name': driver.DeviceName or 'Unknown Camera',
-                        'manufacturer': driver.Manufacturer or 'Unknown',
-                        'serial_number': serial,
-                        'vid': vid,
-                        'pid': pid
-                    })
-                
+
+                    wmi_cameras.append(
+                        {
+                            "name": driver.DeviceName or "Unknown Camera",
+                            "manufacturer": driver.Manufacturer or "Unknown",
+                            "serial_number": serial,
+                            "vid": vid,
+                            "pid": pid,
+                        }
+                    )
+
                 # Map WMI cameras to indices (best effort - order may not match OpenCV)
                 # OpenCV will enumerate independently, this is just for metadata
                 for idx, cam_info in enumerate(wmi_cameras):
                     camera_map[idx] = cam_info
-                
+
                 logger.debug(f"WMI found {len(wmi_cameras)} camera devices")
                 return camera_map
-            
+
             else:
                 # Fallback to PowerShell if wmi not available
-                import subprocess
                 import json
-                
+                import subprocess
+
                 ps_command = """
-                Get-CimInstance -ClassName Win32_PnPEntity | 
-                Where-Object { 
-                    ($_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image') -and 
-                    $_.Status -eq 'OK' 
-                } | 
-                Select-Object Name, DeviceID, Manufacturer, Status | 
+                Get-CimInstance -ClassName Win32_PnPEntity |
+                Where-Object {
+                    ($_.PNPClass -eq 'Camera' -or $_.PNPClass -eq 'Image') -and
+                    $_.Status -eq 'OK'
+                } |
+                Select-Object Name, DeviceID, Manufacturer, Status |
                 ConvertTo-Json
                 """
-                
+
                 result = subprocess.run(
-                    ["powershell", "-Command", ps_command],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
+                    ["powershell", "-Command", ps_command], capture_output=True, text=True, timeout=5
                 )
-                
+
                 if result.returncode != 0:
                     logger.debug(f"WMI camera query failed: {result.stderr}")
                     return {}
-                
+
                 devices = json.loads(result.stdout)
                 if not isinstance(devices, list):
                     devices = [devices] if devices else []
-                
+
                 # Parse device info and map to indices
                 for idx, device in enumerate(devices):
-                    device_id = device.get('DeviceID', '')
-                    name = device.get('Name', f'USB Camera {idx}')
-                    manufacturer = device.get('Manufacturer', 'Unknown')
-                    
+                    device_id = device.get("DeviceID", "")
+                    name = device.get("Name", f"USB Camera {idx}")
+                    manufacturer = device.get("Manufacturer", "Unknown")
+
                     # Extract VID/PID from DeviceID (format: USB\VID_xxxx&PID_yyyy\serial)
                     vid, pid, serial = None, None, None
-                    if 'VID_' in device_id and 'PID_' in device_id:
-                        parts = device_id.split('\\')
+                    if "VID_" in device_id and "PID_" in device_id:
+                        parts = device_id.split("\\")
                         for part in parts:
-                            if 'VID_' in part:
-                                vid = part.split('VID_')[1].split('&')[0]
-                            if 'PID_' in part:
-                                pid = part.split('PID_')[1].split('&')[0] if '&' in part else part.split('PID_')[1]
+                            if "VID_" in part:
+                                vid = part.split("VID_")[1].split("&")[0]
+                            if "PID_" in part:
+                                pid = part.split("PID_")[1].split("&")[0] if "&" in part else part.split("PID_")[1]
                         # Serial number is usually the last part
-                        if len(parts) > 2 and parts[-1] and parts[-1] not in ['OK', 'Error']:
+                        if len(parts) > 2 and parts[-1] and parts[-1] not in ["OK", "Error"]:
                             serial = parts[-1]
-                    
+
                     camera_map[idx] = {
-                        'name': name,
-                        'manufacturer': manufacturer,
-                        'serial_number': serial,
-                        'vid': vid,
-                        'pid': pid
+                        "name": name,
+                        "manufacturer": manufacturer,
+                        "serial_number": serial,
+                        "vid": vid,
+                        "pid": pid,
                     }
-                
+
                 return camera_map
-            
+
         except Exception as e:
             logger.debug(f"Error getting Windows camera metadata: {e}")
             return {}
-    
-    def _get_camera_metadata_linux(self) -> Dict[int, Dict]:
+
+    def _get_camera_metadata_linux(self) -> dict[int, dict]:
         """Get camera metadata on Linux from /dev/v4l/by-id/"""
         try:
             import glob
             import os
-            
+
             camera_map = {}
             by_id_path = "/dev/v4l/by-id/"
-            
+
             if not os.path.exists(by_id_path):
                 return {}
-            
+
             # List symlinks in /dev/v4l/by-id/
             for symlink in glob.glob(f"{by_id_path}*-video-index*"):
                 try:
                     # Parse filename: usb-Manufacturer_Product_Serial-video-index0
                     basename = os.path.basename(symlink)
-                    
+
                     # Extract index
-                    if '-video-index' in basename:
-                        index_str = basename.split('-video-index')[-1]
+                    if "-video-index" in basename:
+                        index_str = basename.split("-video-index")[-1]
                         index = int(index_str)
                     else:
                         continue
-                    
+
                     # Parse device info
-                    parts = basename.split('-')
-                    if len(parts) >= 2 and parts[0] == 'usb':
-                        device_info = parts[1].replace('_', ' ')
-                        
-                        # Read target to get more info
-                        target = os.readlink(symlink)
-                        
+                    parts = basename.split("-")
+                    if len(parts) >= 2 and parts[0] == "usb":
+                        device_info = parts[1].replace("_", " ")
+
                         camera_map[index] = {
-                            'name': device_info,
-                            'serial_number': None,  # Would need udevadm to extract
-                            'vid': None,
-                            'pid': None
+                            "name": device_info,
+                            "serial_number": None,  # Would need udevadm to extract
+                            "vid": None,
+                            "pid": None,
                         }
                 except Exception as e:
                     logger.debug(f"Error parsing camera symlink {symlink}: {e}")
                     continue
-            
+
             return camera_map
-            
+
         except Exception as e:
             logger.debug(f"Error getting Linux camera metadata: {e}")
             return {}
-    
-    def _get_camera_metadata_macos(self) -> Dict[int, Dict]:
+
+    def _get_camera_metadata_macos(self) -> dict[int, dict]:
         """Get camera metadata on macOS using system_profiler"""
         try:
-            import subprocess
             import json
-            
+            import subprocess
+
             result = subprocess.run(
-                ["system_profiler", "SPCameraDataType", "-json"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["system_profiler", "SPCameraDataType", "-json"], capture_output=True, text=True, timeout=5
             )
-            
+
             if result.returncode != 0:
                 return {}
-            
+
             data = json.loads(result.stdout)
             cameras = data.get("SPCameraDataType", [])
-            
+
             camera_map = {}
             for idx, camera in enumerate(cameras):
                 name = camera.get("_name", f"Camera {idx}")
                 model_id = camera.get("model_id", "")
-                
+
                 camera_map[idx] = {
-                    'name': name,
-                    'serial_number': model_id if model_id else None,
-                    'vid': None,
-                    'pid': None
+                    "name": name,
+                    "serial_number": model_id if model_id else None,
+                    "vid": None,
+                    "pid": None,
                 }
-            
+
             return camera_map
-            
+
         except Exception as e:
             logger.debug(f"Error getting macOS camera metadata: {e}")
             return {}
@@ -573,7 +572,7 @@ class CameraService:
         self,
         camera_index: int,
         camera_type: str = "USB",
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """
         Capture single frame from camera.
 
@@ -601,7 +600,7 @@ class CameraService:
     def capture_depth_snapshot(
         self,
         camera_index: int,
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """
         Capture depth frame from RealSense camera.
 
@@ -621,7 +620,7 @@ class CameraService:
         self,
         camera_index: int,
         camera_type: str = "USB",
-        frame_count: Optional[int] = None,
+        frame_count: int | None = None,
     ) -> Generator[np.ndarray, None, None]:
         """
         Stream frames from camera.
@@ -639,6 +638,7 @@ class CameraService:
         frame_number = 0
 
         try:
+            camera: USBCamera | RealSenseCamera
             if camera_type == "USB":
                 camera = USBCamera(camera_index)
                 camera.open()

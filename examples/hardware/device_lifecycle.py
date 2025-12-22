@@ -9,13 +9,14 @@ Usage:
 """
 
 import logging
+
 from leropilot.services.hardware.manager import get_hardware_manager
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     """Demonstrate device lifecycle management"""
     print("\n" + "=" * 80)
     print("DEVICE LIFECYCLE MANAGEMENT")
@@ -69,13 +70,13 @@ def main():
         print(f"  ✅ Labels: {device.get('labels')}")
 
         # Get devices by label
-        print(f"\n🔍 Devices with label 'production':")
+        print("\n🔍 Devices with label 'production':")
         production_devices = manager.get_devices_by_label("production")
         for device in production_devices:
             print(f"  - {device.get('device_id')}: {device.get('name')}")
 
         # Get device stats
-        print(f"\n📊 Device Statistics:")
+        print("\n📊 Device Statistics:")
         stats = manager.get_device_stats()
         print(f"  Total devices: {stats.get('total_devices')}")
         print(f"  Statuses: {stats.get('status_counts')}")
@@ -83,25 +84,25 @@ def main():
         print(f"  Types: {stats.get('type_counts')}")
 
         # List all devices after changes
-        print(f"\n📋 Final Device List:")
+        print("\n📋 Final Device List:")
         devices = manager.list_devices()
         for device in devices:
             print(f"  - {device.get('device_id')}: {device.get('name')} ({device.get('status')})")
-            if device.get('labels'):
+            if device.get("labels"):
                 print(f"    Labels: {', '.join(device.get('labels'))}")
 
         # Export devices
-        print(f"\n💾 Exporting Devices:")
+        print("\n💾 Exporting Devices:")
         exported = manager.export_devices()
         print(f"  ✅ Exported {len(exported)} device(s)")
 
         # Remove device
         print(f"\n➖ Removing Device: {device_id}")
         manager.remove_device(device_id)
-        print(f"  ✅ Removed")
+        print("  ✅ Removed")
 
         # Verify removal
-        print(f"\n📋 Devices After Removal:")
+        print("\n📋 Devices After Removal:")
         devices = manager.list_devices()
         if devices:
             for device in devices:

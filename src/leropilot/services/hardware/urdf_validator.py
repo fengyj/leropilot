@@ -12,7 +12,6 @@ URDF is used by LeRobot to define robot kinematics and motor layout.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Try to import URDF parser
 try:
     from urdf_parser_py.urdf import URDF
+
     HAS_URDF_PARSER = True
 except ImportError:
     HAS_URDF_PARSER = False
@@ -35,11 +35,11 @@ class URDFJointInfo:
         joint_type: str,
         parent: str,
         child: str,
-        origin_xyz: Tuple[float, float, float],
-        origin_rpy: Tuple[float, float, float],
-        axis: Tuple[float, float, float],
-        limits: Optional[Dict] = None,
-    ):
+        origin_xyz: tuple[float, float, float],
+        origin_rpy: tuple[float, float, float],
+        axis: tuple[float, float, float],
+        limits: dict | None = None,
+    ) -> None:
         self.name = name
         self.joint_type = joint_type
         self.parent = parent
@@ -49,7 +49,7 @@ class URDFJointInfo:
         self.axis = axis
         self.limits = limits or {}
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "type": self.joint_type,
@@ -65,12 +65,12 @@ class URDFJointInfo:
 class URDFLinkInfo:
     """Information about a link in URDF"""
 
-    def __init__(self, name: str, mass: Optional[float] = None, inertia: Optional[Dict] = None):
+    def __init__(self, name: str, mass: float | None = None, inertia: dict | None = None) -> None:
         self.name = name
         self.mass = mass
         self.inertia = inertia
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "mass": self.mass,
@@ -81,13 +81,13 @@ class URDFLinkInfo:
 class URDFValidator:
     """Validates URDF files and extracts robot structure information"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize URDF validator"""
         logger.info("URDFValidator initialized")
         if not HAS_URDF_PARSER:
             logger.warning("urdf_parser_py not installed; URDF validation will be limited")
 
-    def validate_file(self, urdf_path: str) -> Dict:
+    def validate_file(self, urdf_path: str) -> dict:
         """
         Validate URDF file and extract structure.
 
@@ -204,7 +204,7 @@ class URDFValidator:
             result["errors"].append(f"Failed to parse URDF: {str(e)}")
             return result
 
-    def _validate_structure(self, robot) -> List[str]:
+    def _validate_structure(self, robot: URDF) -> list[str]:
         """
         Perform validation checks on URDF structure.
 
@@ -214,7 +214,7 @@ class URDFValidator:
         errors = []
 
         # Check for root link (typically "base_link")
-        root_links = set(l.name for l in robot.links)
+        root_links = set(link.name for link in robot.links)
         all_child_links = set(j.child for j in robot.joints)
         orphan_links = root_links - all_child_links
 
@@ -237,7 +237,7 @@ class URDFValidator:
 
         return errors
 
-    def _check_kinematic_chain(self, robot) -> None:
+    def _check_kinematic_chain(self, robot: URDF) -> None:
         """
         Check for cycles in kinematic chain.
 
@@ -245,7 +245,7 @@ class URDFValidator:
             ValueError if cycle detected
         """
         # Build adjacency map
-        children_map = {}
+        children_map: dict[str, list[str]] = {}
         for joint in robot.joints:
             parent = joint.parent
             child = joint.child
@@ -254,7 +254,7 @@ class URDFValidator:
             children_map[parent].append(child)
 
         # Find root
-        all_links = set(l.name for l in robot.links)
+        all_links = set(link.name for link in robot.links)
         all_children = set(j.child for j in robot.joints)
         roots = all_links - all_children
 
@@ -265,7 +265,7 @@ class URDFValidator:
         visited = set()
         rec_stack = set()
 
-        def dfs(link):
+        def dfs(link: str) -> None:
             visited.add(link)
             rec_stack.add(link)
 
@@ -279,22 +279,7 @@ class URDFValidator:
 
         dfs(list(roots)[0])
 
-    def count_actuated_joints(self) -> int:
-        """
-        Count actuated joints (revolute + prismatic, excluding fixed/floating/planar).
-
-        Used to verify motor count matches URDF.
-
-        Args:
-            robot: URDF robot object
-
-        Returns:
-            Number of actuated joints
-        """
-        # This method would need robot object; typically called on parsed URDF
-        pass
-
-    def get_joint_chain(self, urdf_path: str, from_link: str, to_link: str) -> Optional[List[str]]:
+    def get_joint_chain(self, urdf_path: str, from_link: str, to_link: str) -> list[str] | None:
         """
         Get kinematic chain between two links.
 
@@ -346,8 +331,8 @@ class URDFValidator:
         self,
         urdf_path: str,
         motor_count: int,
-        motor_ids: Optional[List[int]] = None,
-    ) -> Tuple[bool, str]:
+        motor_ids: list[int] | None = None,
+    ) -> tuple[bool, str]:
         """
         Validate that motor count matches URDF actuated joints.
 
@@ -366,9 +351,7 @@ class URDFValidator:
             robot = URDF.from_xml_file(str(urdf_path))
 
             # Count actuated joints (not fixed/floating/planar)
-            actuated_joints = [
-                j for j in robot.joints if j.joint_type in ["revolute", "continuous", "prismatic"]
-            ]
+            actuated_joints = [j for j in robot.joints if j.joint_type in ["revolute", "continuous", "prismatic"]]
 
             actuated_count = len(actuated_joints)
 

@@ -1,19 +1,18 @@
 import asyncio
+from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+
 from leropilot.logger import get_logger
-from leropilot.services.pty import get_pty_session
+from leropilot.models.hardware import DeviceStatus
 from leropilot.services.hardware.manager import get_hardware_manager
 from leropilot.services.hardware.motors import MotorService
-from leropilot.models.hardware import DeviceStatus
-from datetime import datetime
-from typing import Optional
-from fastapi import Query
+from leropilot.services.pty import get_pty_session
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/ws", tags=["WebSockets"])
-
 
 
 @router.websocket("/pty_sessions/{session_id}")
@@ -136,10 +135,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
 async def hardware_websocket(
     websocket: WebSocket,
     device_id: str,
-    stream: Optional[str] = Query(None),
+    stream: str | None = Query(None),
     interface: str = Query(..., description="Communication interface"),
-    baud_rate: int = Query(1000000, description="Baud rate")
-):
+    baud_rate: int = Query(1000000, description="Baud rate"),
+) -> None:
     """
     Unified Hardware WebSocket (Spec 4.4.1).
     - Status: Occupied during session.
@@ -153,83 +152,80 @@ async def hardware_websocket(
     if not device:
         await websocket.close(code=4004, reason="Device not found")
         return
-        
+
     if device.status != DeviceStatus.AVAILABLE:
         await websocket.close(code=4009, reason="Device occupied")
         return
 
     # 2. Connection Init
     await websocket.accept()
-    
+
     # Set status to OCCUPIED
     manager.set_device_status(device_id, DeviceStatus.OCCUPIED)
-    
+
     # NOTE: We instantiate MotorService here directly (or use singleton/DI if preferred)
     # Using new instance is fine as it's mostly a wrapper around drivers
     motor_service = MotorService()
     driver = None
     telemetry_task = None
-    
+
     # Session State
     streaming_enabled = False
     streaming_interval_ms = 100
     last_activity_time = datetime.now().timestamp()
-    
+
     try:
         # 3. Open Driver (Stateless connection)
         brand = device.connection_settings.get("brand", "dynamixel")
         interface_type = device.connection_settings.get("interface_type", "serial")
-        
+
         driver = motor_service.create_driver(
-            interface=interface,
-            brand=brand,
-            interface_type=interface_type,
-            baud_rate=baud_rate
+            interface=interface, brand=brand, interface_type=interface_type, baud_rate=baud_rate
         )
-        
+
         if not driver:
             await websocket.close(code=4000, reason="Failed to connect driver")
             return
-            
+
         logger.info(f"WS: Driver connected for {device_id} on {interface}")
-        
+
         # Track discovered motor IDs for bulk operations
         discovered_motor_ids = list(range(1, 7))  # Default, should be from scan
-        
+
         # Check if calibration data exists (required for control commands)
         calibration_available = False
         if device.config and device.config.motors:
             # Check if at least one motor has calibration data
-            for motor_name, motor_cfg in device.config.motors.items():
+            for _motor_name, motor_cfg in device.config.motors.items():
                 if motor_cfg.calibration and motor_cfg.calibration.homing_offset is not None:
                     calibration_available = True
                     break
-        
+
         if not calibration_available:
             logger.warning(f"WS: No calibration data for {device_id}, control commands will be blocked")
             # Send info message to client
-            await websocket.send_json({
-                "type": "event",
-                "event": {
-                    "code": "CALIBRATION_REQUIRED",
-                    "severity": "warning",
-                    "message": "No calibration data. Control commands are disabled. Telemetry is available."
+            await websocket.send_json(
+                {
+                    "type": "event",
+                    "event": {
+                        "code": "CALIBRATION_REQUIRED",
+                        "severity": "warning",
+                        "message": "No calibration data. Control commands are disabled. Telemetry is available.",
+                    },
                 }
-            })
+            )
 
         # Async Task for Telemetry Streaming
-        async def stream_loop():
+        async def stream_loop() -> None:
             nonlocal streaming_enabled
             while True:
                 if streaming_enabled:
                     try:
                         target_ids = discovered_motor_ids
-                        
-                        data = []
                         robot_type_id = device.labels.get("leropilot.ai/robot_type_id", "unknown")
-                        
+
                         # Get per-motor protection overrides
-                        def get_motor_overrides(joint_name: str):
+                        def get_motor_overrides(joint_name: str) -> dict[str, Any] | None:
                             if device.config and device.config.motors:
                                 motor_cfg = device.config.motors.get(joint_name)
                                 if motor_cfg and motor_cfg.protection:
@@ -237,36 +233,32 @@ async def hardware_websocket(
                             return None
 
                         # Blocking Read in async loop:
-                        def sync_read():
+                        def sync_read(_target_ids: list[int], _robot_type_id: str) -> list[dict]:
                             _data = []
-                            for mid in target_ids:
+                            for mid in _target_ids:
                                 # Use motor ID as joint name fallback
                                 joint_name = f"motor_{mid}"
                                 overrides = get_motor_overrides(joint_name)
                                 t = motor_service.read_telemetry_with_protection(
-                                    driver, mid, brand, robot_type_id, overrides
+                                    driver, mid, brand, _robot_type_id, overrides
                                 )
                                 if t:
-                                    _data.append(t.model_dump()) 
+                                    _data.append(t.model_dump())
                             return _data
-                            
-                        data = sync_read()
 
-                        msg = {
-                            "type": "telemetry",
-                            "timestamp": datetime.now().isoformat(),
-                            "motors": data
-                        }
+                        data = sync_read(target_ids, robot_type_id)
+
+                        msg = {"type": "telemetry", "timestamp": datetime.now().isoformat(), "motors": data}
                         await websocket.send_json(msg)
-                        
+
                     except Exception as e:
                         logger.error(f"WS Telemetry Error: {e}")
-                        
+
                 await asyncio.sleep(streaming_interval_ms / 1000.0)
 
         # Start stream loop
         telemetry_task = asyncio.create_task(stream_loop())
-        
+
         # 4. Main Loop (Control & Heartbeat)
         while True:
             try:
@@ -274,77 +266,78 @@ async def hardware_websocket(
                 timeout = 30.0 - time_since_activity
                 if timeout <= 0:
                     raise asyncio.TimeoutError("Session timeout")
-                    
+
                 msg = await asyncio.wait_for(websocket.receive_json(), timeout=timeout)
-                
+
                 last_activity_time = datetime.now().timestamp()
-                
+
                 msg_type = msg.get("type")
-                
+
                 if msg_type == "ping":
                     await websocket.send_json({"type": "pong"})
-                    
+
                 elif msg_type == "start_telemetry":
                     interval = msg.get("interval_ms", 100)
-                    if interval < 20: interval = 20
+                    if interval < 20:
+                        interval = 20
                     streaming_interval_ms = interval
                     streaming_enabled = True
                     logger.info(f"WS: Telemetry started ({interval}ms)")
-                    
+
                 elif msg_type == "stop_telemetry":
                     streaming_enabled = False
                     logger.info("WS: Telemetry stopped")
-                
+
                 # Motor Control Commands
                 elif msg_type == "set_position":
                     # Require calibration for control commands
                     if not calibration_available:
-                        await websocket.send_json({
-                            "type": "ack", 
-                            "request_type": "set_position",
-                            "success": False, 
-                            "error": "Calibration required. Please calibrate the robot first."
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "ack",
+                                "request_type": "set_position",
+                                "success": False,
+                                "error": "Calibration required. Please calibrate the robot first.",
+                            }
+                        )
                         continue
-                        
+
                     motor_id = msg.get("motor_id")
                     position = msg.get("position")
-                    speed = msg.get("speed")  # Optional
+                    # speed = msg.get("speed")  # Optional
                     try:
                         if driver and motor_id is not None and position is not None:
                             driver.write_goal_position(motor_id, int(position))
-                            await websocket.send_json({
-                                "type": "ack", 
-                                "request_type": "set_position",
-                                "success": True, 
-                                "error": None
-                            })
+                            await websocket.send_json(
+                                {"type": "ack", "request_type": "set_position", "success": True, "error": None}
+                            )
                         else:
-                            await websocket.send_json({
-                                "type": "ack", 
-                                "request_type": "set_position",
-                                "success": False, 
-                                "error": "Missing motor_id or position"
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "ack",
+                                    "request_type": "set_position",
+                                    "success": False,
+                                    "error": "Missing motor_id or position",
+                                }
+                            )
                     except Exception as e:
-                        await websocket.send_json({
-                            "type": "ack", 
-                            "request_type": "set_position",
-                            "success": False, 
-                            "error": str(e)
-                        })
-                
+                        await websocket.send_json(
+                            {"type": "ack", "request_type": "set_position", "success": False, "error": str(e)}
+                        )
+
                 elif msg_type == "set_positions":
                     # Require calibration for control commands
                     if not calibration_available:
-                        await websocket.send_json({
-                            "type": "ack", 
-                            "request_type": "set_positions",
-                            "success": False, 
-                            "error": "Calibration required. Please calibrate the robot first."
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "ack",
+                                "request_type": "set_positions",
+                                "success": False,
+                                "error": "Calibration required. Please calibrate the robot first.",
+                            }
+                        )
                         continue
-                        
+
                     motors = msg.get("motors", [])
                     try:
                         if driver and motors:
@@ -353,38 +346,36 @@ async def hardware_websocket(
                                 pos = m.get("position")
                                 if mid is not None and pos is not None:
                                     driver.write_goal_position(mid, int(pos))
-                            await websocket.send_json({
-                                "type": "ack", 
-                                "request_type": "set_positions",
-                                "success": True, 
-                                "error": None
-                            })
+                            await websocket.send_json(
+                                {"type": "ack", "request_type": "set_positions", "success": True, "error": None}
+                            )
                         else:
-                            await websocket.send_json({
-                                "type": "ack", 
-                                "request_type": "set_positions",
-                                "success": False, 
-                                "error": "No motors specified"
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "ack",
+                                    "request_type": "set_positions",
+                                    "success": False,
+                                    "error": "No motors specified",
+                                }
+                            )
                     except Exception as e:
-                        await websocket.send_json({
-                            "type": "ack", 
-                            "request_type": "set_positions",
-                            "success": False, 
-                            "error": str(e)
-                        })
-                
+                        await websocket.send_json(
+                            {"type": "ack", "request_type": "set_positions", "success": False, "error": str(e)}
+                        )
+
                 elif msg_type == "set_torque":
                     # Require calibration for control commands
                     if not calibration_available:
-                        await websocket.send_json({
-                            "type": "ack", 
-                            "request_type": "set_torque",
-                            "success": False, 
-                            "error": "Calibration required. Please calibrate the robot first."
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "ack",
+                                "request_type": "set_torque",
+                                "success": False,
+                                "error": "Calibration required. Please calibrate the robot first.",
+                            }
+                        )
                         continue
-                        
+
                     motor_id = msg.get("motor_id")  # None = all motors
                     enabled = msg.get("enabled", False)
                     try:
@@ -394,68 +385,64 @@ async def hardware_websocket(
                             else:
                                 for mid in discovered_motor_ids:
                                     driver.write_torque_enable(mid, enabled)
-                            await websocket.send_json({
-                                "type": "ack", 
-                                "request_type": "set_torque",
-                                "success": True, 
-                                "error": None
-                            })
+                            await websocket.send_json(
+                                {"type": "ack", "request_type": "set_torque", "success": True, "error": None}
+                            )
                     except Exception as e:
-                        await websocket.send_json({
-                            "type": "ack", 
-                            "request_type": "set_torque",
-                            "success": False, 
-                            "error": str(e)
-                        })
-                
+                        await websocket.send_json(
+                            {"type": "ack", "request_type": "set_torque", "success": False, "error": str(e)}
+                        )
+
                 elif msg_type == "emergency_stop":
                     try:
                         if driver:
                             for mid in discovered_motor_ids:
                                 try:
                                     driver.write_torque_enable(mid, False)
-                                except:
+                                except Exception:
                                     pass  # Best effort
-                            await websocket.send_json({
-                                "type": "event",
-                                "event": {
-                                    "code": "EMERGENCY_STOP",
-                                    "severity": "warning",
-                                    "message": "Emergency stop triggered - all motors disabled",
-                                    "timestamp": datetime.now().isoformat()
+                            await websocket.send_json(
+                                {
+                                    "type": "event",
+                                    "event": {
+                                        "code": "EMERGENCY_STOP",
+                                        "severity": "warning",
+                                        "message": "Emergency stop triggered - all motors disabled",
+                                        "timestamp": datetime.now().isoformat(),
+                                    },
                                 }
-                            })
+                            )
                             logger.warning(f"WS: Emergency stop for {device_id}")
                     except Exception as e:
                         logger.error(f"WS: Emergency stop error: {e}")
-                    
+
             except asyncio.TimeoutError:
                 logger.warning(f"WS: Session timeout for {device_id}")
                 await websocket.send_json({"type": "error", "code": "SESSION_TIMEOUT", "message": "No activity"})
                 await websocket.close(code=4001, reason="Session timeout")
                 break
-                
+
     except WebSocketDisconnect:
         logger.info(f"WS: Client disconnected {device_id}")
     except Exception as e:
         logger.error(f"WS Error {device_id}: {e}")
         try:
             await websocket.close(code=1011, reason=str(e))
-        except:
+        except Exception:
             pass
     finally:
         if telemetry_task:
             telemetry_task.cancel()
             try:
                 await telemetry_task
-            except:
+            except Exception:
                 pass
-                
+
         if driver:
             try:
                 driver.disconnect()
                 logger.info(f"WS: Driver disconnected {device_id}")
-            except:
+            except Exception:
                 pass
-                
+
         manager.set_device_status(device_id, DeviceStatus.AVAILABLE)

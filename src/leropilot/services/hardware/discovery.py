@@ -12,26 +12,24 @@ Supports Windows, macOS, and Linux.
 """
 
 import logging
-from typing import List, Dict, Optional
 
 from leropilot.models.hardware import (
-    DiscoveredRobot,
-    DiscoveredController,
-    DiscoveredCamera,
-    DiscoveryResult,
     DeviceStatus,
+    DiscoveredCamera,
+    DiscoveredController,
+    DiscoveredRobot,
+    DiscoveryResult,
 )
+from leropilot.services.hardware.camera import CameraInfo, CameraService
 from leropilot.services.hardware.platform_adapter import PlatformAdapter
-from leropilot.services.hardware.camera import CameraService
 
 logger = logging.getLogger(__name__)
-
 
 
 class DiscoveryService:
     """Main hardware discovery service using platform adapter"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize discovery service"""
         self.adapter = PlatformAdapter()
         self.camera_service = CameraService()
@@ -61,15 +59,12 @@ class DiscoveryService:
             robots=robots,
             controllers=controllers,
             cameras=cameras,
-            timestamp=None,  # Will be auto-filled by Pydantic
         )
 
-        logger.info(
-            f"Discovery complete: {len(robots)} robots, {len(controllers)} controllers, {len(cameras)} cameras"
-        )
+        logger.info(f"Discovery complete: {len(robots)} robots, {len(controllers)} controllers, {len(cameras)} cameras")
         return result
 
-    def discover_serial_ports(self) -> List[DiscoveredRobot]:
+    def discover_serial_ports(self) -> list[DiscoveredRobot]:
         """
         Discover only serial ports (robots).
 
@@ -79,7 +74,7 @@ class DiscoveryService:
         serial_ports = self.adapter.discover_serial_ports()
         return self._serial_ports_to_robots(serial_ports)
 
-    def discover_cameras(self) -> List[DiscoveredCamera]:
+    def discover_cameras(self) -> list[DiscoveredCamera]:
         """
         Discover only cameras (USB + RealSense).
 
@@ -89,7 +84,7 @@ class DiscoveryService:
         camera_infos = self.camera_service.list_cameras()
         return self._camera_infos_to_discovered_cameras(camera_infos)
 
-    def discover_can_interfaces(self) -> List[DiscoveredController]:
+    def discover_can_interfaces(self) -> list[DiscoveredController]:
         """
         Discover only CAN interfaces (controllers).
 
@@ -100,7 +95,7 @@ class DiscoveryService:
         return self._can_interfaces_to_controllers(can_interfaces)
 
     @staticmethod
-    def _serial_ports_to_robots(serial_ports: List[Dict]) -> List[DiscoveredRobot]:
+    def _serial_ports_to_robots(serial_ports: list[dict]) -> list[DiscoveredRobot]:
         """Convert serial port data to DiscoveredRobot objects"""
         robots = []
         for port in serial_ports:
@@ -122,7 +117,7 @@ class DiscoveryService:
         return robots
 
     @staticmethod
-    def _camera_infos_to_discovered_cameras(camera_infos) -> List[DiscoveredCamera]:
+    def _camera_infos_to_discovered_cameras(camera_infos: list[CameraInfo]) -> list[DiscoveredCamera]:
         """Convert CameraInfo objects to DiscoveredCamera objects"""
         cameras = []
         for cam in camera_infos:
@@ -130,7 +125,7 @@ class DiscoveryService:
             instance_id = f"cam_{cam.index}"
             if cam.serial_number:
                 instance_id = f"cam_{cam.index}_{cam.serial_number}"
-            
+
             camera = DiscoveredCamera(
                 index=cam.index,
                 instance_id=instance_id,
@@ -146,11 +141,11 @@ class DiscoveryService:
                 status=DeviceStatus.AVAILABLE,
             )
             cameras.append(camera)
-        
+
         return cameras
 
     @staticmethod
-    def _can_interfaces_to_controllers(can_interfaces: List[Dict]) -> List[DiscoveredController]:
+    def _can_interfaces_to_controllers(can_interfaces: list[dict]) -> list[DiscoveredController]:
         """Convert CAN interface data to DiscoveredController objects"""
         controllers = []
         for interface in can_interfaces:

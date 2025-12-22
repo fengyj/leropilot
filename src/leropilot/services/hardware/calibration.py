@@ -17,7 +17,7 @@ Calibration data includes:
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional, List, Any
+from typing import Any
 
 from leropilot.models.hardware import MotorCalibration
 
@@ -30,7 +30,7 @@ CALIBRATION_BASE_DIR = Path.home() / ".leropilot" / "hardwares"
 class CalibrationService:
     """Manages motor calibration data persistence and retrieval"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize calibration service"""
         logger.info("CalibrationService initialized")
         # Ensure base directory exists
@@ -65,7 +65,7 @@ class CalibrationService:
     def save_calibration(
         self,
         device_id: str,
-        calibration_data: Dict[int, MotorCalibration],
+        calibration_data: dict[int, MotorCalibration],
     ) -> bool:
         """
         Save calibration data to disk.
@@ -97,7 +97,7 @@ class CalibrationService:
     def load_calibration(
         self,
         device_id: str,
-    ) -> Optional[Dict[int, MotorCalibration]]:
+    ) -> dict[int, MotorCalibration] | None:
         """
         Load calibration data from disk.
 
@@ -114,7 +114,7 @@ class CalibrationService:
                 logger.debug(f"No calibration file found for device {device_id}")
                 return None
 
-            with open(calib_file, "r") as f:
+            with open(calib_file) as f:
                 data = json.load(f)
 
             # Convert JSON back to Pydantic models
@@ -163,7 +163,7 @@ class CalibrationService:
         self,
         device_id: str,
         motor_id: int,
-    ) -> Optional[MotorCalibration]:
+    ) -> MotorCalibration | None:
         """
         Load calibration for a single motor.
 
@@ -202,7 +202,7 @@ class CalibrationService:
             range_max=4095,  # Max raw encoder value (12-bit)
         )
 
-    def validate_calibration(self, calibration: MotorCalibration) -> tuple[bool, List[str]]:
+    def validate_calibration(self, calibration: MotorCalibration) -> tuple[bool, list[str]]:
         """
         Validate calibration data for consistency.
 
@@ -232,7 +232,7 @@ class CalibrationService:
 
         return len(errors) == 0, errors
 
-    def create_calibration_from_dict(self, data: Dict[str, Any]) -> Optional[MotorCalibration]:
+    def create_calibration_from_dict(self, data: dict[str, Any]) -> MotorCalibration | None:
         """
         Create MotorCalibration from dictionary (e.g., from API request).
 
@@ -252,7 +252,7 @@ class CalibrationService:
             logger.error(f"Error creating calibration from dict: {e}")
             return None
 
-    def list_calibration_files(self) -> List[str]:
+    def list_calibration_files(self) -> list[str]:
         """
         List all devices with calibration data.
 
@@ -334,7 +334,7 @@ class CalibrationService:
             True if successful
         """
         try:
-            with open(import_path, "r") as f:
+            with open(import_path) as f:
                 data = json.load(f)
 
             # Convert to Pydantic models

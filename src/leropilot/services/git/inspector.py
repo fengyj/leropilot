@@ -46,11 +46,10 @@ class RepositoryExtrasInspector:
             cmd = [self.git_path, "archive", ref, "pyproject.toml"]
             logger.info(f"Running command: {' '.join(cmd)} in {self.repo_path}")
 
-            result = subprocess.run(  # noqa: UP022
+            result = subprocess.run(
                 cmd,
                 cwd=self.repo_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=True,
                 timeout=10,
             )

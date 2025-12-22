@@ -15,13 +15,18 @@ import json
 import logging
 import shutil
 import threading
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
 
 from leropilot.models.hardware import (
-    Device, DeviceStatus, DeviceCategory, DeviceConfig, 
-    MotorConfig, MotorCalibration, MotorProtectionOverride
+    Device,
+    DeviceCategory,
+    DeviceConfig,
+    DeviceStatus,
+    MotorCalibration,
+    MotorConfig,
+    MotorProtectionOverride,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,10 +50,10 @@ class HardwareManager:
                     cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize hardware manager (only once via singleton)"""
         if not hasattr(self, "_initialized"):
-            self._devices: Dict[str, Device] = {}
+            self._devices: dict[str, Device] = {}
             # Driver caching removed for stateless API design
             self._initialized = True
             self._load_devices()
@@ -63,7 +68,7 @@ class HardwareManager:
         """Load device list from disk"""
         try:
             if DEVICE_LIST_PATH.exists():
-                with open(DEVICE_LIST_PATH, "r", encoding="utf-8") as f:
+                with open(DEVICE_LIST_PATH, encoding="utf-8") as f:
                     data = json.load(f)
 
                 for device_data in data.get("devices", []):
@@ -79,12 +84,12 @@ class HardwareManager:
         except Exception as e:
             logger.error(f"Error loading device list: {e}")
 
-    def _load_device_config(self, device: Device):
+    def _load_device_config(self, device: Device) -> None:
         """Load detailed configuration from config.json into device object"""
         try:
             config_path = self.get_device_dir(device.id, device.category) / "config.json"
             if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     data = json.load(f)
                     device.config = DeviceConfig(**data)
             else:
@@ -92,16 +97,16 @@ class HardwareManager:
                 device.config = DeviceConfig()
         except Exception as e:
             logger.warning(f"Error loading config for {device.id}: {e}")
-            device.config = DeviceConfig() # Fallback
+            device.config = DeviceConfig()  # Fallback
 
-    def _save_device_config(self, device: Device):
+    def _save_device_config(self, device: Device) -> None:
         """Save detailed configuration to config.json"""
         try:
             if not device.config:
                 return
 
             config_path = self.get_device_dir(device.id, device.category) / "config.json"
-            
+
             with open(config_path, "w", encoding="utf-8") as f:
                 f.write(device.config.model_dump_json(indent=2))
         except Exception as e:
@@ -124,14 +129,14 @@ class HardwareManager:
         except Exception as e:
             logger.error(f"Error saving device list: {e}")
 
-    def ensure_unique_name(self, name: str, exclude_id: Optional[str] = None) -> bool:
+    def ensure_unique_name(self, name: str, exclude_id: str | None = None) -> bool:
         """
         Check if a device name is unique.
-        
+
         Args:
             name: Device name to check
             exclude_id: Optional device ID to exclude from check (for updates)
-        
+
         Returns:
             True if name is unique, False otherwise
         """
@@ -146,9 +151,9 @@ class HardwareManager:
         device_id: str,
         category: DeviceCategory,
         name: str,
-        manufacturer: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        connection_settings: Optional[Dict[str, Any]] = None,
+        manufacturer: str | None = None,
+        labels: dict[str, str] | None = None,
+        connection_settings: dict[str, Any] | None = None,
     ) -> Device:
         """
         Add new device to manager.
@@ -163,7 +168,7 @@ class HardwareManager:
 
         Returns:
             Created Device object
-            
+
         Raises:
             ValueError: If device ID or name already exists
         """
@@ -176,17 +181,18 @@ class HardwareManager:
             raise ValueError(f"Device name '{name}' is not unique")
 
         final_settings = connection_settings or {}
-        
+
         # Create new device with empty config
         device = Device(
             id=device_id,
             category=category,
             name=name,
+            status=DeviceStatus.AVAILABLE,
             manufacturer=manufacturer,
             labels=labels or {},
             connection_settings=final_settings,
             created_at=datetime.now(),
-            config=DeviceConfig() 
+            config=DeviceConfig(),
         )
 
         # Handle Default Protection Logic for Robots
@@ -194,12 +200,12 @@ class HardwareManager:
         # Users should use 'probe-connection' to discover motors/SuggestedRobot
         # and then configure the device.
         if category == DeviceCategory.ROBOT:
-             pass 
+            pass
         # Save specific config file
         self._save_device_config(device)
 
         self._devices[device_id] = device
-        self._save_devices() # Saves to list.json (lightweight)
+        self._save_devices()  # Saves to list.json (lightweight)
 
         cat_val = category.value if hasattr(category, "value") else str(category)
         logger.info(f"Added device {device_id}: {name} ({cat_val})")
@@ -232,7 +238,7 @@ class HardwareManager:
         logger.info(f"Removed device {device_id}")
         return True
 
-    def get_device(self, device_id: str) -> Optional[Device]:
+    def get_device(self, device_id: str) -> Device | None:
         """
         Get device by ID.
 
@@ -244,14 +250,10 @@ class HardwareManager:
         """
         device = self._devices.get(device_id)
         if device and not device.config:
-             self._load_device_config(device)
+            self._load_device_config(device)
         return device
 
-    def list_devices(
-        self, 
-        category: Optional[DeviceCategory] = None, 
-        status: Optional[DeviceStatus] = None
-    ) -> List[Device]:
+    def list_devices(self, category: DeviceCategory | None = None, status: DeviceStatus | None = None) -> list[Device]:
         """
         List all devices (optionally filtered).
 
@@ -275,11 +277,11 @@ class HardwareManager:
     def update_device(
         self,
         device_id: str,
-        name: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        connection_settings: Optional[Dict[str, Any]] = None,
-        config: Optional[Dict[str, Any]] = None, 
-    ) -> Optional[Device]:
+        name: str | None = None,
+        labels: dict[str, str] | None = None,
+        connection_settings: dict[str, Any] | None = None,
+        config: dict[str, Any] | None = None,
+    ) -> Device | None:
         """
         Update device metadata and configuration.
 
@@ -299,6 +301,9 @@ class HardwareManager:
 
         # Ensure config is loaded before update
         device = self.get_device(device_id)
+        if device is None:
+            logger.warning(f"Device {device_id} not found")
+            return None
 
         # Check name uniqueness if changing
         if name is not None and name != device.name:
@@ -312,45 +317,46 @@ class HardwareManager:
 
         if connection_settings is not None:
             device.connection_settings.update(connection_settings)
-            
+
         if config is not None:
-            if device.config is None: device.config = DeviceConfig()
-            
+            if device.config is None:
+                device.config = DeviceConfig()
+
             # Handle 'motors' update
             if "motors" in config:
                 motors_update = config["motors"]
-                if not device.config.motors: device.config.motors = {}
-                
+                if not device.config.motors:
+                    device.config.motors = {}
 
                 for joint_name, joint_data in motors_update.items():
                     # Get or create existing MotorConfig
                     if joint_name not in device.config.motors:
                         device.config.motors[joint_name] = MotorConfig()
-                    
+
                     target_motor_config = device.config.motors[joint_name]
 
                     # Update calibration
                     if "calibration" in joint_data:
                         if isinstance(joint_data["calibration"], dict):
-                             target_motor_config.calibration = MotorCalibration(**joint_data["calibration"])
+                            target_motor_config.calibration = MotorCalibration(**joint_data["calibration"])
                         else:
-                             target_motor_config.calibration = joint_data["calibration"]
+                            target_motor_config.calibration = joint_data["calibration"]
 
                     # Update protection
                     if "protection" in joint_data:
                         if isinstance(joint_data["protection"], dict):
-                             target_motor_config.protection = MotorProtectionOverride(**joint_data["protection"])
+                            target_motor_config.protection = MotorProtectionOverride(**joint_data["protection"])
                         else:
-                             target_motor_config.protection = joint_data["protection"]
+                            target_motor_config.protection = joint_data["protection"]
 
             if "custom" in config:
-                 device.config.custom.update(config["custom"])
+                device.config.custom.update(config["custom"])
 
-        self._save_devices() # list.json
-        
+        self._save_devices()  # list.json
+
         # Save config if modified
         if config is not None:
-             self._save_device_config(device)
+            self._save_device_config(device)
 
         logger.info(f"Updated device {device_id}")
         return device
@@ -358,7 +364,7 @@ class HardwareManager:
     def set_device_status(self, device_id: str, status: DeviceStatus) -> bool:
         """
         Update device status (available/offline/occupied).
-        
+
         Note: Status is runtime state and not persisted to disk.
 
         Args:
@@ -371,7 +377,7 @@ class HardwareManager:
         device = self.get_device(device_id)
         if not device:
             return False
-        
+
         device.status = status
         # Don't save to disk - status is runtime state
         logger.debug(f"Set device {device_id} status to {status.value}")
@@ -418,7 +424,7 @@ class HardwareManager:
         logger.info(f"Removed label '{key}' from device {device_id}")
         return True
 
-    def get_devices_by_label(self, key: str, value: Optional[str] = None) -> List[Device]:
+    def get_devices_by_label(self, key: str, value: str | None = None) -> list[Device]:
         """
         Get all devices with specific label.
 
@@ -439,13 +445,13 @@ class HardwareManager:
     def get_device_dir(self, device_id: str, category: DeviceCategory) -> Path:
         """
         Get device-specific data directory.
-        
+
         Creates the directory if it doesn't exist.
-        
+
         Args:
             device_id: Device unique identifier
             category: Device category
-        
+
         Returns:
             Path to device directory (e.g., ~/.leropilot/hardwares/robot/{device_id}/)
         """
@@ -458,11 +464,11 @@ class HardwareManager:
     def get_calibration_file(self, device_id: str, category: DeviceCategory) -> Path:
         """
         Get path to device calibration file.
-        
+
         Args:
             device_id: Device unique identifier
             category: Device category
-        
+
         Returns:
             Path to calibration.json
         """
@@ -472,13 +478,13 @@ class HardwareManager:
     def delete_device_data(self, device_id: str, category: DeviceCategory) -> None:
         """
         Delete all device-specific data files (calibration, URDF, etc.).
-        
+
         Args:
             device_id: Device unique identifier
             category: Device category
         """
         device_dir = self.get_device_dir(device_id, category)
-        
+
         if device_dir.exists():
             shutil.rmtree(device_dir)
             logger.info(f"Deleted device data directory: {device_dir}")
@@ -486,11 +492,11 @@ class HardwareManager:
     def get_urdf_file(self, device_id: str, category: DeviceCategory) -> Path:
         """
         Get path to custom URDF file.
-        
+
         Args:
             device_id: Device unique identifier
             category: Device category
-        
+
         Returns:
             Path to custom.urdf
         """
@@ -503,7 +509,7 @@ class HardwareManager:
     # Telemetry and other hardware-interacting APIs must manage their own connections
     # using MotorService directly, ensuring ports are closed after use.
 
-    def get_device_stats(self) -> Dict[str, Any]:
+    def get_device_stats(self) -> dict[str, Any]:
         """
         Get statistics about managed devices.
 
@@ -512,7 +518,7 @@ class HardwareManager:
         """
         devices = list(self._devices.values())
 
-        stats = {
+        stats: dict[str, Any] = {
             "total_devices": len(devices),
             "by_category": {},
             "by_status": {},
@@ -570,7 +576,7 @@ class HardwareManager:
             True if successful
         """
         try:
-            with open(import_path, "r", encoding="utf-8") as f:
+            with open(import_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             if not merge:

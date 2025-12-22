@@ -13,15 +13,15 @@ Example:
 
 import logging
 import sys
-import json
 from pathlib import Path
+
 from leropilot.services.hardware.urdf_validator import URDFValidator
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     """Validate a URDF file"""
     if len(sys.argv) < 2:
         print("Usage: python urdf_validator.py <urdf_file>")
@@ -36,7 +36,7 @@ def main():
         sys.exit(1)
 
     print("\n" + "=" * 80)
-    print(f"URDF VALIDATOR")
+    print("URDF VALIDATOR")
     print(f"File: {urdf_file}")
     print("=" * 80)
 
@@ -69,8 +69,8 @@ def main():
         if joint_info:
             print(f"\n🔗 Joints ({len(joint_info)}):")
             for joint in joint_info:
-                jtype = joint.joint_type.upper() if hasattr(joint, 'joint_type') else "unknown"
-                limits = joint.limits if hasattr(joint, 'limits') else {}
+                jtype = joint.joint_type.upper() if hasattr(joint, "joint_type") else "unknown"
+                limits = joint.limits if hasattr(joint, "limits") else {}
                 print(f"  - {joint.name} ({jtype})")
                 if limits:
                     print(f"    Limits: {limits}")
@@ -86,21 +86,12 @@ def main():
         print("\n" + "-" * 80)
         print("Motor Count Validation:")
 
-        # Example: validate that we have exactly 9 motors for OpenArm
-        motor_counts = {
-            9: "OpenArm (9 actuated joints)",
-            6: "Hexapod (6 DOF)",
-            4: "Quadruped (4 DOF)",
-            3: "Tripod (3 DOF)",
-            1: "Single arm (1 DOF)",
-        }
-
         motor_result = validator.validate_motor_count(str(urdf_file), 9)
         is_valid, message = motor_result
         if is_valid:
             print(f"✅ Motor count valid: {message}")
         else:
-            print(f"⚠️  Motor count mismatch:")
+            print("⚠️  Motor count mismatch:")
             print(f"   {message}")
 
         print("\n" + "=" * 80)

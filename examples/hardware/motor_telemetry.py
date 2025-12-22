@@ -15,13 +15,14 @@ Example:
 import logging
 import sys
 import time
+
 from leropilot.services.hardware.motors import MotorService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     """Read and display motor telemetry"""
     if len(sys.argv) < 4:
         print("Usage: python motor_telemetry.py <port> <brand> <motor_ids> [baud_rate]")
@@ -38,7 +39,7 @@ def main():
     service = MotorService()
 
     print("\n" + "=" * 80)
-    print(f"MOTOR TELEMETRY READING")
+    print("MOTOR TELEMETRY READING")
     print(f"Port: {port}")
     print(f"Brand: {brand}")
     print(f"Motor IDs: {motor_ids}")
