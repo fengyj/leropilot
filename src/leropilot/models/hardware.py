@@ -254,35 +254,26 @@ class DiscoveredController(DiscoveredDevice):
     pass
 
 
-class DiscoveredCamera(BaseModel):
-    """Discovered camera device"""
-
-    index: int = Field(..., description="Camera index (0, 1, ...)")
-    instance_id: str = Field(..., description="Unique instance identifier")
-    name: str = Field(..., description="Camera name")
-    friendly_name: str
-    type: str = Field(..., description="Camera type (USB, RealSense, etc.)")
-    vid: str
-    pid: str
-    serial_number: str | None = None
-    manufacturer: str
-    width: int | None = None
-    height: int | None = None
-    status: DeviceStatus
-    supported: bool = True
-    unsupported_reason: str | None = None
-
-
 class DiscoveryResult(BaseModel):
     """Complete hardware discovery result"""
 
     robots: list[DiscoveredRobot] = []
     controllers: list[DiscoveredController] = []
-    cameras: list[DiscoveredCamera] = []
+
+
+class CameraSummary(BaseModel):
+    """Minimal camera summary returned by discovery and listing APIs."""
+
+    index: int = Field(..., description="Camera index (0,1,...)")
+    name: str = Field(..., description="Camera display name")
+    width: int | None = Field(None, description="Reported frame width")
+    height: int | None = Field(None, description="Reported frame height")
+    available: bool = Field(True, description="Quick availability check (best-effort)")
+
 
 
 # ============================================================================
-# Probe Connection Results
+# Motor Discovery Results
 # ============================================================================
 
 
@@ -294,8 +285,8 @@ class SuggestedRobot(BaseModel):
     display_name: str
 
 
-class ProbeConnectionResult(BaseModel):
-    """Result from probe-connection endpoint"""
+class MotorDiscoverResult(BaseModel):
+    """Result from motor discovery / probe operation"""
 
     interface: str
     interface_type: InterfaceType

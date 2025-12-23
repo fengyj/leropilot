@@ -14,7 +14,7 @@ from leropilot.logger import get_logger
 from leropilot.middleware import IdempotencyMiddleware
 from leropilot.routers import app_config_api as config_router
 from leropilot.routers import environments_api as environments_router
-from leropilot.routers import hardware_api as hardware_router
+from leropilot.routers import hardwares_api as hardware_router
 from leropilot.routers import repositories_api as repositories_router
 from leropilot.routers import tools_api as tools_router
 from leropilot.routers import web_sockets_api as terminal_router

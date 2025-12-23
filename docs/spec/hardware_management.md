@@ -1,7 +1,7 @@
 # Hardware Management Specification
 
 ## 1. Overview
-This feature aims to provide a unified interface for managing hardware devices connected to the system, specifically robotic arms and cameras (including depth cameras). It allows users to identify, label, configure, and control these devices.
+This feature aims to provide a unified interface for managing hardware devices connected to the system, specifically robotic arms and controllers. Camera capture and streaming are supported via dedicated APIs, but cameras are **not** managed in the same way as robots and controllers (see note below). It allows users to identify, label, configure, and control supported devices.
 
 ## 2. Functional Requirements
 
@@ -10,11 +10,13 @@ This feature aims to provide a unified interface for managing hardware devices c
 **Supported Device Categories**:
 - `robot`: Execution devices (follower arms) - require torque control and protection parameters
 - `controller`: Input devices (leader arms, gamepads, SpaceMouse) - used for teleoperation
-- `camera`: Vision devices (RGB cameras, depth cameras)
+
+Note: Cameras (RGB/depth) are **not** managed as hardware devices in this feature. Camera functionality (snapshot, streaming) is provided via dedicated capture APIs; the hardware management lifecycle (discovery, add/remove, labels, calibration) applies only to `robot` and `controller` categories.
 
 - **Scan & List**: Automatically detect connected USB/Serial devices.
 - **Unique Identification**: **Strict Requirement**. Devices *must* have a readable unique serial number to be supported.
     - **No Fallback**: Devices without a unique serial number (common in cheap USB devices) **cannot be added** to the system.
+    - **API Behavior**: The backend `POST /api/hardware/devices` **rejects** requests with empty or missing `id` (HTTP 409). Attempts to add devices with `category` set to `camera` are **rejected** because cameras are handled as stateless capture/preview resources.
     - **UI Behavior**: Such devices will appear in the discovery list as "Unsupported (No Serial Number)" with the "Add" button disabled and a tooltip explaining the limitation.
 - **Device Naming**: Allow users to assign a human-readable "friendly name" to any device (e.g., "Left Arm", "Overhead Camera"). The default value is the device's product name from hardware metadata (e.g., "HP 320 FHD Webcam", "Koch v1.1").
 - **Tagging & Labels**: Adopt a **Key-Value Label** system (inspired by Kubernetes) for flexible management.
@@ -27,7 +29,7 @@ This feature aims to provide a unified interface for managing hardware devices c
 Start with a set of recommended/standard labels to unify automation:
 - `leropilot.ai/role`: `leader` (teleop master), `follower` (teleop puppet), `standalone`.
 - `leropilot.ai/position`: `left`, `right`, `center`.
-- `leropilot.ai/type`: For controllers: `robot_arm`, `gamepad`, `spacemouse`. For cameras: `rgb`, `depth`.
+- `leropilot.ai/type`: For controllers: `robot_arm`, `gamepad`, `spacemouse`.
 - *Users can still add custom labels (e.g., `project: assembly-line-1`).*
 
 **Category and Label Examples**:
@@ -72,9 +74,24 @@ Start with a set of recommended/standard labels to unify automation:
         - Voltage (V) with warning thresholds
     - **Health Alerts**:
         - ⚠️ Warning: Temperature > 50°C or Voltage < 11V
-        - 🛑 Critical: Temperature > 60°C or Voltage < 10V (auto-disable torque)
-    - **Auto-Configuration**: Suggest robot model based on discovered motor configuration.
+        - 🛑 Critical: Temperature > 60°C or Voltage < 10V — the backend will **auto-disable torque** for affected motors and **emit an `EMERGENCY_PROTECTION` event** over the WebSocket to notify clients.
 
+            Example event payload:
+
+            ```json
+            {
+              "type": "event",
+              "event": {
+                "code": "EMERGENCY_PROTECTION",
+                "severity": "critical",
+                "message": "Motor 3 torque disabled due to critical protection",
+                "motor_id": 3,
+                "timestamp": "2025-12-23T03:00:00Z"
+              }
+            }
+            ```
+
+            UIs should surface an immediate critical banner and disable control inputs for affected motor(s).
 ### 2.3.1 Motor Protection Parameters
 
 **Purpose**: Define safe operating thresholds for each motor to prevent hardware damage.
@@ -267,11 +284,25 @@ Example:
     - **Format Compatibility**: Data **must** be saved in a format compatible with `lerobot` to ensure seamless integration.
     - **Reference**: See [lerobot Calibration and Setup](https://deepwiki.com/huggingface/lerobot/6.4-calibration-and-setup) for detailed calibration data schema. A pre-implementation task should analyze lerobot's calibration code to determine the exact JSON schema.
 
-### 2.4 Cameras
-- **Preview**: Real-time video stream preview in the UI.
-- **Depth Cameras**:
-    - Visualize depth map (if applicable).
-    - Calibration tools for intrinsic/extrinsic parameters.
+### 2.4 Camera Handling (Note)
+Cameras are intentionally *not* managed like robots or controllers. The backend provides **stateless capture APIs** for discovery, snapshots, and preview streaming, but cameras are out of scope for the managed hardware lifecycle (add/remove/registry/calibration workflows). Key points:
+
+- **Stateless discovery & capture**: Call `GET /api/hardware/cameras` to list available camera indices and metadata; `GET /api/hardware/cameras/{camera_id}/snapshot` to capture a single frame; and `GET /api/hardware/cameras/{camera_id}/mjpeg` to open a browser-friendly MJPEG preview stream (multipart/x-mixed-replace). These APIs are stateless and do not enroll cameras into `list.json`. (Note: device-bound proxy routes such as `GET /api/hardware/devices/{device_id}/camera/snapshot` were removed; use the stateless `GET /api/hardware/cameras/{camera_id}/snapshot` instead.)
+
+API details:
+
+GET /api/hardware/cameras
+- Returns: JSON list of objects: `{ "index": 0, "name": "Integrated Webcam", "type": "USB" }`
+
+GET /api/hardware/cameras/{camera_id}/snapshot
+- Returns: `image/jpeg` binary payload (single frame snapshot)
+- Errors: 500 on capture/encoding failure
+
+GET /api/hardware/cameras/{camera_id}/mjpeg
+- Returns: `multipart/x-mixed-replace; boundary=frame` MJPEG stream suitable for browser preview
+- Client note: stream is stateless; multiple concurrent clients are supported where the backend can open multiple camera handles if hardware allows it.
+- **No persistent registry (deprecated)**: Camera persistence/labeling is currently disabled (CameraRegistry deprecated). The backend does not persist camera IDs or user labels because index-to-hardware mappings are brittle across platforms. If persistent labeling is required in the future, it should be implemented as an explicit opt-in feature with user confirmation and robust OS-level mapping.
+- **Advanced camera workflows** (depth cameras, calibration) are out-of-band: advanced depth-camera tooling (e.g., Intel RealSense workflows) or camera calibrators should be implemented in dedicated modules and may be provided as optional integrations rather than part of the hardware management lifecycle.
 
 ## 3. UI/UX Design
 
@@ -279,7 +310,7 @@ Example:
 - **Philosophy**: Show *only* managed (added) devices.
 - **Layout**:
     - **Header**: "Hardware" Title + "Add Device" Button.
-    - **Category Tabs**: [All] | [Robots] | [Controllers] | [Cameras].
+    - **Category Tabs**: [All] | [Robots] | [Controllers].
     - **Grid**: Cards for each added device.
 - **Card Design**:
     - **Header**: Icon + Friendly Name + Status Badge.
@@ -289,11 +320,11 @@ Example:
         - `Occupied` (Yellow): Device connected but in use by another process.
     - **Body**: ID Snippet, Key Labels (e.g., `role: leader`).
     - **Primary Actions**:
-        - "Control" (for Robots) / "View" (for Cameras).
+        - "Control" (for Robots).
         - *Disabled when device is Offline or Occupied.*
     - **Secondary Actions (Triple Dot)**:
         - "Settings" (Edit Name/Labels).
-        - "Calibrate" (for Robots and depth cameras).
+        - "Calibrate" (for Robots).
         - "Remove" (Removes from `list.json`. Prompt user: "Also delete calibration data?").
 
 ### 3.2 Add Device Workflow
@@ -312,11 +343,11 @@ Example:
     - **Connection Settings (category-aware)**: 
       - These settings are shown for categories that require motor bus communication (e.g., `robot`, `controller` when the controller is a `robot_arm`). Cameras do **not** show baud rate or motor brand fields.
       - **Interface Type**: Auto-detected based on discovered device (serial/CAN). Not directly editable in UI; determined by backend.
-      - **Baud Rate / Bit Rate**: Dropdown (e.g., 115200, 1000000 for serial; 1000000 for CAN). Frontend should offer an "Auto-detect" flow (see `POST /api/hardware/devices/:id/probe-connection`) to probe common rates and pre-fill this value.
+      - **Baud Rate / Bit Rate**: Dropdown (e.g., 115200, 1000000 for serial; 1000000 for CAN). Frontend should offer an "Auto-detect" flow (see `POST /api/hardware/motor-discover`) to probe common rates and pre-fill this value.
       - **Model / Manual Input**: The UI will suggest a builtin robot URDF based on detected motors. The suggested builtin is used as the default for visualization. Users may upload a custom URDF to override the builtin choice. If the robot/motor is unsupported, the user may still enter a model string manually — the device can be added, but motor discovery and runtime control will be unavailable for unsupported motors.
     - **URDF/Model Settings**: 
       - The system selects a default builtin URDF based on the detected motor configuration (suggested robot). The user may upload a custom URDF which overrides the default for visualization and control. The UI does not require selecting a robot model from a list when a builtin match exists.
-      - **Validation**: URDF files are validated on upload (server-side using `urdf_parser_py`). If parsing fails, reject the upload and show validation errors. If the user uploads a custom URDF, it takes precedence over the builtin default.
+      - **Validation**: URDF files are validated on upload (server-side using the project's in-house validator `leropilot.services.hardware.urdf`). If parsing fails, reject the upload and show validation errors. If the user uploads a custom URDF, it takes precedence over the builtin default.
     - **Verification Panel**:
         - **Camera**: Live video stream.
         - **Robot**: **Live 3D Pose**. Requires correct Baud Rate and Model to work.
@@ -374,9 +405,7 @@ Instead of a single complex "Detail Page", functionalities are split:
             └─────────────────────────────────────────────────┘
             ```
         - **Alert Banner**: When any motor exceeds thresholds, show alert at top of page.
-    - **Cameras**: 
-        - Full-screen stream.
-        - **Settings**: Resolution selector (640×480, 1280×720, 1920×1080), Frame rate (15/30/60 fps), Format (MJPG/YUYV).
+
 - **Calibration Page** (`/hardware/:id/calibrate`):
     - Wizard-style interface for performing calibration.
     - **Interruption Handling**: If device disconnects during calibration, abort gracefully and prompt user to reconnect.
@@ -390,28 +419,17 @@ Instead of a single complex "Detail Page", functionalities are split:
 - **Libraries**:
     - **Discovery**: 
         - **Robots (Serial)**: `pyserial.tools.list_ports` (Polling ~1s interval) used universally.
-        - **Cameras (Video)**: OS-specific handling required for Serial Numbers **and Metadata (Vendor, Model)**:
-    - **URDF Validation**: `urdf_parser_py` (version >= 0.5.0)
-        - Purpose: Server-side URDF syntax and structure validation
-        - Installation: `pip install urdf-parser-py`
-        - Usage: Parse XML, validate joint/link references, check attribute completeness
-            - **Linux**: Parsing `/dev/v4l/by-id/` filenames (format: `bus-Manufacturer_Product_Serial-video-index`).
-            - **Windows**: 
-                - **Problem**: OpenCV indices (0, 1) do not map directly to PnP IDs.
-                - **Solution**: Must use **DirectShow API** (via `comtypes` or `pygrabber`) to enumerate "Video Input Devices" filters. The enumeration order matches OpenCV indices, and the filter's `DevicePath` links to the PnP `InstanceId`.
-                - **Ghost Devices**: Must explicitly filter out devices where `IsPresent=False` (or `CM_Probable_Device_Is_Present=False`) to avoid listing disconnected historical devices.
-            - **macOS**: `system_profiler SPCameraDataType -json` for cameras, `system_profiler SPUSBDataType -json` for USB devices.
-    - **Camera Stream**: `opencv-python` for standard streams, `pyrealsense2` for Intel RealSense depth cameras.
-    - **Device Availability Detection**:
+        - **Device Availability Detection**:
         - **Serial Ports**: Attempt to open port with `serial.Serial()`. Failure indicates occupied.
         - **CAN Interfaces**: Check if CAN channel is already bound (using `python-can` or OS-specific APIs). On Linux, check `/sys/class/net/{channel}/operstate`.
-        - **Cameras**: Attempt `cv2.VideoCapture().read()`. Failure indicates occupied.
+
+Note: OS-specific camera metadata and index mapping are relevant to the camera capture/streaming module only; they are no longer part of the hardware discovery/management features. Camera capture/preview uses `opencv-python` for standard RGB streams; optional depth-camera support (e.g., `pyrealsense2`) may be provided as an opt-in integration. Index-to-hardware mapping on Windows (DirectShow/DevicePath) remains an advisory implementation detail for the capture module, not for hardware enrollment.
 - **Communication Protocols**:
     - **REST API**: For CRUD operations (device management, settings, calibration data). See Section 4.3 for detailed API specifications.
-    - **WebSocket**: For real-time streaming only (high-frequency data that cannot be efficiently polled):
+    - **WebSocket**: For real-time robot control (high-frequency data that cannot be efficiently polled):
         - **Robot Control**: Motor telemetry stream (10-100 Hz) + motor command stream
-        - **Camera Preview**: MJPEG video stream (15-60 fps)
         - **Events**: Device errors, warnings, and status changes during active operations
+    - **HTTP MJPEG**: Camera previews use an HTTP MJPEG multipart/x-mixed-replace preview (recommended for browser previews; see `/api/hardware/cameras/{camera_id}/mjpeg`).
     - **Note**: Dashboard device status monitoring uses REST API polling (~1s interval), not WebSocket
 - **Robot Control Integration**:
     - Leverage `lerobot`'s existing driver layer (Feetech SDK, Dynamixel SDK) via its factory pattern.
@@ -479,7 +497,7 @@ All API endpoints use JSON for request/response bodies. Error responses follow t
 #### 4.3.1 Device Discovery & Management
 
 **GET `/api/hardware/discover`**
-- **Description**: Scan for all connected hardware devices (robots, controllers, and cameras). Returns **only devices not yet added** to the system (excludes devices already in `list.json`). Only returns devices that are currently available (not occupied). The response includes all supported categories; devices without a readable unique `serial_number` are reported as `unsupported` (see field `supported: false`) and should be presented disabled in the UI.
+- **Description**: Scan for all connected hardware devices (robots and controllers). Cameras are not included as managed hardware devices and therefore are not returned by the hardware discovery endpoint; camera capture/stream APIs are provided separately. Returns **only devices not yet added** to the system (excludes devices already in `list.json`). Only returns devices that are currently available (not occupied). Devices without a readable unique `serial_number` are reported as `unsupported` (see field `supported: false`) and should be presented disabled in the UI.
 - **Response** (200 OK):
     ```json
     {
@@ -536,7 +554,7 @@ All API endpoints use JSON for request/response bodies. Error responses follow t
 **GET `/api/hardware/devices`**
 - **Description**: List all managed (added) devices. Backend merges saved configuration from `list.json` with real-time physical device status (by matching `serial_number`).
 - **Query Parameters**:
-    - `category` (optional): Filter by type. Values: `robot`, `controller`, `camera`, `all` (default: `all`)
+    - `category` (optional): Filter by type. Values: `robot`, `controller`, `all` (default: `all`)
 - **Response** (200 OK):
     ```json
     [
@@ -590,7 +608,7 @@ All API endpoints use JSON for request/response bodies. Error responses follow t
     ```json
     {
       "id": "A50285BI",             // Serial number from discover API
-      "category": "robot",          // robot | controller | camera
+      "category": "robot",          // robot | controller
       "name": "My Robot Arm",
       "labels": {
         "leropilot.ai/role": "follower"
@@ -665,18 +683,58 @@ All API endpoints use JSON for request/response bodies. Error responses follow t
     - `404 Not Found`: Device does not exist
 
 #### 4.3.2 Robot Motor Discovery
-(See Section 4.3.2 on Probe Connection. Dedicated scan-motors and REST telemetry endpoints have been removed in favor of `probe-connection` and WebSockets respectively.)
+(See Section 4.3.2 on Motor Discovery. Dedicated scan-motors and REST telemetry endpoints have been removed in favor of `motor-discover` and WebSockets respectively.)
 
-#### 4.3.3 Camera Operations
+#### 4.3.3 Camera Operations (Discovery, Snapshot & MJPEG Preview)
 
-**GET `/api/hardware/devices/:id/camera/snapshot`**
-- **Description**: Capture a single frame from the camera.
-- **Path Parameters**:
-    - `id`: Camera device ID
-- **Response** (200 OK): JPEG image (binary data)
-- **Error Responses**:
-    - `404 Not Found`: Device does not exist
-    - `409 Conflict`: Camera is occupied
+**GET `/api/hardware/cameras`**
+- **Description**: Stateless listing of currently available cameras on the host. Returns a minimal `CameraSummary` for each detected camera.
+- **Response (200 OK)**: JSON array of objects:
+
+```json
+[
+  {
+    "id": "cam_0",
+    "index": 0,
+    "name": null,
+    "width": null,
+    "height": null,
+    "available": true
+  },
+  ...
+]
+```
+
+Fields:
+- `id` (string): Stable-for-session identifier (e.g., `cam_0`). Not persisted across reboots.
+- `index` (int): OpenCV-style index (0, 1, ...). Use this index to open the camera.
+- `name` (string|null): Optional platform-provided name when available.
+- `width`, `height` (int|null): Supported frame size reported by probe or `null` if unknown.
+- `available` (bool): Whether the camera could be opened for capture.
+
+**GET `/api/hardware/cameras/{camera_id}/snapshot`**
+- **Description**: Capture a single frame from the specified camera.
+- **Query Parameters**:
+  - `width` (int, optional): Requested width (pixels).
+  - `height` (int, optional): Requested height (pixels).
+  - `fmt` (string, optional): Image format (`jpeg` or `png`, default `jpeg`).
+- **Response**: Binary image with appropriate `Content-Type` (e.g., `image/jpeg`).
+- **Errors**:
+  - `404 Not Found`: `camera_id` not valid on this host.
+  - `409 Conflict`: Camera is occupied by another process.
+  - `500 Internal Server Error`: Capture failed.
+
+**GET `/api/hardware/cameras/{camera_id}/mjpeg`**
+- **Description**: Open an HTTP MJPEG preview stream (multipart/x-mixed-replace) for browser-friendly previews. This replaces prior WebSocket-based camera streams.
+- **Query Parameters**:
+  - `fps` (int, optional): Requested frames per second (default: 15).
+  - `width` (int, optional): Requested frame width.
+  - `height` (int, optional): Requested frame height.
+- **Response**: `200 OK` with `Content-Type: multipart/x-mixed-replace; boundary=frame`. Clients may open multiple concurrent streams to the same camera (multi-open allowed). If the camera cannot be opened, the server returns `404`.
+
+**Notes**:
+- Discovery and capture APIs are intentionally stateless and do not enroll cameras into `list.json`.
+- Persistent labeling and registry persistence for cameras is **not supported** (CameraRegistry is deprecated). Frontend should obtain user confirmation and use the stateless discovery + MJPEG preview flow to let the user select and validate a camera before use.
 
 #### 4.3.4 Motor Protection Management
 
@@ -768,7 +826,7 @@ All API endpoints use JSON for request/response bodies. Error responses follow t
 #### 4.3.6 URDF Management
 
 **POST `/api/hardware/devices/:id/urdf`**
-- **Description**: Upload a custom URDF file for a robot. File is validated using `urdf_parser_py` before saving.
+- **Description**: Upload a custom URDF file for a robot. File is validated using the in-project validator (`leropilot.services.hardware.urdf`) before saving.
 - **Path Parameters**:
     - `id`: Robot device ID
 - **Request**: `multipart/form-data`
@@ -811,24 +869,42 @@ All API endpoints use JSON for request/response bodies. Error responses follow t
 
 **URDF Validation Logic**:
 
-Implemented in `services/hardware/urdf_validator.py` using `urdf_parser_py`:
+Implemented in `services/hardware/urdf` (in-project validator) which performs both **syntax** (parse) and **semantic** checks and returns structured diagnostics that the frontend can present to users.
 
-```python
-from urdf_parser_py.urdf import URDF
+Key validation checks:
+- Existence and parseability of the URDF file (parser-level errors)
+- Duplicate names (joints/links) — `URDF_DUPLICATE_JOINT_NAME`, `URDF_DUPLICATE_LINK_NAME`
+- Root link existence / multiple roots — `URDF_NO_ROOT`, `URDF_MULTIPLE_ROOTS` (blocking)
+- Cycle detection in kinematic tree — `URDF_CYCLE` (blocking)
+- Actuated joint limits presence and numeric sanity (`URDF_MISSING_LIMIT`, `URDF_LIMIT_INVALID`, `URDF_LIMIT_ORDER`, `URDF_LIMIT_SUSPICIOUS`)
+- Joint axis sanity (zero axis) — `URDF_AXIS_ZERO` (warning)
+- Inertial presence and numeric checks (`URDF_MISSING_INERTIAL`, `URDF_INVALID_INERTIA`)
+- Motor-count cross-check (compare robot actuated joints with detected motors) — returns a clear message via `validate_motor_count`
 
-def validate_urdf(file_path: str, expected_joints: int = None) -> dict:
-    """
-    Validate URDF file structure and joint configuration
-    
-    Args:
-        file_path: Path to URDF file
-        expected_joints: Expected number of joints (optional)
-    
-    Returns:
-        {
-            "valid": bool,
-            "errors": list[str],
-            "joints": int,
+Return structure example (partial):
+
+```json
+{
+  "valid": false,
+  "errors": ["URDF_CYCLE: Cycle detected: base_link -> elbow"],
+  "error_details": [
+    {"code":"URDF_CYCLE","message":"Cycle detected: base_link -> elbow","location":"elbow"}
+  ],
+  "warnings": ["URDF_MISSING_INERTIAL @ link_3: Link missing inertial information"],
+  "warning_details": [
+    {"code":"URDF_MISSING_INERTIAL","message":"Link missing inertial information","location":"link_3"}
+  ],
+  "joints": 6,
+  "links": 7,
+  "robot_name": "my_robot"
+}
+```
+
+Guidelines:
+- **Blocking errors** (cycles, missing root, motor-count mismatch) should prevent enabling automated control until fixed.
+- **Warnings** (missing inertial, suspicious value ranges) are surfaced to users for review and can be accepted to proceed with explicit confirmation.
+
+This makes the validator both user-facing (clear, actionable messages) and safe for automated checks (CI or pre-deploy validation).
             "links": int
         }
     """
@@ -886,7 +962,7 @@ def validate_urdf(file_path: str, expected_joints: int = None) -> dict:
 
 **GET `/api/hardware/devices/:id/urdf`**
 
-**POST `/api/hardware/devices/:id/probe-connection`**
+**POST `/api/hardware/motor-discover`**
 - **Description**: Automatically probe a robot device on a given `interface` to
   detect the correct `baud_rate` and the connected motor brand/model(s).
   This endpoint is intended to be called from the Add Device workflow so
@@ -932,7 +1008,7 @@ def validate_urdf(file_path: str, expected_joints: int = None) -> dict:
     - `504 Gateway Timeout`: Probing timed out without success
 
 **UI Usage**:
-- During Add Device: frontend calls `POST /api/hardware/devices/:id/probe-connection`
+- During Add Device: frontend calls `POST /api/hardware/motor-discover`
   with `port` returned from the discovery API. If the call returns a
   detected baud rate and motors, the Add Device modal pre-fills `baud_rate`,
   `brand`, and shows the discovered motors; the user can then accept or
@@ -1097,7 +1173,10 @@ if hardware_manager.mode == "native":
 
 ### 4.5 WebSocket Protocol
 
-WebSocket is used **only for high-frequency real-time streaming** during active device operation (robot control, camera preview). For low-frequency status updates (dashboard monitoring), use REST API polling instead.
+WebSocket is used **only for high-frequency real-time streaming** during active device operation (robot control). For camera previews use HTTP MJPEG or snapshot APIs, and for low-frequency status updates (dashboard monitoring) use REST API polling instead.
+
+#### Runtime Telemetry Service (TelemetrySession)
+A dedicated runtime service, **TelemetrySession** (module: `src/leropilot/services/hardware/telemetry.py`), is responsible for polling motor telemetry, evaluating protection rules, executing safety actions (e.g., disabling torque), and emitting structured events/telemetry messages via an `asyncio.Queue`. The WebSocket handler acts as a thin transport/forwarder that subscribes to the session's queue and relays messages to connected clients. This separation ensures business logic (protection, disable behavior) is testable and reusable by other transports or automation scripts.
 
 **Connection Endpoint**: `ws://host:port/api/ws/hardware/devices/:device_id`
 
@@ -1113,6 +1192,13 @@ WEBSOCKET_PING_TIMEOUT = 5  # seconds (max time to wait for pong)
 # Future: Allow runtime configuration via environment variables
 # WEBSOCKET_TIMEOUT = int(os.getenv("LEROPILOT_WS_TIMEOUT", "30"))
 ```
+
+## Runtime Events
+- `EMERGENCY_PROTECTION` — emitted when one or more motors have protection status `critical`. Payload includes `motor_id`, `code`, `severity`, `message`, and `timestamp`.
+- `SESSION_TIMEOUT` — emitted when a session is idle for longer than `WEBSOCKET_TIMEOUT`.
+- `EMERGENCY_STOP` — emitted when a client triggers an emergency stop (disables all torque).
+
+Event semantics: events are first-class messages (type=`event`) delivered on the session WebSocket; UIs should treat `severity == "critical"` as blocking and surface a non-dismissible critical banner until the issue is resolved.
 
 **Session Lifecycle**:
 1. Client connects to WebSocket endpoint
@@ -1331,7 +1417,7 @@ Error semantics (suggested HTTP use):
 
 | Code | Severity | Description | Auto-Action |
 |------|----------|-------------|-------------|
-| `CAMERA_DISCONNECTED` | critical | Camera unplugged | Close WebSocket |
+| `CAMERA_DISCONNECTED` | critical | Camera unplugged | Stop MJPEG stream / close client connection |
 | `STREAM_ERROR` | warning | Failed to capture frame | Retry |
 | `RESOLUTION_NOT_SUPPORTED` | warning | Requested resolution unavailable | Fallback to 640x480 |
 
@@ -1438,8 +1524,10 @@ window.addEventListener('beforeunload', () => {
     │   ├── feetech.py       # Feetech SCS/STS serial protocol
     │   ├── dynamixel.py     # Dynamixel Protocol 2.0 serial
     │   └── damiao.py        # Damiao CAN bus protocol (NEW: for OpenArm)
-    ├── discovery.py
+    ├── robots.py           # Robot discovery, robot config, calibration service (consolidated)
     ├── motors.py
+    ├── cameras.py          # Camera capture and streaming service (stateless)
+    ├── urdf_validator.py   # URDF validation logic (enhanced semantic checks)
     └── manager.py
   ```
 - **Schemas**:
@@ -1448,7 +1536,7 @@ window.addEventListener('beforeunload', () => {
      [
        {
          "id": "A50285BI",                    // Unique serial number (from hardware)
-         "category": "robot",                 // Enum: "robot", "controller", "camera"
+         "category": "robot",                 // Enum: "robot", "controller"
          "name": "Left Follower Arm",
          "manufacturer": "FTDI",              // Metadata from discovery (read-only)
          "labels": {
@@ -1655,7 +1743,7 @@ window.addEventListener('beforeunload', () => {
         - Dashboard: Poll status for all known devices.
         - Detail/Control Page: Poll status for current device only.
 
-### 5.5 Windows Camera Index Mapping
+### 5.5 Windows Camera Index Mapping (Advisory for Camera Capture Module)
 - **Problem**: OpenCV's `cv2.VideoCapture(index)` uses a simple integer index, but Windows PnP uses complex string IDs (`USB\VID_...`). There is no built-in function in OpenCV to say "Index 0 corresponds to Device Path X".
 - **Solution**: **DirectShow Enumeration**.
     - OpenCV on Windows defaults to the DirectShow backend.
@@ -1683,7 +1771,7 @@ window.addEventListener('beforeunload', () => {
 - **Run**: `python -m leropilot.poc.hardware_discovery`
 - **Validates**:
   - Serial port discovery via `pyserial.tools.list_ports`
-  - Camera discovery via OS-specific methods (Linux: `/dev/v4l/by-id/`, Windows: WMI, macOS: `system_profiler`)
+  - Camera capture/indexing may use OS-specific methods (Linux: `/dev/v4l/by-id/`, Windows: DirectShow/WMI, macOS: `system_profiler`), but camera discovery is not part of hardware management.
   - Device availability detection (open port/camera to check if occupied)
   - Serial number extraction
 
@@ -1767,10 +1855,8 @@ src/leropilot/
 │       │   │   └── AvailabilityChecker (ABC)
 │       │   ├── serial_discoverer.py     # Serial port discovery
 │       │   │   └── SerialPortDiscoverer (pyserial.tools.list_ports)
-│       │   └── camera_discoverer.py     # Camera discovery (OS-specific)
-│       │       ├── LinuxCameraDiscoverer (/dev/v4l/by-id/)
-│       │       ├── WindowsCameraDiscoverer (DirectShow + WMI)
-│       │       └── MacOSCameraDiscoverer (system_profiler)
+│       │   └── (camera discovery removed - camera hardware is not managed)
+│       │       # (OS-specific camera discovery modules removed)
 │       │
 │       ├── motors/                      # Motor bus communication
 │       │   ├── __init__.py
@@ -1825,7 +1911,7 @@ src/leropilot/
 │           │       ├── update_activity()
 │           │       └── release_device()
 │           ├── robot_session.py         # Robot control WebSocket handler
-│           └── camera_session.py        # Camera stream WebSocket handler
+│           └── (camera_session.py removed — camera WebSocket streams replaced by MJPEG HTTP preview)
 │
 └── routers/
     ├── hardware_api.py                  # REST API endpoints (NEW)
@@ -1837,7 +1923,9 @@ src/leropilot/
     │   ├── DELETE /api/hardware/devices/:id
     │   ├── POST /api/hardware/devices/:id/scan-motors
     │   ├── GET  /api/hardware/devices/:id/motors/telemetry
-    │   ├── GET  /api/hardware/devices/:id/camera/snapshot
+    │   ├── GET  /api/hardware/cameras
+    │   ├── GET  /api/hardware/cameras/{camera_id}/snapshot
+    │   ├── GET  /api/hardware/cameras/{camera_id}/mjpeg
     │   ├── GET  /api/hardware/devices/:id/calibration
     │   ├── PUT  /api/hardware/devices/:id/calibration
     │   ├── DELETE /api/hardware/devices/:id/calibration
@@ -1848,7 +1936,7 @@ src/leropilot/
     └── web_sockets_api.py               # WebSocket endpoints (UPDATED)
         ├── /api/ws/pty_sessions/:session_id          # Existing: Terminal
         ├── /api/ws/hardware/devices/:device_id?stream=robot_control  # NEW: Robot control
-        └── /api/ws/hardware/devices/:device_id?stream=camera         # NEW: Camera stream
+        └── /api/ws/hardware/devices/:device_id?stream=robot_control         # NEW: Robot control (camera streams are HTTP/MJPEG only)
 ```
 
 **Design Principles:**
@@ -1892,7 +1980,7 @@ frontend/src/
 │   ├── useDevices.ts                    # Device list hook (NEW)
 │   ├── useDeviceStatus.ts               # Status polling hook (NEW)
 │   ├── useRobotControl.ts               # Robot WebSocket hook (NEW)
-│   ├── useCameraStream.ts               # Camera WebSocket hook (NEW)
+│   ├── useMJPEGPreview.ts               # MJPEG preview helper (NEW)
 │   └── useMotorTelemetry.ts             # Telemetry subscription hook (NEW)
 │
 ├── pages/
@@ -1911,7 +1999,7 @@ frontend/src/
         ├── motor-protection-editor.tsx  # Motor protection parameters editor (NEW)
         ├── motor-specs-viewer.tsx       # View built-in motor specs (read-only) (NEW)
         ├── robot-3d-viewer.tsx          # 3D URDF visualization (from PoC)
-        ├── camera-preview.tsx           # Video stream preview
+        ├── camera-preview.tsx           # MJPEG preview component (uses `<img src="/api/hardware/cameras/{id}/mjpeg">`)
         └── emergency-stop-button.tsx    # Emergency stop control
 ```
 
@@ -1938,6 +2026,62 @@ frontend/src/
 6. **User selects device** → Opens `DeviceSetupModal`
 7. **User fills name/labels** → Clicks "Add Device"
 8. **Frontend** → `POST /api/hardware/devices` with `CreateDeviceRequest`
+
+---
+
+### API Reference — Devices
+
+POST /api/hardware/devices
+- Description: Create a new managed device. Device `id` is the unique serial number and is required.
+- Request body (example):
+
+```json
+{
+  "id": "SN123456",
+  "category": "robot",
+  "name": "Left Arm",
+  "manufacturer": "Acme",
+  "labels": {"leropilot.ai/role": "follower"},
+  "connection_settings": {"interface_type": "serial", "baud_rate": 1000000, "brand": "dynamixel"}
+}
+```
+
+- Successful response: HTTP 200 with the created Device JSON (same schema as GET /api/hardware/devices/{id}).
+- Errors:
+  - 409 Conflict: invalid request (e.g., missing or empty `id`, duplicate `id`, duplicate `name`, or attempting to add a `camera` category)
+  - 404 Not Found: when referencing related resources that don't exist (rare)
+  - 500 Internal Server Error: server side error
+
+Notes:
+- `id` must be the hardware serial number; attempts to add without it **fail** (HTTP 409).
+- Cameras are intentionally not managed; adding a device with `category` == `camera` will be rejected (HTTP 409).
+
+GET /api/hardware/discovery
+- Description: Returns un-added discovered devices.
+- Returns: `DiscoveryResult` with `robots` and `controllers` arrays. Entries for devices lacking serial numbers will be returned with `supported=false` and `unsupported_reason="missing_serial_number"`.
+
+---
+
+### Discovery → Add flow (UI/Backend)
+
+1. Frontend calls `GET /api/hardware/discovery` to get the list of un-added devices.
+2. For each `robot` in `discovery.robots` that has a `serial_number`, the frontend may present an "Add" action.
+3. User clicks Add and frontend issues `POST /api/hardware/devices` with `id` set to the device `serial_number` returned from discovery.
+4. Backend validates `id` and creates the managed Device (or returns 409 on validation errors).
+
+Example discovery response (excerpt):
+
+```json
+{
+  "robots": [
+    {"port": "COM3", "description": "FTDI USB Serial", "serial_number": "SN123456", "supported": true},
+    {"port": "COM4", "description": "CH340 USB Serial", "serial_number": null, "supported": false, "unsupported_reason": "missing_serial_number"}
+  ],
+  "controllers": []
+}
+```
+
+When `POST /api/hardware/devices` succeeds, the device no longer appears in subsequent `GET /api/hardware/discovery` responses (it's now managed).
 9. **API layer** → Validates, calls `DeviceRegistry.add_device()`
 10. **Registry** → Checks name uniqueness, saves to `list.json`, returns device
 11. **Frontend** → Updates store, navigates to `/hardware`
@@ -1948,7 +2092,7 @@ frontend/src/
 
 | PoC File | Destination | Notes |
 |----------|-------------|-------|
-| `src/leropilot/poc/hardware_discovery.py` | `services/hardware/discovery/serial_discoverer.py` + `camera_discoverer.py` | Split by device type |
+| `src/leropilot/poc/hardware_discovery.py` | `services/hardware/robots.py` (serial discovery) + `cameras.py` (stateless camera capture) | Split by device type |
 | `src/leropilot/poc/motor_discovery.py` | `services/hardware/motors/dynamixel_driver.py` + `feetech_driver.py` | Abstract to `MotorDriver` interface |
 | `frontend/src/poc/urdf-viewer.tsx` | `components/hardware/robot-3d-viewer.tsx` | Clean up, integrate with control page |
 
@@ -2247,10 +2391,10 @@ Implement all service-level functionality **before** creating API routers. This 
    - `drivers/feetech.py` - Feetech serial protocol driver
    - `drivers/dynamixel.py` - Dynamixel Protocol 2.0 driver
    - `drivers/damiao.py` - Damiao CAN bus driver
-   - `discovery.py` - Hardware discovery service (serial + camera + CAN enumeration)
+   - `robots.py` - Robot discovery, configuration, and calibration services (serial + CAN enumeration). Camera capture is stateless and exposed via `GET /api/hardware/cameras` provided by `cameras.py`.
    - `motors.py` - Motor scanning and telemetry service
-   - `camera.py` - Camera capture and streaming service
-   - `calibration.py` - Calibration data management
+   - `cameras.py` - Camera capture and streaming service (snapshot & MJPEG preview)
+   - `CalibrationService` (part of `robots.py`) - Calibration data management and persistence
    - `motor_protection.py` - Protection parameter management and violation detection
    - `urdf_validator.py` - URDF file validation service
    - `manager.py` - HardwareManager singleton (device lifecycle, state management)
@@ -2279,7 +2423,7 @@ Create example/test scripts to validate service layer functionality **before** b
    
    service = DiscoveryService()
    devices = service.discover_all()
-   print(f"Found {len(devices['robots'])} robots, {len(devices['cameras'])} cameras")
+   print(f"Found {len(devices['robots'])} robots")
    for robot in devices['robots']:
        print(f"  - {robot['description']} on {robot['port']} (SN: {robot['serial_number']})")
    ```
@@ -2287,7 +2431,7 @@ Create example/test scripts to validate service layer functionality **before** b
 2. **`example_probe_connection.py`** - Probe baud rate and scan motors
    ```python
    """
-   Test probe-connection flow: auto-detect baud rate and scan motors
+   Test motor-discover flow: auto-detect baud rate and scan motors
    Usage: python -m src.leropilot.examples.example_probe_connection --interface COM11
    """
    from leropilot.services.hardware.motors import MotorService
@@ -2367,8 +2511,26 @@ Create example/test scripts to validate service layer functionality **before** b
    service = CameraService()
    frame = service.capture_snapshot(camera_index=0)
    print(f"Captured frame: {frame.shape}")
+   # Browser MJPEG preview example (HTML):
+   # <img src="/api/hardware/cameras/cam_0/mjpeg?fps=15&width=640&height=480" />
    # Optionally save to file
    import cv2
+
+
+7. **`example_camera_mjpeg.py`** - Test MJPEG preview (integration)
+   ```python
+   """
+   Connect to `/api/hardware/cameras/{camera_id}/mjpeg` and validate multipart frames are received. Use the CameraService to produce frames for test.
+   Usage: python -m src.leropilot.examples.example_camera_mjpeg --camera cam_0
+   """
+   import requests
+   r = requests.get('http://localhost:8000/api/hardware/cameras/cam_0/mjpeg', stream=True)
+   # Validate stream content-type and multipart boundary, read a few frames
+   assert 'multipart' in r.headers['Content-Type']
+   for _ in range(3):
+       chunk = next(r.iter_content(chunk_size=8192))
+       assert chunk
+   r.close()
    cv2.imwrite("snapshot.jpg", frame)
    ```
 
@@ -2424,7 +2586,7 @@ Create example/test scripts to validate service layer functionality **before** b
 **Testing Workflow**:
 
 1. Run discovery script to verify hardware enumeration works
-2. Run probe-connection script to validate auto-detection logic
+2. Run the `probe_connection` example script to validate auto-detection logic
 3. Run motor scan and telemetry scripts to verify driver communication
 4. Run protection and validation scripts to test business logic
 5. Run device lifecycle script to test data persistence (`list.json`)
@@ -2441,7 +2603,7 @@ Create example/test scripts to validate service layer functionality **before** b
 
 After service layer is stable and tested via example scripts:
 
-1. Implement REST API routers (`routers/hardware_api.py`)
+1. Implement REST API routers (`routers/hardwares_api.py`)
 2. Implement WebSocket handlers (`routers/web_sockets_api.py`)
 3. Wire services to API endpoints
 4. Test APIs via Postman/curl/pytest
@@ -2526,7 +2688,7 @@ sequenceDiagram
         Frontend->>Frontend: Detect type = camera
         Frontend-->>User: Show Camera Add Modal<br/>(auto-fill name from device info)
     else Serial/CAN Device
-        Frontend->>Backend: POST /api/hardware/probe-connection<br/>{interface: "COM11"}
+        Frontend->>Backend: POST /api/hardware/motor-discover<br/>{interface: "COM11"}
         Backend-->>Frontend: {baud_rate, brand, motors[],<br/>suggested_robots[{id, display_name}]}
         
         Frontend->>Frontend: Auto-detect category from motors<br/>(robot if motors found, else controller)

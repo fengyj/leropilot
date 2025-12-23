@@ -20,11 +20,11 @@ import logging
 from leropilot.models.hardware import (
     InterfaceType,
     MotorBrand,
+    MotorDiscoverResult,
     MotorInfo,
     MotorProtectionParams,
     MotorScanResult,
     MotorTelemetry,
-    ProbeConnectionResult,
     ProtectionStatus,
     ProtectionViolation,
 )
@@ -32,7 +32,7 @@ from leropilot.services.hardware.drivers.base import BaseMotorDriver
 from leropilot.services.hardware.drivers.damiao import DamiaoCAN_Driver
 from leropilot.services.hardware.drivers.dynamixel import DynamixelDriver
 from leropilot.services.hardware.drivers.feetech import FeetechDriver
-from leropilot.services.hardware.robot_config import RobotConfigService
+from leropilot.services.hardware.robots import RobotConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +236,7 @@ class MotorService:
         interface_type: str = "serial",
         probe_baud_list: list[int] | None = None,
         probe_motor_ids: list[int] | None = None,
-    ) -> ProbeConnectionResult | None:
+    ) -> MotorDiscoverResult | None:
         """
         Probe a communication interface to detect motor brand and parameters.
 
@@ -249,7 +249,7 @@ class MotorService:
             probe_motor_ids: List of motor IDs to scan (default: 1-10 for quick check)
 
         Returns:
-            ProbeConnectionResult with detected brand/baud, or None if no motors found
+            MotorDiscoverResult with detected brand/baud, or None if no motors found
         """
         if probe_motor_ids is None:
             # Scan 1-10 to cover most common 6-DOF and 7-DOF arms for identification
@@ -271,14 +271,14 @@ class MotorService:
         logger.error(f"Unknown interface type: {interface_type}")
         return None
 
-    def _probe_serial_port(self, port: str, baud_list: list[int], motor_ids: list[int]) -> ProbeConnectionResult | None:
+    def _probe_serial_port(self, port: str, baud_list: list[int], motor_ids: list[int]) -> MotorDiscoverResult | None:
         """Probe a serial port for motors"""
         for baud_rate in baud_list:
             # Try Dynamixel first (most common in robotic arms)
             motors = self._try_driver(DynamixelDriver, port, baud_rate, motor_ids)
             if motors:
                 logger.info(f"Detected Dynamixel motors on {port} @ {baud_rate} baud")
-                return ProbeConnectionResult(
+                return MotorDiscoverResult(
                     interface=port,
                     interface_type=InterfaceType.SERIAL,
                     brand=MotorBrand.DYNAMIXEL,
@@ -291,7 +291,7 @@ class MotorService:
             motors = self._try_driver(FeetechDriver, port, baud_rate, motor_ids)
             if motors:
                 logger.info(f"Detected Feetech motors on {port} @ {baud_rate} baud")
-                return ProbeConnectionResult(
+                return MotorDiscoverResult(
                     interface=port,
                     interface_type=InterfaceType.SERIAL,
                     brand=MotorBrand.FEETECH,
@@ -305,13 +305,13 @@ class MotorService:
 
     def _probe_can_interface(
         self, interface: str, interface_type: str, motor_ids: list[int]
-    ) -> ProbeConnectionResult | None:
+    ) -> MotorDiscoverResult | None:
         """Probe a CAN interface for Damiao motors"""
         for bitrate in STANDARD_CAN_BITRATES:
             motors = self._try_driver(DamiaoCAN_Driver, interface, bitrate, motor_ids)
             if motors:
                 logger.info(f"Detected Damiao motors on {interface} @ {bitrate} bps")
-                return ProbeConnectionResult(
+                return MotorDiscoverResult(
                     interface=interface,
                     interface_type=InterfaceType(interface_type),
                     brand=MotorBrand.DAMIAO,

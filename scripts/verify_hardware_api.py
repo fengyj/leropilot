@@ -49,7 +49,7 @@ async def run_verification() -> None:
         if "robots" in data and len(data["robots"]) > 0:
             # Just picking one to check structure
             # Actually robots is a list of devices (discovery returns connected ports/devices not known yet)
-            # Wait, GET /discovery returns `{"robots": [...], "cameras": [...]}` where items are `ProbeConnectionResult`
+            # Wait, GET /discovery returns `{"robots": [...], "cameras": [...]}` where items are `MotorDiscoverResult`
             # Let's check the first one if it exists
             pass
 

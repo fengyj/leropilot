@@ -172,6 +172,14 @@ class HardwareManager:
         Raises:
             ValueError: If device ID or name already exists
         """
+        # Basic validation
+        if not device_id or (isinstance(device_id, str) and device_id.strip() == ""):
+            raise ValueError("device_id (serial number) is required")
+
+        # Reject cameras being added - cameras are stateless and not managed
+        if category == DeviceCategory.CAMERA:
+            raise ValueError("Cameras are not managed devices; use snapshot/stream APIs instead")
+
         # Check for duplicate device ID
         if device_id in self._devices:
             raise ValueError(f"Device with ID '{device_id}' already exists")
@@ -197,7 +205,7 @@ class HardwareManager:
 
         # Handle Default Protection Logic for Robots
         # Note: Auto-population logic removed as 'model' field is deprecated.
-        # Users should use 'probe-connection' to discover motors/SuggestedRobot
+        # Users should use 'motor-discover' (MotorService.probe_connection) to discover motors/SuggestedRobot
         # and then configure the device.
         if category == DeviceCategory.ROBOT:
             pass

@@ -23,7 +23,6 @@ dependencies = [
     "feetech-servo-sdk>=1.0.0",
     "python-can>=4.0.0",
     "pyrealsense2>=2.50.0",
-    "urdf-parser-py>=0.0.4",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +37,7 @@ dev = [
 ]
 windows = [
     "wmi>=1.5.1",
+    "comtypes>=1.1.10",
 ]
 
 [tool.setuptools.packages.find]
