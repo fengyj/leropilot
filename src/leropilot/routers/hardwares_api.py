@@ -1,36 +1,36 @@
+import asyncio
 import importlib.resources
 import logging
-import platform
 import threading
 from collections.abc import AsyncGenerator
 from typing import Any
 
 import cv2
-from fastapi import APIRouter, Body, File, HTTPException, Query, Response, UploadFile, Request
+from fastapi import APIRouter, Body, File, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from leropilot.models.hardware import CameraSummary, Device, DeviceCategory, DeviceStatus, DiscoveryResult
+from leropilot.models.hardware import CameraSummary, Robot, DeviceCategory, DeviceStatus, RobotDefinition, MotorModelInfo, RobotVerificationError
 from leropilot.services.hardware.cameras import CameraService
-from leropilot.services.hardware.manager import get_hardware_manager
+from leropilot.services.hardware.robots import get_robot_manager, get_robot_urdf_manager, RobotSpecService
 from leropilot.services.hardware.motors import MotorService
-from leropilot.services.hardware.robots import RobotsDiscoveryService
-from leropilot.services.hardware.urdf import validate_file as validate_urdf_file
-from leropilot.utils.subprocess_executor import SubprocessExecutor
+from leropilot.utils.urdf import get_robot_resource, get_urdf_resource, validate_file as validate_urdf_file
 
 logger = logging.getLogger(__name__)
 
 # Body parameter constants to avoid B008 issues
-BODY_NONE = Body(default=None)
-BODY_NONE_EMBED = Body(default=None, embed=True)
-BODY_NONE_WITH_DESC = Body(default=None, description="Detailed configuration (motors, custom)")
+# Use a sentinel object so the route handler can distinguish omitted params
+_UNSET = object()
+BODY_UNSET = Body(default=_UNSET)
+BODY_UNSET_EMBED = Body(default=_UNSET, embed=True)
+BODY_UNSET_WITH_DESC = Body(default=_UNSET, description="Detailed configuration (motors, custom)")
 UPLOAD_FILE = File(...)
 
 router = APIRouter(prefix="/api/hardware", tags=["Hardware"])
 
 # Service instances (lazy loaded or singleton)
-_discovery_service = None
 _motor_service = None
 _camera_service = None
+_robot_config_service = None
 _service_lock = threading.Lock()
 
 
@@ -41,13 +41,6 @@ def get_camera_service() -> CameraService:
     return _camera_service
 
 
-def get_discovery_service() -> RobotsDiscoveryService:
-    """Return a fresh RobotsDiscoveryService instance for discovery calls.
-
-    Note: We intentionally create a new instance per call to ensure discovery
-    reflects current platform state and to avoid caching issues during tests.
-    """
-    return RobotsDiscoveryService()
 
 
 def get_motor_service() -> MotorService:
@@ -58,198 +51,325 @@ def get_motor_service() -> MotorService:
         return _motor_service
 
 
+def get_robot_spec_service() -> RobotSpecService:
+    global _robot_config_service
+    with _service_lock:
+        if _robot_config_service is None:
+            _robot_config_service = RobotSpecService()
+        return _robot_config_service
+
+
 # ============================================================================
 # Discovery Endpoints
 # ============================================================================
 
+# Discovery endpoint moved to "Device Management Endpoints" to keep robot-related
+# APIs grouped together.
 
-@router.get("/discovery", response_model=DiscoveryResult, operation_id="hardware_discover")
-async def discover_hardware() -> DiscoveryResult:
-    """
-    Perform fresh hardware discovery.
 
-    Scans for:
-    - Serial ports (robots)
-    - CAN interfaces (Linux)
-    """
+# ============================================================================
+# Robot Configuration Endpoints
+# ============================================================================
+
+@router.get("/robots/definitions", response_model=list[RobotDefinition], operation_id="hardware_list_robot_definitions")
+async def list_robot_definitions() -> list[RobotDefinition]:
+    """List all known robot definitions."""
+    svc = get_robot_spec_service()
+    return svc.get_all_definitions()
+
+
+@router.get("/robots/definitions/{definition_id}/image", operation_id="hardware_get_robot_definition_image")
+async def get_robot_definition_image(definition_id: str) -> FileResponse:
+    """Get the image for a specific robot definition."""
+    svc = get_robot_spec_service()
+    definition = svc.get_robot_definition(definition_id)
+    if not definition:
+        logger.warning(f"Robot definition not found for image: {definition_id}")
+        raise HTTPException(status_code=404, detail="Definition not found")
+
+    from leropilot.utils.paths import get_resources_dir
+    res_dir = get_resources_dir()
+
     try:
-        service = get_discovery_service()
-        # This is a blocking operation, usually fast enough for HTTP req (~1-2s max)
-        # If it gets slower, we might need to make it async or background
-        result = service.discover_all()
-
-        # Filter out devices already managed (only return un-added devices)
-        manager = get_hardware_manager()
-        existing_ids = {d.id for d in manager.list_devices()}
-
-        # For robots/controllers with serial numbers, exclude those already added
-        result.robots = [
-            r
-            for r in result.robots
-            if not (r.serial_number and r.serial_number in existing_ids)
-        ]
-        result.controllers = [
-            c
-            for c in result.controllers
-            if not (c.serial_number and c.serial_number in existing_ids)
-        ]
-
-        return result
+        # Try png then jpg
+        for ext in [".png", ".jpg", ".jpeg"]:
+            img_path = res_dir / "robots" / definition_id / f"thumbnail{ext}"
+            if img_path.exists():
+                return FileResponse(img_path)
     except Exception as e:
-        logger.error(f"Discovery failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Discovery failed: {str(e)}") from e
+        logger.error(f"Error finding image for definition {definition_id}: {e}")
+        pass
 
-
-@router.post("/motor-discover", operation_id="hardware_motor_discover")
-async def motor_discover(
-    interface: str = Body(..., embed=True),
-    baud_rates: list[int] | None = BODY_NONE_EMBED,
-    device_id: str | None = BODY_NONE_EMBED,
-) -> dict:
-    """
-    Probe a communication interface to detect motors and return detected motors with built-in protection defaults.
-
-    Args:
-        interface: Port name (e.g., "COM3", "/dev/ttyUSB0")
-        baud_rates: Optional list of baud rates to try
-        device_id: Optional device id to use saved connection settings (brand, etc.)
-    Returns:
-        dict with interface, detected_baud_rate, motors (id/model/model_number/protection params)
-    """
-    try:
-        motor_service = get_motor_service()
-        manager = get_hardware_manager()
-
-        # Allow using device connection settings as hint
-        brand_hint = None
-        if device_id:
-            device = manager.get_device(device_id)
-            if device and device.connection_settings:
-                brand_hint = device.connection_settings.get("brand")
-
-        result = motor_service.probe_connection(interface=interface, probe_baud_list=baud_rates)
-        if not result:
-            raise HTTPException(status_code=404, detail=f"No motors found on {interface}")
-
-        motors_info: list[dict] = []
-        detected_brand = result.brand or brand_hint
-        for m in result.discovered_motors:
-            brand = detected_brand
-            model = m.model
-            specs = motor_service.get_motor_specs(brand or "", model or "")
-            motors_info.append(
-                {
-                    "id": m.id,
-                    "model": model,
-                    "model_number": m.model_number,
-                    "protection": specs.model_dump() if specs else None,
-                }
-            )
-
-        return {
-            "interface": result.interface,
-            "detected_baud_rate": result.baud_rate,
-            "detected_brand": detected_brand,
-            "motors": motors_info,
-            "scan_duration_ms": 0,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Motor discover failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Motor discover failed: {str(e)}") from e
-
-
-@router.get("/motor-specs/{brand}/{model}", operation_id="hardware_get_motor_specs")
-async def get_motor_specs(brand: str, model: str) -> dict:
-    """Return built-in motor protection parameters for a brand/model."""
-    motor_service = get_motor_service()
-    specs = motor_service.get_motor_specs(brand, model)
-    if not specs:
-        raise HTTPException(status_code=404, detail="Motor model not found")
-    # Return as JSON-friendly dict
-    return specs.model_dump()
-
+    logger.warning(f"Image not found for definition: {definition_id}")
+    raise HTTPException(status_code=404, detail="Image not found")
 
 # ============================================================================
 # Device Management Endpoints
 # ============================================================================
 
-
-@router.get("/devices", response_model=list[Device], operation_id="hardware_list_devices")
-async def list_devices(category: DeviceCategory | None = None, status: DeviceStatus | None = None) -> list[Device]:
-    """List all managed devices."""
-    manager = get_hardware_manager()
-    return manager.list_devices(category=category, status=status)
-
-
-@router.get("/devices/{device_id}", response_model=Device, operation_id="hardware_get_device")
-async def get_device(device_id: str) -> Device:
-    """Get a specific device details."""
-    manager = get_hardware_manager()
-    device = manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-    return device
-
-
-@router.post("/devices", response_model=Device, operation_id="hardware_add_device")
-async def add_device(device: Device) -> Device:
+@router.get("/robots/discovery", response_model=list[Robot], operation_id="hardware_robots_discover")
+async def discover_robots() -> list[Robot]:
     """
-    Add a new device to management.
+    Perform fresh robot hardware discovery.
 
-    Note: 'status' field is ignored during creation (always defaults/runtime).
+    Scans for:
+    - Serial ports
+    - CAN interfaces
     """
-    manager = get_hardware_manager()
     try:
-        return manager.add_device(
-            device_id=device.id,
-            category=device.category,
-            name=device.name,
-            manufacturer=device.manufacturer,
-            labels=device.labels,
-            connection_settings=device.connection_settings,
+        # Delegate to RobotManager which already knows about managed robots and
+        # can return the pending (un-added) devices.
+        manager = get_robot_manager()
+        pending = manager.get_pending_devices()
+
+        # Return list of pending Robot objects (controllers not applicable here)
+        return pending
+    except Exception as e:
+        logger.error(f"Discovery failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Discovery failed: {str(e)}") from e
+
+
+@router.get("/robots", response_model=list[Robot], operation_id="hardware_list_robots")
+async def list_robots(refresh_status: bool = Query(False, description="Refresh online status from hardware")) -> list[Robot]:
+    """List all managed robots.
+
+    Args:
+        refresh_status: If true, probe hardware to refresh each robot's status before returning.
+    """
+    manager = get_robot_manager()
+    return manager.list_robots(refresh_status=refresh_status)
+
+
+@router.get("/robots/{robot_id}", response_model=Robot, operation_id="hardware_get_robot")
+async def get_robot(robot_id: str, refresh_status: bool = Query(False, description="Refresh online status from hardware")) -> Robot:
+    """Get a specific robot details.
+
+    Args:
+        refresh_status: If true, probe hardware to refresh this robot's status before returning.
+    """
+    manager = get_robot_manager()
+    robot = manager.get_robot(robot_id, refresh_status=refresh_status)
+    if not robot:
+        raise HTTPException(status_code=404, detail="Robot not found")
+    return robot
+
+
+@router.get("/robots/{robot_id}/motor_models_info", response_model=list[MotorModelInfo], operation_id="hardware_get_robot_motor_models_info")
+async def get_robot_motor_models_info(robot_id: str) -> list[MotorModelInfo]:
+    """Return a deduplicated list of motor model metadata for the robot's definition."""
+    manager = get_robot_manager()
+    try:
+        return manager.get_robot_motor_models_info(robot_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception:
+        logger.exception("Failed to retrieve motor models info for robot %s", robot_id)
+        raise HTTPException(status_code=500, detail="Failed to retrieve motor models info") from None
+
+
+@router.post("/robots", response_model=Robot, operation_id="hardware_add_robot")
+async def add_robot(robot: Robot) -> Robot:
+    """
+    Add a new robot to management.
+
+    Notes:
+      - The `status` field on the submitted `Robot` is ignored during creation
+        (status is set at runtime based on discovery/verification).
+      - The service will perform a hardware verification (`verify_robot`) during
+        creation; when verification fails a 409 Conflict is returned.
+    """
+    manager = get_robot_manager()
+    try:
+        return manager.add_robot(
+            robot=robot
         )
     except ValueError as e:
+        # Covers verification failures and other validation errors
         raise HTTPException(status_code=409, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to add device: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.patch("/devices/{device_id}", response_model=Device, operation_id="hardware_update_device")
-async def update_device(
-    device_id: str,
-    name: str | None = BODY_NONE,
-    labels: dict[str, str] | None = BODY_NONE,
-    connection_settings: dict[str, Any] | None = BODY_NONE,
-    config: dict[str, Any] | None = BODY_NONE_WITH_DESC,
-) -> Device:
-    """Update device details and configuration."""
-    manager = get_hardware_manager()
+@router.patch("/robots/{robot_id}", response_model=Robot, operation_id="hardware_update_robot")
+async def update_robot(
+    robot_id: str,
+    name: str | None = BODY_UNSET,
+    labels: dict[str, str] | None = BODY_UNSET,
+    motor_bus_connections: dict[str, dict] | None = BODY_UNSET,
+    custom_protection_settings: dict[str, list[dict]] | None = BODY_UNSET_WITH_DESC,
+    verify: bool = Query(True, description="Verify robot connectivity after applying updates"),
+) -> Robot:
+    """Update robot details.
+
+    Supports updating `name`, `labels`, `motor_bus_connections`, and
+    `custom_protection_settings` (use 'brand:model' or tuple keys where appropriate).
+
+    Distinguishes between omitted fields (not updated) and explicit `null` which
+    will be applied (clearing those fields).
+
+    Notes:
+      - `verify` defaults to **True**; the route delegates verification to the
+        `RobotManager.update_robot` service method which will run verification when
+        requested and raise `RobotVerificationError` on failure. Such failures are
+        surfaced as HTTP 409 Conflict responses.
+    """
+    manager = get_robot_manager()
     try:
-        updated = manager.update_device(
-            device_id=device_id, name=name, labels=labels, connection_settings=connection_settings, config=config
+        # Build updates dict only from provided parameters (not the sentinel)
+        updates: dict[str, object] = {}
+        if name is not _UNSET:
+            updates["name"] = name
+        if labels is not _UNSET:
+            updates["labels"] = labels
+        if motor_bus_connections is not _UNSET:
+            updates["motor_bus_connections"] = motor_bus_connections
+        if custom_protection_settings is not _UNSET:
+            updates["custom_protection_settings"] = custom_protection_settings
+
+        # Delegate verification and update semantics to the service layer
+        updated = manager.update_robot(
+            robot_id,
+            verify=verify,
+            **updates,
         )
         if not updated:
-            raise HTTPException(status_code=404, detail="Device not found")
+            raise HTTPException(status_code=404, detail="Robot not found")
+
         return updated
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.delete("/devices/{device_id}", operation_id="hardware_remove_device")
-async def remove_device(
-    device_id: str, delete_data: bool = Query(False, description="Also delete calibration/data files")
+@router.delete("/robots/{robot_id}", operation_id="hardware_remove_robot")
+async def remove_robot(
+    robot_id: str, delete_data: bool = Query(False, description="Also delete calibration/data files")
 ) -> dict[str, Any]:
-    """Remove a device from management."""
-    manager = get_hardware_manager()
-    success = manager.remove_device(device_id, delete_calibration=delete_data)
+    """Remove a robot from management."""
+    manager = get_robot_manager()
+    success = manager.remove_robot(robot_id, delete_calibration=delete_data)
     if not success:
-        raise HTTPException(status_code=404, detail="Device not found")
-    return {"success": True, "message": f"Device {device_id} removed"}
+        raise HTTPException(status_code=404, detail="Robot not found")
+    return {"success": True, "message": f"Robot {robot_id} removed"}
+
+
+@router.get("/robots/{robot_id}/urdf", operation_id="hardware_get_robot_urdf")
+@router.get("/robots/{robot_id}/urdf/{path:path}", operation_id="hardware_get_robot_urdf_resource")
+async def get_robot_urdf(robot_id: str, path: str | None = None) -> FileResponse:
+    """Serve a URDF resource for a robot.
+
+    Supports both forms:
+      - GET /robots/{robot_id}/urdf            -> serves the default "robot.urdf"
+      - GET /robots/{robot_id}/urdf/{path:path} -> serves the specified resource path
+
+    Resolves and lookup are delegated to `RobotUrdfManager.get_robot_urdf_resource`.
+    The service returns the raw bytes of the requested resource when found, preferring
+    a user-uploaded custom URDF under the robot's data directory and falling back
+    to a packaged model resource.
+
+    The router returns a `Response` with `media_type="text/xml"` and HTTP 404
+    when the resource is not present. Any IO failures are translated to HTTP 500.
+    """
+    if path is None:
+        path = "robot.urdf"
+
+    urdf_mgr = get_robot_urdf_manager()
+    try:
+        content = urdf_mgr.get_robot_urdf_resource(robot_id, path)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    if content is None:
+        raise HTTPException(status_code=404, detail="Resource not found")
+
+    try:
+        return Response(content=content, media_type="text/xml")
+    except Exception:
+        logger.exception("Failed to serve URDF resource for %s", robot_id)
+        raise HTTPException(status_code=500, detail="Failed to serve resource") from None
+# NOTE: udev install logic has been moved to `leropilot.utils.unix`.
+# Manual install endpoint is intentionally not exposed. The backend will automatically
+# attempt to install udev (and update rules) as needed when a service operation requires it.
+# UdevManager provides `ensure_rule_present()` which is idempotent and performs
+# atomic updates (and optionally uses `pkexec` when root is required).
+
+# ------------------------- URDF Management Endpoints -------------------------
+
+@router.post("/robots/{robot_id}/urdf", operation_id="hardware_upload_robot_urdf")
+async def upload_robot_urdf(robot_id: str, file: UploadFile = UPLOAD_FILE) -> dict:
+    """Upload a custom URDF file for a robot.
+
+    Accepts either a raw `.urdf` file or an archive (`.zip` or `.tar.gz`) that
+    contains exactly one top-level `.urdf` file. Files are validated via
+    `leropilot.utils.urdf.validate_file` and saved under the robot's data
+    directory when valid.
+
+    Error semantics:
+      - 404 if the robot does not exist
+      - 400 for validation or archive-format errors
+      - 500 for unexpected processing errors
+
+    Returns a JSON object containing the saved path and the validation result.
+    """
+    manager = get_robot_manager()
+    robot = manager.get_robot(robot_id)
+    if not robot:
+        raise HTTPException(status_code=404, detail="Robot not found")
+    if getattr(robot, "category", DeviceCategory.ROBOT) != DeviceCategory.ROBOT:
+        raise HTTPException(status_code=400, detail="URDFs can only be uploaded for robots")
+
+    contents = await file.read()
+    try:
+        urdf_mgr = get_robot_urdf_manager()
+        saved_path = urdf_mgr.upload_custom_urdf(robot_id, contents)
+    except ValueError as e:
+        # Validation or archive errors
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.exception("Failed to process uploaded URDF")
+        raise HTTPException(status_code=500, detail="Failed to process uploaded URDF") from e
+
+    # Return standardized response
+    result = validate_urdf_file(str(saved_path))
+    return {"message": "URDF uploaded successfully", "path": str(saved_path), "validation": result}
+
+
+
+
+
+@router.delete("/robots/{robot_id}/urdf", operation_id="hardware_delete_robot_urdf")
+async def delete_robot_urdf(robot_id: str) -> Response:
+    """Delete a previously uploaded custom URDF for the robot.
+
+    After successful deletion the robot will fall back to its built-in model
+    resource (if available).
+
+    Error semantics:
+      - 404 if no such robot or if no custom URDF exists
+      - 500 for unexpected errors while removing files
+    """
+    manager = get_robot_manager()
+    robot = manager.get_robot(robot_id)
+    if not robot:
+        raise HTTPException(status_code=404, detail="Robot not found")
+
+    urdf_mgr = get_robot_urdf_manager()
+    try:
+        urdf_mgr.delete_custom_urdf(robot_id)
+    except ValueError:
+        # Robot not found
+        raise HTTPException(status_code=404, detail="Robot not found")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Custom URDF not found")
+    except Exception:
+        logger.exception("Failed to delete custom URDF")
+        raise HTTPException(status_code=500, detail="Failed to delete URDF")
+
+    return Response(status_code=204)
 
 
 # ============================================================================
@@ -335,216 +455,18 @@ async def camera_mjpeg(
     )
 
     async def generator() -> AsyncGenerator[bytes, None]:
-        async for frame in frames:
-            head = b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
-            yield head + str(len(frame)).encode() + b"\r\n\r\n" + frame + b"\r\n"
+        try:
+            async for frame in frames:
+                head = b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
+                yield head + str(len(frame)).encode() + b"\r\n\r\n" + frame + b"\r\n"
+        except (GeneratorExit, asyncio.CancelledError):
+            logger.info("MJPEG stream cancelled for camera %s", camera_id)
+        finally:
+            # Explicitly close the frames generator to trigger cap.release()
+            await frames.aclose()
 
     return StreamingResponse(generator(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
-@router.get("/resources/{device_id}/{path:path}", operation_id="hardware_get_resource")
-async def get_resource(device_id: str, path: str) -> FileResponse:
-    """Serve resource files with fallback to built-in resources."""
-    manager = get_hardware_manager()
-    device = manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-
-    # Check user custom resources first
-    from leropilot.services.hardware.manager import HARDWARE_DATA_DIR
-
-    category_val = device.category.value if hasattr(device.category, "value") else str(device.category)
-    device_dir = HARDWARE_DATA_DIR / category_val / device_id
-    user_file = device_dir / path
-    if user_file.exists():
-        return FileResponse(user_file)
-
-    # Fallback to built-in resource under resources/robots/{model}/{path}
-    model = None
-    # DeviceConfig stores custom fields under `custom`
-    if device.config and getattr(device.config, "custom", None):
-        model = device.config.custom.get("model")
-    # Also allow label based mapping
-    if not model:
-        model = device.labels.get("leropilot.ai/robot_type_id")
-
-    if model:
-        resource_files = importlib.resources.files("leropilot.resources")
-        builtin_dir = resource_files.joinpath("robots").joinpath(model)
-        if builtin_dir.exists():
-            # Try to find the requested path under builtin_dir
-            candidate = builtin_dir.joinpath(path)
-            if candidate.exists():
-                return FileResponse(candidate)
-            # If path is a direct URDF name fallback, find any .urdf file
-            for p in builtin_dir.iterdir():
-                if p.suffix == ".urdf" and p.is_file():
-                    return FileResponse(p)
-
-    raise HTTPException(status_code=404, detail="Resource not found")
-
-
-@router.post("/udev/install", operation_id="hardware_udev_install")
-async def install_udev_rule(
-    request: Request,
-    install: bool = Body(False, embed=True),
-    subsystem: str = Body("tty", embed=True),
-    vendor: str | None = BODY_NONE_EMBED,
-    product: str | None = BODY_NONE_EMBED,
-    group: str | None = BODY_NONE_EMBED,
-    mode: str | None = BODY_NONE_EMBED,
-    kernel: str | None = BODY_NONE_EMBED,
-) -> dict:
-    """Return udev rule content, or attempt to install it when `install=true` (Linux only).
-
-    Supports `subsystem` values `tty` (default) and `video4linux` (for cameras). When
-    `subsystem=="video4linux"` the default `group` is `video` and default `mode` is
-    `0660` for safer permissions.
-    """
-    if platform.system() != "Linux":
-        raise HTTPException(status_code=400, detail="udev installation is supported on Linux only")
-
-    subsystem = (subsystem or "tty").strip()
-
-    if subsystem not in ("tty", "video4linux"):
-        raise HTTPException(status_code=400, detail="Unsupported subsystem; supported: tty, video4linux")
-
-    # Defaults
-    if subsystem == "tty":
-        default_group = "dialout"
-        default_mode = "0666"
-        kernel_pat = kernel or "*"
-    else:
-        default_group = "video"
-        default_mode = "0660"
-        kernel_pat = kernel or "video*"
-
-    used_group = group or default_group
-    used_mode = mode or default_mode
-
-    # Build attribute filters
-    # FastAPI body parsing can be a bit subtle with multiple Body params; fall back to raw JSON body
-    try:
-        body_json = await request.json()
-    except Exception:
-        body_json = None
-
-    if not vendor and isinstance(body_json, dict):
-        vendor = body_json.get("vendor")
-    if not product and isinstance(body_json, dict):
-        product = body_json.get("product")
-
-    attrs = []
-    if vendor:
-        attrs.append(f'ATTRS{{idVendor}}=="{vendor}"')
-    if product:
-        attrs.append(f'ATTRS{{idProduct}}=="{product}"')
-
-    # Compose rule
-    if subsystem == "tty":
-        base = f'SUBSYSTEM=="tty", {{attrs}}, MODE="{used_mode}", GROUP="{used_group}"'
-    else:
-        base = f'SUBSYSTEM=="video4linux", KERNEL=="{kernel_pat}"{{attrs}}, MODE="{used_mode}", GROUP="{used_group}"'
-
-    attrs_str = (", " + ", ".join(attrs)) if attrs else ""
-    rule = base.replace("{attrs}", attrs_str)
-
-    if not install:
-        return {"rule": rule}
-
-    try:
-        # Use pkexec to write the file as root
-        cmd_str = f'echo "{rule}" > /etc/udev/rules.d/99-leropilot.rules && udevadm control --reload && udevadm trigger'
-        cmd = ("pkexec", "bash", "-c", cmd_str)
-        SubprocessExecutor.run_sync(*cmd)
-        return {"installed": True, "path": "/etc/udev/rules.d/99-leropilot.rules"}
-    except Exception as e:
-        logger.error(f"udev install failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-# ------------------------- URDF Management Endpoints -------------------------
-
-@router.post("/devices/{device_id}/urdf", operation_id="hardware_upload_urdf")
-async def upload_urdf(device_id: str, file: UploadFile = UPLOAD_FILE) -> dict:
-    """Upload a custom URDF file for a robot. Validates using URDFValidator and saves to device dir."""
-    manager = get_hardware_manager()
-    device = manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-    if device.category != DeviceCategory.ROBOT:
-        raise HTTPException(status_code=400, detail="URDFs can only be uploaded for robots")
-
-    urdf_path = manager.get_urdf_file(device_id, device.category)
-    urdf_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Save uploaded file
-    try:
-        contents = await file.read()
-        with open(urdf_path, "wb") as fh:
-            fh.write(contents)
-    except Exception as e:
-        logger.error(f"Failed to save URDF: {e}")
-        raise HTTPException(status_code=500, detail="Failed to save URDF") from e
-
-    # Validate URDF using in-project validator
-    result = validate_urdf_file(str(urdf_path))
-    if not result.get("valid", False):
-        # Remove invalid upload
-        try:
-            urdf_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-        raise HTTPException(status_code=400, detail={"error": "URDF validation failed", "details": result})
-    return {"message": "URDF uploaded successfully", "path": str(urdf_path), "validation": result}
-
-
-@router.get("/devices/{device_id}/urdf", operation_id="hardware_get_urdf")
-async def get_urdf(device_id: str) -> Response:
-    """Download URDF for a device (custom or built-in fallback)."""
-    manager = get_hardware_manager()
-    device = manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-
-    urdf_path = manager.get_urdf_file(device_id, device.category)
-    if urdf_path.exists():
-        return FileResponse(urdf_path, media_type="text/xml")
-
-    # Try built-in fallback based on device config or label
-    model = None
-    if device.config and getattr(device.config, "custom", None):
-        model = device.config.custom.get("model")
-    if not model:
-        model = device.labels.get("leropilot.ai/robot_type_id")
-
-    if model:
-        resource_files = importlib.resources.files("leropilot.resources")
-        builtin_dir = resource_files.joinpath("robots").joinpath(model)
-        if builtin_dir.exists():
-            for p in builtin_dir.iterdir():
-                if p.suffix == ".urdf" and p.is_file():
-                    return FileResponse(p, media_type="text/xml")
-
-    raise HTTPException(status_code=404, detail="URDF not found")
-
-
-@router.delete("/devices/{device_id}/urdf", operation_id="hardware_delete_urdf")
-async def delete_urdf(device_id: str) -> None:
-    """Delete custom URDF and revert to built-in model."""
-    manager = get_hardware_manager()
-    device = manager.get_device(device_id)
-    if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
-
-    urdf_path = manager.get_urdf_file(device_id, device.category)
-    if not urdf_path.exists():
-        raise HTTPException(status_code=404, detail="Custom URDF not found")
-
-    try:
-        urdf_path.unlink()
-    except Exception as e:
-        logger.error(f"Failed to delete URDF: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete URDF") from e
-
-    return Response(status_code=204)
+# URDF endpoints moved to "Device Management Endpoints" to keep robot-related
+# APIs grouped together; implementations are preserved in that section.

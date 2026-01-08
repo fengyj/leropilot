@@ -74,10 +74,22 @@ class CameraService:
         width: int | None = None,
         height: int | None = None,
     ) -> np.ndarray | None:
-        """Capture single frame from OpenCV index. Returns BGR numpy array or None."""
+        """Capture single frame from OpenCV index. Returns BGR numpy array or None.
 
-        cap = cv2.VideoCapture(camera_index)
-        if not cap or not cap.isOpened():
+        Attempts to auto-fix udev permissions on Linux when a permission issue is detected
+        and retries once if the fix was applied.
+        """
+        from leropilot.utils.unix import UdevManager
+
+        udev_manager = UdevManager()
+        device_path = f"/dev/video{camera_index}"
+
+        def _try_open() -> cv2.VideoCapture | None:
+            cap = cv2.VideoCapture(camera_index)
+            return cap if cap and cap.isOpened() else None
+
+        cap = udev_manager.ensure_device_access_with_retry(device_path, _try_open, subsystem="video4linux")
+        if not cap:
             return None
 
         try:
@@ -120,8 +132,17 @@ class CameraService:
         loop = asyncio.get_running_loop()
         interval = 1.0 / max(1, min(fps, 30))
 
-        cap = cv2.VideoCapture(camera_index)
-        if not cap or not cap.isOpened():
+        from leropilot.utils.unix import UdevManager
+
+        udev_manager = UdevManager()
+        device_path = f"/dev/video{camera_index}"
+
+        def _try_open() -> cv2.VideoCapture | None:
+            cap = cv2.VideoCapture(camera_index)
+            return cap if cap and cap.isOpened() else None
+
+        cap = udev_manager.ensure_device_access_with_retry(device_path, _try_open, subsystem="video4linux")
+        if not cap:
             raise FileNotFoundError(f"Failed to open camera {camera_index}")
 
         try:

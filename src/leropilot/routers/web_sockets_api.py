@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from leropilot.logger import get_logger
 from leropilot.models.hardware import DeviceStatus
-from leropilot.services.hardware.manager import get_hardware_manager
+from leropilot.services.hardware.robots import get_robot_manager
 from leropilot.services.hardware.motors import MotorService
 from leropilot.services.pty import get_pty_session
 
@@ -146,8 +146,8 @@ async def hardware_websocket(
     - Features: Real-time Telemetry stream, Control commands (future).
     - Heartbeat: Client must send ping every 10s. Server timeouts after 30s.
     """
-    manager = get_hardware_manager()
-    device = manager.get_device(device_id)
+    manager = get_robot_manager()
+    device = manager.get_robot(device_id)
 
     # 1. Validation
     if not device:

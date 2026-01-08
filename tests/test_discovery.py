@@ -2,8 +2,9 @@
 from fastapi.testclient import TestClient
 
 from leropilot.main import app
-from leropilot.services.hardware.manager import get_hardware_manager
+from leropilot.services.hardware.robots import get_robot_manager
 from leropilot.services.hardware.robots import RobotsDiscoveryService
+from leropilot.models.hardware import Robot, DeviceStatus
 
 client = TestClient(app)
 
@@ -32,13 +33,13 @@ def test_discovery_filters_added_and_marks_missing_serial(monkeypatch, tmp_path)
         lambda self: setattr(self, "adapter", dummy) or setattr(self, "adapter", dummy),
     )
 
-    # Ensure manager has device with serial SN123 already added
-    manager = get_hardware_manager()
-    # Clear existing devices for test isolation
-    manager._devices.clear()
+    # Ensure manager has robot with serial SN123 already added
+    manager = get_robot_manager()
+    # Clear existing robots for test isolation
+    manager._robots.clear()
 
-    # Add device with serial SN123
-    manager.add_device(device_id="SN123", category="robot", name="Existing Robot")
+    # Add robot with serial SN123
+    manager.add_robot(Robot(id="SN123", name="Existing Robot", status=DeviceStatus.AVAILABLE))
 
     # Call discovery endpoint
     resp = client.get("/api/hardware/discovery")

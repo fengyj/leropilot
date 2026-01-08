@@ -13,7 +13,7 @@
     "check:lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "prepare": "git rev-parse --show-toplevel >/dev/null 2>&1 && husky install || true",
+    "prepare": "node -e \"try{const cp=require('child_process'); cp.execSync('git rev-parse --show-toplevel',{stdio:'ignore'}); cp.execSync('npx husky install',{stdio:'ignore'});}catch(e){}\"",
     "generate-types": "openapi-typescript http://localhost:8000/openapi.json -o src/types/api.ts"
   },
   "dependencies": {

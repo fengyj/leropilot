@@ -67,28 +67,40 @@
         }
     },
     "feetech": {
-        "STS3215": {
+        "STS3215-C001": {
             "model_ids": [
                 3215,
-                1545,
+                1545
+            ],
+            "description": "7.4V 19kg.cm Plastic Case Metal Tooth Magnetic Code Double Axis TTL Series. Datasheet: https://www.feetechrc.com/74v-19-kgcm-plastic-case-metal-tooth-magnetic-code-double-axis-ttl-series-steering-gear.html",
+            "temp_warning": 60,
+            "temp_critical": 70,
+            "temp_max": 70,
+            "voltage_min": 6.0,
+            "voltage_max": 7.4,
+            "current_max": 150,
+            "current_peak": 2000
+        },
+        "STS3215-C018": {
+            "model_ids": [
                 49153,
                 49220,
                 49222
             ],
-            "description": "SO-100/101 Standard. Datasheet: https://www.waveshare.com/wiki/STS3215_Servo",
-            "temp_warning": 60,
-            "temp_critical": 70,
-            "temp_max": 80,
-            "voltage_min": 5.5,
-            "voltage_max": 12.6,
-            "current_max": 1000,
-            "current_peak": 2200
+            "description": "12V 30kg.cm High performance version. Datasheet: https://www.feetech.cn/525603.html",
+            "temp_warning": 50,
+            "temp_critical": 55,
+            "temp_max": 60,
+            "voltage_min": 4.0,
+            "voltage_max": 14.0,
+            "current_max": 180,
+            "current_peak": 2700
         },
         "STS3032": {
             "model_ids": [
                 777
             ],
-            "description": "SO-100/101 Variant. High speed/torque.",
+            "description": "High speed/torque.",
             "temp_warning": 60,
             "temp_critical": 70,
             "temp_max": 80,
@@ -116,7 +128,7 @@
             "model_ids": [
                 17168
             ],
-            "description": "OpenArm Joint. ID 0x4310. Metal Gear/Case.",
+            "description": "ID 0x4310. DM4310 base variant. Metal Gear/Case.",
             "temp_warning": 75,
             "temp_critical": 90,
             "temp_max": 100,
@@ -125,11 +137,63 @@
             "current_max": 4000,
             "current_peak": 12000
         },
+        "DM4340": {
+            "model_ids": [
+                17216
+            ],
+            "description": "ID 0x4340. DM4340 base variant for elbow flex. Metal Gear/Case.",
+            "temp_warning": 75,
+            "temp_critical": 90,
+            "temp_max": 100,
+            "voltage_min": 12.0,
+            "voltage_max": 30.0,
+            "current_max": 8000,
+            "current_peak": 24000
+        },
+        "DM4340P": {
+            "model_ids": [
+                17216
+            ],
+            "description": "ID 0x4340. DM4340P variant with cross-roller bearings for shoulder rotation. Metal Gear/Case.",
+            "temp_warning": 75,
+            "temp_critical": 90,
+            "temp_max": 100,
+            "voltage_min": 12.0,
+            "voltage_max": 30.0,
+            "current_max": 8000,
+            "current_peak": 24000
+        },
+        "DM8009": {
+            "model_ids": [
+                32777
+            ],
+            "description": "ID 0x8009. DM8009 base variant. High torque motor. Metal Gear/Case.",
+            "temp_warning": 75,
+            "temp_critical": 90,
+            "temp_max": 100,
+            "voltage_min": 24.0,
+            "voltage_max": 48.0,
+            "current_max": 9000,
+            "current_peak": 27000
+        },
+        "DM8009P": {
+            "model_ids": [
+                32777
+            ],
+            "description": "ID 0x8009. DM8009P variant with cross-roller bearings for shoulder. High torque. Metal Gear/Case.",
+            "temp_warning": 75,
+            "temp_critical": 90,
+            "temp_max": 100,
+            "voltage_min": 24.0,
+            "voltage_max": 48.0,
+            "current_max": 9000,
+            "current_peak": 27000
+        },
         "DM6006": {
             "model_ids": [
                 24582
             ],
-            "description": "OpenArm Base. ID 0x6006. Metal Gear/Case.",
+            "description": "ID 0x6006. Metal Gear/Case.",
             "temp_warning": 75,
             "temp_critical": 90,
             "temp_max": 100,

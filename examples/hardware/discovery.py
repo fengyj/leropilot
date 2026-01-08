@@ -13,7 +13,7 @@ Usage:
 
 import logging
 
-from leropilot.services.hardware.discovery import DiscoveryService
+from leropilot.services.hardware.platform_adapter import PlatformAdapter as DiscoveryService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -27,42 +27,29 @@ def main() -> None:
     print("HARDWARE DISCOVERY EXAMPLE")
     print("=" * 60)
 
-    # Discover all devices
-    result = service.discover_all()
+    # Discover serial ports and CAN interfaces
+    serial_ports = service.discover_serial_ports()
+    can_interfaces = service.discover_can_interfaces()
 
-    # Display robots (serial ports)
-    print(f"\n🤖 ROBOTS (Serial Ports): {len(result.robots)}")
-    for robot in result.robots:
-        print(f"  - {robot.port}")
-        print(f"    Description: {robot.description}")
-        print(f"    VID:PID: {robot.vid}:{robot.pid}")
-        print(f"    Manufacturer: {robot.manufacturer}")
-        if robot.serial_number:
-            print(f"    Serial Number: {robot.serial_number}")
-        print(f"    Status: {robot.status.value}")
+    # Filter serial ports that look like motor controllers
+    robot_ports = [p for p in serial_ports if any(k in p.get("description", "").lower() for k in ["ftdi", "ch340", "prolific", "serial"])]
 
-    # Display controllers (CAN interfaces)
-    print(f"\n🎮 CONTROLLERS (CAN): {len(result.controllers)}")
-    for controller in result.controllers:
-        print(f"  - {controller.channel}")
-        print(f"    Description: {controller.description}")
-        print(f"    Status: {controller.status.value}")
+    print(f"\n🤖 ROBOTS (Serial Ports): {len(robot_ports)}")
+    for port in robot_ports:
+        print(f"  - {port.get('port')}")
+        print(f"    Description: {port.get('description')}")
+        print(f"    VID:PID: {port.get('vid', '0000')}:{port.get('pid', '0000')}")
+        print(f"    Manufacturer: {port.get('manufacturer', 'Unknown')}")
+        if port.get('serial_number'):
+            print(f"    Serial Number: {port.get('serial_number')}")
 
-    # Display cameras
-    print(f"\n📷 CAMERAS: {len(result.cameras)}")
-    for camera in result.cameras:
-        print(f"  - {camera.name} (index {camera.index}, {camera.type})")
-        print(f"    Instance ID: {camera.instance_id}")
-        print(f"    VID:PID: {camera.vid}:{camera.pid}")
-        if camera.width and camera.height:
-            print(f"    Resolution: {camera.width}x{camera.height}")
-        if camera.serial_number:
-            print(f"    Serial Number: {camera.serial_number}")
-        print(f"    Manufacturer: {camera.manufacturer}")
-        print(f"    Status: {camera.status.value}")
+    print(f"\n🎮 CONTROLLERS (CAN): {len(can_interfaces)}")
+    for interface in can_interfaces:
+        print(f"  - {interface.get('interface')}")
+        print(f"    Description: {interface.get('description', f'CAN Interface {interface.get(\'interface\')}')}")
 
     print("\n" + "=" * 60)
-    print(f"Total: {len(result.robots)} robots, {len(result.controllers)} controllers, {len(result.cameras)} cameras")
+    print(f"Total: {len(robot_ports)} robots, {len(can_interfaces)} controllers")
     print("=" * 60 + "\n")
 
 

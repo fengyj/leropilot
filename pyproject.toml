@@ -23,6 +23,7 @@ dependencies = [
     "feetech-servo-sdk>=1.0.0",
     "python-can>=4.0.0",
     "pyrealsense2>=2.50.0",
+    "uptime>=3.0.1",
 ]
 
 [project.optional-dependencies]
@@ -34,10 +35,6 @@ dev = [
     "pytest>=9.0.0,<10.0.0",
     "pytest-asyncio>=1.3.0,<2.0.0",
     "pre-commit>=3.5.0",
-]
-windows = [
-    "wmi>=1.5.1",
-    "comtypes>=1.1.10",
 ]
 
 [tool.setuptools.packages.find]

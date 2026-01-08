@@ -17,13 +17,8 @@ from pathlib import Path
 
 from leropilot.services.hardware.camera import CameraService
 
-# Try to import OpenCV for saving images
-try:
-    import cv2
-
-    HAS_OPENCV = True
-except ImportError:
-    HAS_OPENCV = False
+# Import OpenCV for saving images
+import cv2
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -31,10 +26,6 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Capture snapshots from all available cameras"""
-    if not HAS_OPENCV:
-        print("❌ Error: opencv-python is required to save images")
-        print("   Install with: pip install opencv-python")
-        return
 
     # Use centralized output directory (project_root/output/camera_snapshots)
     project_root = Path(__file__).parent.parent.parent

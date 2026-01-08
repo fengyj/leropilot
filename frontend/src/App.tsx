@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/dashboard-layout';
-import { EnvironmentListPage } from './pages/environment-list-page';
+import { EnvironmentListPage } from './pages/environment-list';
 import { EnvironmentWizard } from './pages/environment-wizard';
-import { EnvironmentInstallationPage } from './pages/environment-installation-page';
+import { EnvironmentInstallationPage } from './pages/environment-installation';
 import { AdvancedInstallationPage } from './pages/advanced-installation-page';
 import { SettingsPage } from './pages/settings-page';
+import { HardwareDashboard } from './pages/hardware-dashboard';
 
 interface ElectronAPI {
   platform: string;
@@ -46,10 +47,11 @@ function App() {
             path="dashboard"
             element={<div className="text-content-tertiary">Dashboard Placeholder</div>}
           />
-          <Route
-            path="devices"
-            element={<div className="text-content-tertiary">Devices Placeholder</div>}
-          />
+          <Route path="hardware" element={<HardwareDashboard />} />
+          <Route path="hardware/discovery" element={<Navigate to="/hardware" replace />} />
+          <Route path="hardware/:id/settings" element={<Navigate to="/hardware" replace />} />
+          <Route path="hardware/:id/control" element={<Navigate to="/environments" replace />} />
+          <Route path="hardware/:id/calibrate" element={<Navigate to="/environments" replace />} />
           <Route
             path="recording"
             element={<div className="text-content-tertiary">Recording Placeholder</div>}

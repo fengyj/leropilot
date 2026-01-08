@@ -289,6 +289,18 @@ Cameras are intentionally *not* managed like robots or controllers. The backend 
 
 - **Stateless discovery & capture**: Call `GET /api/hardware/cameras` to list available camera indices and metadata; `GET /api/hardware/cameras/{camera_id}/snapshot` to capture a single frame; and `GET /api/hardware/cameras/{camera_id}/mjpeg` to open a browser-friendly MJPEG preview stream (multipart/x-mixed-replace). These APIs are stateless and do not enroll cameras into `list.json`. (Note: device-bound proxy routes such as `GET /api/hardware/devices/{device_id}/camera/snapshot` were removed; use the stateless `GET /api/hardware/cameras/{camera_id}/snapshot` instead.)
 
+**Camera device permissions and udev**: On Linux systems, permission issues for camera devices (e.g., `/dev/video0`) are common when the current user is not a member of the `video` group. The backend exposes a helper endpoint, `POST /api/hardware/udev/install`, which can generate or install udev rules to set appropriate group/permissions for devices. Usage notes:
+
+- For serial devices the endpoint produces rules like:
+  `SUBSYSTEM=="tty", ATTRS{idVendor}=="<VID>", ATTRS{idProduct}=="<PID>", MODE="0666", GROUP="dialout"`
+- For cameras the endpoint can now generate video rules (recommended):
+  `SUBSYSTEM=="video4linux", KERNEL=="video*", ATTRS{idVendor}=="<VID>", ATTRS{idProduct}=="<PID>", MODE="0660", GROUP="video"`
+
+Security and UX guidance:
+- Prefer writing udev rules (recommended) rather than changing user groups via `usermod` because udev rules are device-scoped and take effect on device plug/replug.
+- The endpoint uses `pkexec` to install rules (root required) when `install=true` is provided; running the endpoint on user desktops is acceptable but the operation will prompt for privilege escalation and may require a session relog for group membership changes to take effect if `usermod` is used.
+- In WSL or minimal/container environments udev and `pkexec` may not be available; in those cases document the manual steps to add the user to the `video` group or to run `udevadm` commands as root.
+
 API details:
 
 GET /api/hardware/cameras
@@ -347,7 +359,7 @@ GET /api/hardware/cameras/{camera_id}/mjpeg
       - **Model / Manual Input**: The UI will suggest a builtin robot URDF based on detected motors. The suggested builtin is used as the default for visualization. Users may upload a custom URDF to override the builtin choice. If the robot/motor is unsupported, the user may still enter a model string manually — the device can be added, but motor discovery and runtime control will be unavailable for unsupported motors.
     - **URDF/Model Settings**: 
       - The system selects a default builtin URDF based on the detected motor configuration (suggested robot). The user may upload a custom URDF which overrides the default for visualization and control. The UI does not require selecting a robot model from a list when a builtin match exists.
-      - **Validation**: URDF files are validated on upload (server-side using the project's in-house validator `leropilot.services.hardware.urdf`). If parsing fails, reject the upload and show validation errors. If the user uploads a custom URDF, it takes precedence over the builtin default.
+      - **Validation**: URDF files are validated on upload (server-side using the project's in-house validator `leropilot.utils.urdf`). If parsing fails, reject the upload and show validation errors. If the user uploads a custom URDF, it takes precedence over the builtin default.
     - **Verification Panel**:
         - **Camera**: Live video stream.
         - **Robot**: **Live 3D Pose**. Requires correct Baud Rate and Model to work.
@@ -826,7 +838,7 @@ Fields:
 #### 4.3.6 URDF Management
 
 **POST `/api/hardware/devices/:id/urdf`**
-- **Description**: Upload a custom URDF file for a robot. File is validated using the in-project validator (`leropilot.services.hardware.urdf`) before saving.
+- **Description**: Upload a custom URDF file for a robot. File is validated using the in-project validator (`leropilot.utils.urdf`) before saving.
 - **Path Parameters**:
     - `id`: Robot device ID
 - **Request**: `multipart/form-data`
@@ -835,7 +847,7 @@ Fields:
     ```json
     {
       "message": "URDF uploaded successfully",
-      "path": "~/.leropilot/hardwares/robot/A50285BI/custom.urdf",
+      "path": "~/.leropilot/hardwares/robots/A50285BI/urdf/robot.urdf",
       "validation": {
         "valid": true,
         "errors": [],
@@ -1510,7 +1522,7 @@ window.addEventListener('beforeunload', () => {
         ├── robot/
         │   └── <unique_id>/
         │       ├── calibration.json  # Device-specific heavy data
-        │       └── custom.urdf       # Optional uploaded URDF
+        │       └── robot.urdf       # Optional uploaded URDF (uploaded OR root URDF from archive)
         └── camera/
             └── <unique_id>/
                 └── calibration.json
@@ -1825,7 +1837,7 @@ src/leropilot/
 │   │   ├── Device (BaseModel)
 │   │   ├── RobotDevice (Device)
 │   │   ├── CameraDevice (Device)
-│   │   ├── MotorInfo (BaseModel)
+│   │   ├── MotorModelInfo (BaseModel)
 │   │   ├── MotorTelemetry (BaseModel)
 │   │   ├── MotorCalibration (BaseModel)
 │   │   └── MotorProtectionParams (BaseModel)
@@ -1956,7 +1968,7 @@ frontend/src/
 │   └── hardware.ts                      # TypeScript types (NEW)
 │       ├── Device, RobotDevice, CameraDevice
 │       ├── DeviceStatus, DeviceCategory
-│       ├── MotorInfo, MotorTelemetry
+│       ├── MotorModelInfo, MotorTelemetry
 │       ├── WebSocket message types
 │       └── API request/response types
 │
@@ -2056,9 +2068,9 @@ Notes:
 - `id` must be the hardware serial number; attempts to add without it **fail** (HTTP 409).
 - Cameras are intentionally not managed; adding a device with `category` == `camera` will be rejected (HTTP 409).
 
-GET /api/hardware/discovery
-- Description: Returns un-added discovered devices.
-- Returns: `DiscoveryResult` with `robots` and `controllers` arrays. Entries for devices lacking serial numbers will be returned with `supported=false` and `unsupported_reason="missing_serial_number"`.
+GET /api/hardware/robots/discovery
+- Description: Returns un-added discovered robots.
+- Returns: an array of `Robot` objects representing pending (un-added) robots. For devices lacking serial numbers, `motor_bus_connections` entries will have `serial_number=null` and `is_transient=true`.
 
 ---
 
@@ -2117,7 +2129,7 @@ async def lifespan(app: FastAPI):
     global hardware_manager
     
     # Startup: Reset all device states (in case of previous crash)
-    hardware_manager = get_hardware_manager()
+    hardware_manager = get_robot_manager()
     await hardware_manager.reset_all_device_states()
     print("Hardware devices initialized and state reset")
     
@@ -2665,10 +2677,10 @@ sequenceDiagram
     participant Hardware
 
     User->>Frontend: Click "Add Device"
-    Frontend->>Backend: GET /api/hardware/discovery
+    Frontend->>Backend: GET /api/hardware/robots/discovery
     Backend->>Hardware: Scan Serial/USB/CAN
     Hardware-->>Backend: Available ports/cameras
-    Backend-->>Frontend: DiscoveryResult
+    Backend-->>Frontend: [Robot] (array of pending robots)
     Frontend-->>User: Show available devices to add
 ```
 

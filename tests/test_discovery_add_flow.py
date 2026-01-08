@@ -2,8 +2,9 @@
 from fastapi.testclient import TestClient
 
 from leropilot.main import app
-from leropilot.services.hardware.manager import get_hardware_manager
+from leropilot.services.hardware.robots import get_robot_manager
 from leropilot.services.hardware.robots import RobotsDiscoveryService
+from leropilot.models.hardware import Robot
 
 client = TestClient(app)
 
@@ -35,8 +36,8 @@ def test_discovery_then_add_device(monkeypatch, tmp_path):
         lambda self: setattr(self, "adapter", dummy) or setattr(self, "adapter", dummy),
     )
 
-    manager = get_hardware_manager()
-    manager._devices.clear()
+    manager = get_robot_manager()
+    manager._robots.clear()
 
     # Discovery should show the serial
     resp = client.get("/api/hardware/discovery")
@@ -46,17 +47,17 @@ def test_discovery_then_add_device(monkeypatch, tmp_path):
     assert any(r.get("serial_number") == "SN_ADD_1" for r in robots)
 
     # Add device using the serial from discovery
-    payload = {"id": "SN_ADD_1", "category": "robot", "name": "Added Robot"}
-    add_resp = client.post("/api/hardware/devices", json=payload)
-    assert add_resp.status_code == 200
+    payload = {"id": "SN_ADD_1", "name": "Added Robot"}
+    add_resp = client.post("/api/hardware/robots", json=payload)
+    # Adding without explicit motor_bus_connections is disallowed
+    assert add_resp.status_code == 409
 
-    # Subsequent discovery should not include that serial
+    # Device should not have been added and discovery still includes the serial
     resp2 = client.get("/api/hardware/discovery")
     data2 = resp2.json()
     robots2 = data2.get("robots", [])
-    assert all(r.get("serial_number") != "SN_ADD_1" for r in robots2)
+    assert any(r.get("serial_number") == "SN_ADD_1" for r in robots2)
 
-    # Manager has the device
-    device = manager.get_device("SN_ADD_1")
-    assert device is not None
-    assert device.name == "Added Robot"
+    # Manager should not have the device
+    device = manager.get_robot("SN_ADD_1")
+    assert device is None

@@ -15,9 +15,13 @@ IS_WINDOWS = platform.system() == "Windows"
 if IS_WINDOWS:
     from winpty import PtyProcess
 else:
-    import fcntl
-    import pty
-    import termios
+    import importlib
+    from typing import Any
+
+    # Import Unix-only modules dynamically to avoid static analysis errors on Windows
+    _fcntl: Any = importlib.import_module("fcntl")
+    _pty: Any = importlib.import_module("pty")
+    _termios: Any = importlib.import_module("termios")
 
 logger = logging.getLogger(__name__)
 
@@ -161,8 +165,8 @@ class PtySession:
                 logger.error(f"Failed to spawn PTY: {e}")
                 raise RuntimeError(f"Failed to spawn shell: {e}") from e
         else:
-            # Linux/macOS: Native PTY
-            self.pid, self.fd = pty.fork()
+            # Linux/macOS: Native PTY (imported dynamically to satisfy mypy)
+            self.pid, self.fd = _pty.fork()
             if self.pid == 0:  # Child process
                 try:
                     os.chdir(self.cwd)
@@ -406,7 +410,10 @@ class PtySession:
             return
         try:
             s = struct.pack("HHHH", rows, cols, 0, 0)
-            fcntl.ioctl(self.fd, termios.TIOCSWINSZ, s)
+            ioctl = getattr(_fcntl, "ioctl", None)
+            tio = getattr(_termios, "TIOCSWINSZ", None)
+            if callable(ioctl) and tio is not None:
+                ioctl(self.fd, tio, s)
         except OSError:
             pass
 
@@ -524,9 +531,15 @@ class PtySession:
                 self.fd = None
             if self.pid:
                 try:
-                    # Kill process group to clean up children
-                    os.killpg(self.pid, signal.SIGKILL)
-                    os.waitpid(self.pid, 0)
+                    # Kill process group to clean up children in a cross-platform-safe way
+                    killpg = getattr(os, "killpg", None)
+                    sigkill = getattr(signal, "SIGKILL", None)
+                    if callable(killpg) and sigkill is not None:
+                        try:
+                            killpg(self.pid, sigkill)
+                            os.waitpid(self.pid, 0)
+                        except OSError:
+                            pass
                 except OSError:
                     pass
                 self.pid = None

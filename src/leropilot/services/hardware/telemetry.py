@@ -7,6 +7,7 @@ Provides:
 
 The session is intended to be protocol-agnostic and used by WebSocket handlers or other orchestrators.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +15,9 @@ import logging
 from collections.abc import Iterable
 from datetime import datetime
 
-from leropilot.models.hardware import MotorTelemetry
+from leropilot.models.hardware import MotorTelemetry, Robot
+from leropilot.services.hardware.motor_drivers.base import BaseMotorDriver
+from leropilot.services.hardware.motors import MotorService
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +37,9 @@ class TelemetrySession:
     def __init__(
         self,
         device_id: str,
-        driver: object,
-        motor_service: object,
-        device: object,
+        driver: BaseMotorDriver | None,
+        motor_service: MotorService,
+        device: Robot,
         brand: str = "dynamixel",
         target_ids: Iterable[int] | None = None,
         poll_interval_ms: int = 100,
@@ -62,14 +65,21 @@ class TelemetrySession:
 
     @property
     def calibration_available(self) -> bool:
-        """Return whether calibration data appears available for this device."""
-        if not self.device or not getattr(self.device, "config", None):
+        """Return whether calibration data appears available for this device.
+
+        Use `Robot.calibration_settings` (per-bus lists of `MotorCalibration`) rather than
+        the deprecated `config.motors` structure.
+        """
+        if not self.device:
             return False
-        if not getattr(self.device.config, "motors", None):
+        # calibration_settings: dict[bus_name, list[MotorCalibration]]
+        try:
+            for _bus, cal_list in (self.device.calibration_settings or {}).items():
+                for mc in cal_list or []:
+                    if getattr(mc, "homing_offset", None) is not None:
+                        return True
+        except Exception:
             return False
-        for _name, motor_cfg in self.device.config.motors.items():
-            if motor_cfg.calibration and getattr(motor_cfg.calibration, "homing_offset", None) is not None:
-                return True
         return False
 
     async def start(self) -> None:
@@ -135,7 +145,15 @@ class TelemetrySession:
                 self.motor_service.create_driver,
                 interface,
                 brand or self.brand,
-                interface_type or self.device.connection_settings.get("interface_type", "serial"),
+                interface_type
+                or (
+                    "can"
+                    if any(
+                        "can" in (getattr(c, "motor_bus_type", "") or "").lower()
+                        for c in (self.device.motor_bus_connections or {}).values()
+                    )
+                    else "serial"
+                ),
                 baud_rate,
             )
             if not driver:
@@ -154,7 +172,11 @@ class TelemetrySession:
                 # Disconnect may be blocking - call the disconnect method in executor
                 loop = asyncio.get_running_loop()
                 drv = self.driver
-                await loop.run_in_executor(None, lambda d=drv: d.disconnect())
+
+                def _drv_disconnect(drv_obj: BaseMotorDriver) -> None:
+                    drv_obj.disconnect()
+
+                await loop.run_in_executor(None, _drv_disconnect, drv)
         except Exception:
             logger.exception("Error disconnecting driver")
         finally:
@@ -237,7 +259,6 @@ class TelemetrySession:
             logger.error(f"emergency_stop error: {e}")
             return {"success": False, "error": str(e)}
 
-
     async def _run_loop(self) -> None:
         loop = asyncio.get_running_loop()
 
@@ -274,8 +295,11 @@ class TelemetrySession:
         results: list[dict] = []
         for mid in target_ids:
             try:
+                driver = self.driver
+                if driver is None:
+                    continue
                 telemetry: MotorTelemetry | None = self.motor_service.read_telemetry_with_protection(
-                    self.driver, mid, self.brand, robot_type_id, None
+                    driver, mid, self.brand, robot_type_id, None
                 )
                 if telemetry:
                     # model_dump ensures serializable dict
@@ -322,5 +346,3 @@ class TelemetrySession:
                     await self._queue.put(event)
             except Exception:
                 logger.exception("Error while processing protection status for motor")
-
-

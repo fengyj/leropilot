@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Save, RotateCcw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { PageContainer } from '../../components/ui/page-container';
 import { cn } from '../../utils/cn';
 import { useSettings } from './hooks/use-settings';
 import { AppearanceSection } from './sections/AppearanceSection';
@@ -59,7 +60,7 @@ export function SettingsPage() {
     savedConfig && JSON.stringify(config) !== JSON.stringify(savedConfig);
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Header */}
       <div>
         <h1 className="text-content-primary text-2xl font-bold tracking-tight">
@@ -148,6 +149,6 @@ export function SettingsPage() {
           )}
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }

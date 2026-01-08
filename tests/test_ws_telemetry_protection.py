@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 import leropilot.services.hardware.motors as motor_svc_mod
 from leropilot.main import app
 from leropilot.models.hardware import MotorTelemetry, ProtectionStatus
-from leropilot.services.hardware.manager import get_hardware_manager
+from leropilot.services.hardware.robots import get_robot_manager
+from leropilot.models.hardware import Robot, DeviceStatus
 
 client = TestClient(app)
 
@@ -22,9 +23,9 @@ class FakeDriver:
 
 
 def test_auto_disable_torque_on_critical(monkeypatch):
-    manager = get_hardware_manager()
-    manager._devices.clear()
-    manager.add_device(device_id="SNPROT", category="robot", name="ProtRobot")
+    manager = get_robot_manager()
+    manager._robots.clear()
+    manager.add_robot(Robot(id="SNPROT", name="ProtRobot", status=DeviceStatus.AVAILABLE))
 
     fake_driver = FakeDriver()
 

@@ -1,10 +1,10 @@
 # ruff: noqa
 import importlib.resources
 
-from leropilot.services.hardware.urdf import get_joint_chain, validate_file, validate_motor_count
+from leropilot.utils.urdf import get_joint_chain, validate_file, validate_motor_count
 
 resource_files = importlib.resources.files("leropilot.resources")
-GOOD_URDF = resource_files.joinpath("robots").joinpath("koch_follower").joinpath("koch.urdf")
+GOOD_URDF = resource_files.joinpath("robots").joinpath("koch_follower").joinpath("robot.urdf")
 
 
 def test_validate_good_urdf():

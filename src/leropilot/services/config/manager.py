@@ -10,18 +10,7 @@ from typing import Any, Literal, cast
 import yaml
 
 from leropilot.models.app_config import AppConfig, PyPIMirror, RepositorySource
-
-
-def _get_resources_dir() -> Path:
-    """Get the resources directory path, compatible with PyInstaller."""
-    if getattr(sys, "frozen", False):
-        # PyInstaller packaged environment
-        base_path = Path(sys._MEIPASS)  # type: ignore[attr-defined]
-        return base_path / "leropilot" / "resources"
-    else:
-        # Development environment
-        # Path: services/config/manager.py -> parent.parent.parent = leropilot
-        return Path(__file__).parent.parent.parent / "resources"
+from leropilot.utils.paths import get_resources_dir
 
 
 class AppConfigManager:
@@ -156,7 +145,7 @@ class AppConfigManager:
 
         try:
             # Load preset configuration file
-            resources_dir = _get_resources_dir()
+            resources_dir = get_resources_dir()
             preset_path = resources_dir / "default_config.json"
             print(f"[CONFIG] Loading preset config from: {preset_path}")
             print(f"[CONFIG] Resources dir exists: {resources_dir.exists()}")

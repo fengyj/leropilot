@@ -197,20 +197,53 @@ body {
   background: transparent;
 }
 
+/* Scrollbar thumb is transparent by default and shows on hover of the container */
 ::-webkit-scrollbar-thumb {
-  background: var(--color-zinc-700);
+  background: transparent;
   border-radius: 4px;
   transition: background 0.2s ease;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-zinc-600);
+/* Target any container being hovered to show its scrollbar thumb */
+*:hover::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-700);
 }
 
-/* For Firefox */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-600) !important;
+}
+
+/* Light theme overrides */
+:root.light *:hover::-webkit-scrollbar-thumb,
+[data-theme='light'] *:hover::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-300);
+}
+
+:root.light ::-webkit-scrollbar-thumb:hover,
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-zinc-400) !important;
+}
+
+/* Custom scrollbar utility (thinner for nested UI) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Firefox support for hover scrollbar */
 * {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+*:hover {
   scrollbar-color: var(--color-zinc-700) transparent;
+}
+
+:root.light *:hover,
+[data-theme='light'] *:hover {
+  scrollbar-color: var(--color-zinc-300) transparent;
 }
 
 /* Backdrop filter support for Safari */

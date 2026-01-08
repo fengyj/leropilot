@@ -78,9 +78,13 @@ def get_logger(name: str) -> structlog.BoundLogger:
     """
     # Use a global variable to cache the configuration
     if not hasattr(get_logger, "_configured"):
-        from leropilot.services.config import get_config
+        try:
+            from leropilot.services.config import get_config
+            config = get_config()
+        except (ImportError, AttributeError):
+            # Fallback during circular imports at bootstrap
+            return cast(structlog.BoundLogger, structlog.get_logger(name))
 
-        config = get_config()
         log_dir = config.paths.logs_dir
         log_file_path = None
 

@@ -88,56 +88,41 @@ async def run_verification() -> None:
         assert resp.status_code == 200
         device_data = resp.json()
 
-        # Verify 'config' object exists
-        config = device_data.get("config", {})
-        assert config is not None
+        # Verify 'calibration_settings' object exists (replacing legacy 'config')
+        cal_settings = device_data.get("calibration_settings", {})
+        assert isinstance(cal_settings, dict)
 
-        # Verify protection auto-population logic (which we temporarily muted) or config existence
-        # Since we removed logic to auto-populate without ID scannning, config.motors might be empty.
-        # Let's just check config is dict.
-        assert isinstance(config, dict)
-        motors = config.get("motors", {})
-        assert isinstance(motors, dict)
+        # 6.1 Calibration Patch
+        logger.info("\n--- Test 6.1: Calibration Patch ---")
 
-        # 6.1 Unified Config Patch (Calibration)
-        logger.info("\n--- Test 6.1: Config Patch (Calibration) ---")
-
-        # Patch config with calibration data
+        # Patch calibration_settings with calibration data
         cal_payload = {
-            "config": {
-                "motors": {
-                    "motor_1": {
-                        "calibration": {
-                            "homing_offset": 100,
-                            "drive_mode": 1,
-                            "range_min": 0,
-                            "range_max": 4096,
-                            "id": 1,
-                        },
-                        "protection": {
-                            "overrides": {"temp_critical": 85.0}  # Checking partial override
-                        },
+            "calibration_settings": {
+                "motor_bus": [
+                    {
+                        "name": "motor_1",
+                        "homing_offset": 100,
+                        "drive_mode": 1,
+                        "range_min": 0,
+                        "range_max": 4096,
+                        "id": 1,
                     }
-                }
+                ]
             }
         }
 
         resp = await client.patch("/devices/mock_serial_12345", json=cal_payload)
-        logger.info(f"Patch Config Status: {resp.status_code}")
+        logger.info(f"Patch Calibration Status: {resp.status_code}")
         assert resp.status_code == 200
         updated_data = resp.json()
 
         # Verify persistence immediately in response
-        # Structure: config -> motors -> motor_1 -> calibration
-        if updated_data.get("config") and updated_data["config"].get("motors"):
-            m1 = updated_data["config"]["motors"].get("motor_1", {})
-            assert m1.get("calibration", {}).get("homing_offset") == 100
+        # Structure: calibration_settings -> motor_bus -> [ {name, homing_offset, ...} ]
+        if updated_data.get("calibration_settings") and isinstance(updated_data["calibration_settings"].get("motor_bus"), list):
+            m1 = updated_data["calibration_settings"]["motor_bus"][0]
+            assert m1.get("homing_offset") == 100
         else:
             logger.error(f"  ❌ Calibration NOT returned in PATCH response: {updated_data}")
-
-        # Verify protection override
-        if updated_data.get("config") and updated_data["config"].get("motors"):
-            m1 = updated_data["config"]["motors"].get("motor_1", {})
             assert m1.get("protection", {}).get("overrides", {}).get("temp_critical") == 85.0
 
         # Verify persistence via GET

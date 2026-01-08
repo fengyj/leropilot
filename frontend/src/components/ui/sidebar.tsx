@@ -18,7 +18,7 @@ export function Sidebar() {
   const menuItems = [
     { icon: LayoutDashboard, label: t('nav.dashboard'), href: '/dashboard' },
     { icon: MonitorPlay, label: t('nav.environments'), href: '/environments' },
-    { icon: Bot, label: t('nav.devices'), href: '/devices' },
+    { icon: Bot, label: t('nav.devices'), href: '/hardware' },
     { icon: Video, label: t('nav.recording'), href: '/recording' },
     { icon: Database, label: t('nav.datasets'), href: '/datasets' },
     { icon: Settings, label: t('nav.settings'), href: '/settings' },

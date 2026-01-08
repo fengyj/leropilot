@@ -43,7 +43,8 @@ async def test_open_and_control():
     assert ack.get("success") is False
 
     # Add fake calibration data
-    device.config = SimpleNamespace(motors={"motor_1": SimpleNamespace(calibration=SimpleNamespace(homing_offset=0))})
+    # Use `calibration_settings` instead of deprecated `config` structure
+    device.calibration_settings = {"motor_bus": [SimpleNamespace(homing_offset=0)]}
 
     ack = await session.set_position(1, 123)
     assert ack.get("success") is True

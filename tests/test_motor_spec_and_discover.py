@@ -19,5 +19,5 @@ def test_get_motor_specs_known() -> None:
 
 def test_motor_discover_bad_interface() -> None:
     r = client.post("/api/hardware/motor-discover", json={"interface": "NONEXISTENT", "baud_rates": [115200]})
-    # Probe may return 404 or 500 depending on platform; assert it's not 200
-    assert r.status_code != 200
+    # Endpoint removed — expect 404
+    assert r.status_code == 404
