@@ -169,7 +169,7 @@ export function GitSection({
               className={cn(
                 'flex-1 rounded-md border p-3 transition-all',
                 config.tools.git.type === 'bundled'
-                  ? 'border-blue-600 bg-blue-600/10 text-blue-500'
+                  ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
               )}
             >
@@ -189,7 +189,7 @@ export function GitSection({
               className={cn(
                 'flex-1 rounded-md border p-3 transition-all',
                 config.tools.git.type === 'custom'
-                  ? 'border-blue-600 bg-blue-600/10 text-blue-500'
+                  ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
               )}
             >
@@ -210,8 +210,8 @@ export function GitSection({
                   className={cn(
                     'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:outline-none',
                     bundledGitStatus?.installed
-                      ? 'border-green-500'
-                      : 'border-amber-500',
+                      ? 'border-success-border'
+                      : 'border-warning-border',
                   )}
                   value={
                     bundledGitStatus?.installed
@@ -224,9 +224,9 @@ export function GitSection({
                 {/* Status Icon */}
                 <div className="absolute top-1/2 right-3 -translate-y-1/2">
                   {bundledGitStatus?.installed ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-4 w-4 text-success-icon" />
                   ) : (
-                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                    <AlertCircle className="h-4 w-4 text-warning-icon" />
                   )}
                 </div>
               </div>
@@ -237,7 +237,7 @@ export function GitSection({
                   type="button"
                   onClick={handleDownloadBundledGit}
                   disabled={!!bundledGitDownloadProgress}
-                  className="mt-2 flex items-center gap-2 text-sm text-blue-500 hover:underline disabled:opacity-50"
+                  className="mt-2 flex items-center gap-2 text-sm text-primary hover:underline hover:text-primary-hover disabled:opacity-50"
                 >
                   {bundledGitDownloadProgress ? (
                     <>
@@ -270,12 +270,12 @@ export function GitSection({
                   aria-label={t('settings.tools.gitPathPlaceholder')}
                   placeholder={t('settings.tools.gitPathPlaceholder')}
                   className={cn(
-                    'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:border-blue-500 focus:outline-none',
+                    'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:border-primary focus:outline-none',
                     gitValidation.error &&
                     'border-error-border focus:border-error-border',
                     !gitValidation.error &&
                     gitValidation.validation &&
-                    'border-green-500',
+                    'border-success-border',
                   )}
                   value={config.tools.git.custom_path || ''}
                   onChange={(e) => {
@@ -298,18 +298,18 @@ export function GitSection({
                 {/* Validation icon */}
                 <div className="absolute top-1/2 right-3 -translate-y-1/2">
                   {gitValidation.isValidating ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                    <Loader2 className="h-4 w-4 animate-spin text-content-tertiary" />
                   ) : gitValidation.error ? (
                     <div className="group relative">
-                      <XCircle className="h-4 w-4 text-red-500" />
-                      <div className="absolute top-6 right-0 z-10 hidden w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white shadow-lg group-hover:block">
+                      <XCircle className="h-4 w-4 text-error-icon" />
+                      <div className="absolute top-6 right-0 z-10 hidden w-64 rounded-md bg-surface-tertiary px-3 py-2 text-xs text-content-primary shadow-lg border border-border-default group-hover:block">
                         {gitValidation.error}
                       </div>
                     </div>
                   ) : gitValidation.validation ? (
                     <div className="group relative">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <div className="absolute top-6 right-0 z-10 hidden rounded-md bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+                      <CheckCircle2 className="h-4 w-4 text-success-icon" />
+                      <div className="absolute top-6 right-0 z-10 hidden rounded-md bg-surface-tertiary px-3 py-2 text-xs whitespace-nowrap text-content-primary shadow-lg border border-border-default group-hover:block">
                         {gitValidation.validation}
                       </div>
                     </div>
@@ -322,7 +322,7 @@ export function GitSection({
                   type="button"
                   onClick={handleAutoDetectGit}
                   disabled={gitValidation.isValidating}
-                  className="mt-2 flex items-center gap-2 text-sm text-blue-500 hover:underline disabled:opacity-50"
+                  className="mt-2 flex items-center gap-2 text-sm text-primary hover:underline hover:text-primary-hover disabled:opacity-50"
                 >
                   {t('settings.tools.autoDetect')}
                 </button>

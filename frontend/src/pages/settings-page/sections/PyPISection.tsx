@@ -19,6 +19,7 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
   const [newMirrorUrl, setNewMirrorUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [hoveredMirrorName, setHoveredMirrorName] = useState<string | null>(null);
+  const [deleteMirrorConfirm, setDeleteMirrorConfirm] = useState<{ isOpen: boolean; name: string | null }>({ isOpen: false, name: null });
 
   const handleAddMirror = () => {
     if (!newMirrorName || !newMirrorUrl) return;
@@ -41,8 +42,6 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
     setNewMirrorUrl('');
     setIsAdding(false);
   };
-
-  const [deleteMirrorConfirm, setDeleteMirrorConfirm] = useState<{ isOpen: boolean; name: string | null }>({ isOpen: false, name: null });
 
   const handleDeleteMirror = (name: string) => {
     setDeleteMirrorConfirm({ isOpen: true, name });
@@ -106,7 +105,6 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
                 </label>
                 <Input
                   id="pypi-mirror-name"
-                  name="pypi-mirror-name"
                   type="text"
                   value={newMirrorName}
                   onChange={(e) => setNewMirrorName(e.target.value)}
@@ -119,7 +117,6 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
                 </label>
                 <Input
                   id="pypi-mirror-url"
-                  name="pypi-mirror-url"
                   type="text"
                   value={newMirrorUrl}
                   onChange={(e) => setNewMirrorUrl(e.target.value)}

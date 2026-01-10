@@ -103,10 +103,12 @@ export const RobotCard: React.FC<{
                 </div>
                 <DropdownMenu
                     trigger={
-                        <div className="flex items-center gap-1 cursor-pointer text-content-tertiary hover:text-content-primary p-1">
+                        <>
                             <MoreVertical className="h-4 w-4" />
-                        </div>
+                            <span className="sr-only">{t('common.more')}</span>
+                        </>
                     }
+                    triggerClassName="h-8 w-8 p-0 text-content-tertiary hover:text-content-primary justify-center"
                     items={[
                         {
                             id: 'edit',

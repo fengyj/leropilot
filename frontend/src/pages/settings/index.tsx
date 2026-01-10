@@ -138,7 +138,7 @@ export function SettingsPage() {
       <div className="border-border-default flex items-center justify-between border-t pt-6">
         <div className="flex items-center gap-3">
           {hasAnyChanges && (
-            <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+            <span className="rounded border border-warning-border bg-warning-surface px-2 py-1 text-xs font-medium text-warning-content">
               {t('settings.unsavedChanges')}
             </span>
           )}

@@ -307,7 +307,7 @@ export function HardwareDashboard() {
                 isOpen={!!previewCamera}
                 onClose={() => setPreviewCamera(null)}
                 title={previewCamera ? t('hardware.dashboard.previewCameraTitle', { name: previewCamera.name }) : ''}
-                className="max-w-4xl border-zinc-700 shadow-2xl ring-1 ring-white/10"
+                className="max-w-4xl border-border-default shadow-2xl ring-1 ring-border-subtle/50"
             >
                 {previewCamera && (
                     <div className="flex flex-col">

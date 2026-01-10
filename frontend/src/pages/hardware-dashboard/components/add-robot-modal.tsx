@@ -278,12 +278,12 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
       isOpen={isOpen}
       onClose={onClose}
       title={t('hardware.addRobotModal.title')}
-      className="max-w-5xl min-w-[800px] h-[75vh] min-h-[600px] p-0 border-zinc-700 shadow-2xl ring-1 ring-white/10"
+      className="max-w-5xl min-w-[800px] h-[75vh] min-h-[600px] p-0 border-border-default shadow-2xl ring-1 ring-border-subtle/50"
       contentClassName="overflow-hidden p-0"
     >
       <div className="flex-1 flex overflow-hidden h-[calc(75vh-60px)] min-h-[540px]">
         {/* Left Side: Visual Preview */}
-        <div className="hidden md:flex w-[40%] bg-zinc-950 border-r border-zinc-800 relative flex-col pt-12 pb-10 px-10 overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black">
+        <div className="hidden md:flex w-[40%] bg-surface-tertiary border-r border-border-default relative flex-col pt-12 pb-10 px-10 overflow-hidden">
           {/* Image Area: Takes remaining space */}
           <div className="flex-1 flex items-center justify-center relative min-h-0 w-full">
             {selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id ? (
@@ -291,7 +291,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                 key={selectedDef.id}
                 src={`/api/hardware/robots/definitions/${selectedDef.id}/image`}
                 alt={selectedDef.display_name}
-                className="block max-w-full max-h-full w-auto h-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in slide-in-from-bottom-4 duration-700 ease-out"
+                className="block max-w-full max-h-full w-auto h-auto object-contain drop-shadow-xl animate-in fade-in zoom-in slide-in-from-bottom-4 duration-700 ease-out"
                 // Fallback for when image fails to load (optional but recommended)
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -301,9 +301,9 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
             ) : null}
 
             {/* Placeholder icon shown when no image or custom selection */}
-            <div className={`image-placeholder flex flex-col items-center text-zinc-800 p-8 border-2 border-dashed border-zinc-900 rounded-3xl animate-in fade-in duration-500 ${(selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id) ? 'hidden' : ''}`}>
+            <div className={`image-placeholder flex flex-col items-center text-content-tertiary p-8 border-2 border-dashed border-border-default rounded-3xl animate-in fade-in duration-500 ${(selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id) ? 'hidden' : ''}`}>
               <Bot className="h-32 w-32 mb-4 opacity-10" />
-              <div className="h-1.5 w-16 bg-zinc-900/50 rounded-full" />
+              <div className="h-1.5 w-16 bg-content-tertiary/20 rounded-full" />
             </div>
           </div>
 
@@ -311,25 +311,25 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
           <div className="h-44 flex flex-col shrink-0 mt-10">
             {selectedDefinitionId ? (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-1000 ease-out">
-                <h3 className="text-2xl font-bold text-white tracking-tight truncate mb-3">
+                <h3 className="text-2xl font-bold text-content-primary tracking-tight truncate mb-3">
                   {selectedDefinitionId === 'custom' ? t('hardware.addRobotModal.customRobotName') : selectedDef?.display_name}
                 </h3>
-                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-4">
+                <p className="text-sm text-content-secondary leading-relaxed line-clamp-4">
                   {selectedDefinitionId === 'custom'
                     ? t('hardware.addRobotModal.customRobotDescription')
                     : (selectedDef?.description || t('hardware.addRobotModal.noDescription'))}
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-600 border-t border-zinc-900/50 pt-8">
+              <div className="flex flex-col items-center justify-center h-full text-content-tertiary border-t border-border-default/50 pt-8">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-30">Waiting for Selection</p>
               </div>
             )}
           </div>
 
           {/* Subtle decoration elements */}
-          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-black to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-surface-tertiary via-surface-tertiary/50 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-surface-tertiary via-surface-tertiary/50 to-transparent pointer-events-none" />
         </div>
 
         {/* Right Side: Configuration (Scrollable) */}
@@ -376,7 +376,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                         {t('hardware.addRobotModal.componentConnections')}
                       </label>
                       {selectedDefinitionId === 'custom' && (
-                        <Button variant="secondary" size="sm" onClick={handleAddBus} className="h-7 text-[10px] px-2 shadow-sm border-zinc-700">
+                        <Button variant="secondary" size="sm" onClick={handleAddBus} className="h-7 text-[10px] px-2 shadow-sm border-border-default">
                           <Plus className="h-3 w-3 mr-1" /> {t('hardware.addRobotModal.addComponent')}
                         </Button>
                       )}
@@ -427,7 +427,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                                     setCustomBuses(next);
                                   }}
                                 />
-                                <Button variant="secondary" size="sm" onClick={() => handleRemoveBus(index)} className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 transition-colors border-zinc-800">
+                                <Button variant="secondary" size="sm" onClick={() => handleRemoveBus(index)} className="h-8 w-8 p-0 text-content-tertiary hover:text-status-danger transition-colors border-border-default">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
@@ -464,7 +464,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                     size="sm"
                     onClick={refreshDiscovery}
                     disabled={refreshingDevices}
-                    className="h-7 text-[10px] border-zinc-700"
+                    className="h-7 text-[10px] border-border-default"
                   >
                     <RefreshCw className={`h-3 w-3 mr-1 ${refreshingDevices ? 'animate-spin' : ''}`} />
                     {t('hardware.addRobotModal.refreshDiscovery')}
@@ -483,8 +483,8 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
 
                   {!refreshingDevices && availableDevices.length === 0 && (
                     <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle/50 rounded-xl bg-surface-secondary/10 text-center px-6">
-                      <div className="h-12 w-12 rounded-full bg-zinc-800/50 flex items-center justify-center mb-4">
-                        <AlertCircle className="h-6 w-6 text-zinc-500" />
+                      <div className="h-12 w-12 rounded-full bg-surface-tertiary flex items-center justify-center mb-4">
+                        <AlertCircle className="h-6 w-6 text-content-tertiary" />
                       </div>
                       <h4 className="text-sm font-bold text-content-secondary mb-1">{t('hardware.addRobotModal.noHardwareFound')}</h4>
                       <p className="text-[11px] text-content-tertiary max-w-[240px]">
@@ -513,14 +513,14 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                     return (
                       <div key={device.id} className={`mb-2 border rounded-lg overflow-hidden transition-all duration-200 shadow-sm ${isAssigned
                         ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
-                        : 'border-border-subtle bg-surface-secondary/20 hover:border-zinc-500'
+                        : 'border-border-subtle bg-surface-secondary/20 hover:border-content-tertiary'
                         }`}>
                         <div
                           className="p-3 flex items-center justify-between cursor-pointer group"
                           onClick={() => toggleDeviceExpand(device.id)}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : 'text-zinc-500'}`}>
+                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : 'text-content-tertiary'}`}>
                               <ChevronRight className="h-4 w-4" />
                             </div>
                             <div className="flex flex-col">
@@ -529,12 +529,12 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                                   {device.name}
                                 </span>
                                 {device.is_transient && (
-                                  <span className="px-1 py-0.5 rounded text-[8px] bg-zinc-200 text-zinc-600 font-bold uppercase tracking-tighter">
+                                  <span className="px-1 py-0.5 rounded text-[8px] bg-surface-tertiary text-content-secondary font-bold uppercase tracking-tighter border border-border-default">
                                     {t('hardware.robotCard.transient')}
                                   </span>
                                 )}
                                 {isAssigned && (
-                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-primary text-primary-foreground font-bold">
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-primary text-primary-content font-bold">
                                     {t('hardware.addRobotModal.assigned')}
                                   </span>
                                 )}
@@ -545,44 +545,44 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-zinc-400 font-medium">
+                            <span className="text-[10px] text-content-secondary font-medium">
                               {t('hardware.addRobotModal.motors', { count: motors.length })}
                             </span>
                           </div>
                         </div>
 
                         {isExpanded && (
-                          <div className="bg-black/10 border-t border-border-subtle/30 px-3 py-2 space-y-1">
+                          <div className="bg-surface-secondary/50 border-t border-border-subtle/30 px-3 py-2 space-y-1">
                             {motors.length === 0 ? (
-                              <div className="text-[10px] text-zinc-500 italic py-2 pl-7">{t('hardware.addRobotModal.noMotorsFound')}</div>
+                              <div className="text-[10px] text-content-tertiary italic py-2 pl-7">{t('hardware.addRobotModal.noMotorsFound')}</div>
                             ) : (
                               motors.map((m, idx) => (
-                                <div key={idx} className="flex items-center gap-4 text-[10px] py-1.5 pl-7 border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
-                                  <div className="flex-none text-zinc-400 flex items-center gap-1.5">
-                                    <span className="h-1 w-1 rounded-full bg-zinc-600" />
-                                    <span className="text-zinc-200 font-mono flex items-center gap-3">
+                                <div key={idx} className="flex items-center gap-4 text-[10px] py-1.5 pl-7 border-b border-border-subtle last:border-0 hover:bg-surface-tertiary transition-colors">
+                                  <div className="flex-none text-content-secondary flex items-center gap-1.5">
+                                    <span className="h-1 w-1 rounded-full bg-content-tertiary" />
+                                    <span className="text-content-primary font-mono flex items-center gap-3">
                                       {Array.isArray(m.id) ? (
                                         <>
                                           <span className="flex items-center gap-1">
-                                            <span className="text-[9px] text-zinc-500 uppercase tracking-tighter">Send ID:</span>
-                                            <span className="text-primary/90 font-bold">{m.id[0]}</span>
+                                            <span className="text-[9px] text-content-tertiary uppercase tracking-tighter">Send ID:</span>
+                                            <span className="text-primary font-bold">{m.id[0]}</span>
                                           </span>
                                           <span className="flex items-center gap-1">
-                                            <span className="text-[9px] text-zinc-500 uppercase tracking-tighter">Recv ID:</span>
-                                            <span className="text-primary/90 font-bold">{m.id[1]}</span>
+                                            <span className="text-[9px] text-content-tertiary uppercase tracking-tighter">Recv ID:</span>
+                                            <span className="text-primary font-bold">{m.id[1]}</span>
                                           </span>
                                         </>
                                       ) : (
                                         <span className="flex items-center gap-1">
-                                          <span className="text-[9px] text-zinc-500 uppercase tracking-tighter">Motor ID:</span>
-                                          <span className="text-primary/90 font-bold">{m.id}</span>
+                                          <span className="text-[9px] text-content-tertiary uppercase tracking-tighter">Motor ID:</span>
+                                          <span className="text-primary font-bold">{m.id}</span>
                                         </span>
                                       )}
                                     </span>
                                   </div>
                                   <div className="flex-1 flex items-center justify-between min-w-0">
-                                    <span className="text-zinc-300 font-medium truncate">{m.brand} {m.model}</span>
-                                    <span className="shrink-0 text-[10px] text-zinc-500 bg-zinc-800/50 px-1.5 py-0.5 rounded border border-white/5 ml-2">
+                                    <span className="text-content-primary font-medium truncate">{m.brand} {m.model}</span>
+                                    <span className="shrink-0 text-[10px] text-content-secondary bg-surface-tertiary px-1.5 py-0.5 rounded border border-border-default ml-2">
                                       {m.variant || 'Standard'}
                                     </span>
                                   </div>

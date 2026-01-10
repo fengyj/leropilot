@@ -36,7 +36,7 @@ export function AdvancedStepCard({
     <Card
       className={cn(
         'transition-all',
-        step.status === 'running' && 'border-blue-500 ring-1 ring-blue-500',
+        step.status === 'running' && 'border-primary ring-1 ring-primary',
       )}
     >
       <div

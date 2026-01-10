@@ -302,9 +302,9 @@ export function StepHardwareSelection() {
               role="button"
               tabIndex={0}
               className={cn(
-                'relative cursor-pointer rounded-lg border p-4 transition-all',
+                'relative cursor-pointer rounded-lg border p-4 transition-all focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none outline-none',
                 isSelected
-                  ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10'
+                  ? 'border-primary bg-primary/5'
                   : 'border-border-default bg-surface-secondary hover:border-border-subtle',
               )}
             >
@@ -316,7 +316,7 @@ export function StepHardwareSelection() {
                     <Zap
                       className={cn(
                         'h-5 w-5',
-                        option.type === 'rocm' ? 'text-red-500' : 'text-green-500',
+                        option.type === 'rocm' ? 'text-status-danger' : 'text-success-icon',
                       )}
                     />
                   )}
@@ -333,7 +333,7 @@ export function StepHardwareSelection() {
                 </div>
 
                 {isSelected && (
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-content">
                     <Check className="h-3 w-3" />
                   </div>
                 )}

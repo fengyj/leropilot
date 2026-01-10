@@ -109,17 +109,19 @@ export const EnvironmentCard: React.FC<EnvironmentCardProps> = ({
                 </div>
                 <DropdownMenu
                     trigger={
-                        <div className="flex items-center gap-1">
+                        <>
                             <MoreVertical className="h-4 w-4" />
-                        </div>
+                            <span className="sr-only">{t('common.more')}</span>
+                        </>
                     }
+                    triggerClassName="h-8 w-8 p-0 text-content-tertiary hover:text-content-primary justify-center"
                     items={[
                         {
                             id: 'delete',
                             label: t('environments.delete'),
                             onClick: () => onDelete(env.id, env.display_name),
                             variant: 'danger',
-                            icon: <Trash2 className="text-content-tertiary hover:text-error-icon h-4 w-4" />,
+                            icon: <Trash2 className="h-4 w-4" />,
                         },
                     ]}
                     align="right"

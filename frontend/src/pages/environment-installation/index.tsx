@@ -66,8 +66,8 @@ export function EnvironmentInstallationPage() {
                             </span>
                         )}
                         {installState.status === 'running' && (
-                            <span className="flex items-center gap-1.5 text-xs text-green-600">
-                                <span className="h-2 w-2 rounded-full bg-green-500" />
+                            <span className="flex items-center gap-1.5 text-xs text-success-icon">
+                                <span className="h-2 w-2 rounded-full bg-success-icon" />
                                 {t('wizard.installation.running')}
                             </span>
                         )}
@@ -93,14 +93,14 @@ export function EnvironmentInstallationPage() {
 
             {/* Error Message */}
             {error && (
-                <div className="border-t bg-red-50 px-6 py-4 dark:bg-red-950/20">
+                <div className="border-t border-error-border bg-error-surface px-6 py-4">
                     <div className="flex items-start gap-3">
-                        <XCircle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+                        <XCircle className="h-5 w-5 flex-shrink-0 text-error-icon" />
                         <div className="flex-1">
-                            <h3 className="font-medium text-red-900 dark:text-red-100">
+                            <h3 className="font-medium text-error-content">
                                 {t('wizard.installation.errorTitle')}
                             </h3>
-                            <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+                            <p className="mt-1 text-sm text-error-content/90">{error}</p>
                         </div>
                     </div>
                 </div>

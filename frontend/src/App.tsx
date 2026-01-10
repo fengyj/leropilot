@@ -6,6 +6,7 @@ import { EnvironmentInstallationPage } from './pages/environment-installation';
 import { AdvancedInstallationPage } from './pages/advanced-installation';
 import { SettingsPage } from './pages/settings';
 import { HardwareDashboard } from './pages/hardware-dashboard';
+import { DesignSystemPreview } from './pages/design-system/DesignSystemPreview';
 
 interface ElectronAPI {
   platform: string;
@@ -61,6 +62,7 @@ function App() {
             element={<div className="text-content-tertiary">Datasets Placeholder</div>}
           />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="design-system" element={<DesignSystemPreview />} />
         </Route>
       </Routes>
     </BrowserRouter>

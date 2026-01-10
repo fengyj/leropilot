@@ -157,7 +157,7 @@ export function RepositoriesSection({
               className={cn(
                 'group flex items-center justify-between rounded-lg border p-3 transition-colors',
                 repo.is_default
-                  ? 'border-blue-500/30 bg-blue-500/5'
+                  ? 'border-primary/30 bg-primary/5'
                   : 'border-border-default bg-surface-secondary',
               )}
               onMouseEnter={() => setHoveredRepoId(repo.id)}
@@ -168,7 +168,7 @@ export function RepositoriesSection({
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-full',
                     repo.is_default
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-primary text-primary-content'
                       : 'bg-surface-tertiary text-content-tertiary',
                   )}
                 >
@@ -180,7 +180,7 @@ export function RepositoriesSection({
                       {repo.name}
                     </span>
                     {repo.is_default && (
-                      <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-500">
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
                         {t('settings.repositories.default')}
                       </span>
                     )}
@@ -199,7 +199,7 @@ export function RepositoriesSection({
                       onClick={() => handleSetDefault(repo.id)}
                       title={t('settings.repositories.setAsDefault')}
                     >
-                      <Star className="text-content-tertiary h-4 w-4 hover:text-blue-500" />
+                      <Star className="text-content-tertiary h-4 w-4 hover:text-primary" />
                     </Button>
                     <Button
                       variant="ghost"

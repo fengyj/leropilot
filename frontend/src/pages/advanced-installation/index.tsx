@@ -187,7 +187,7 @@ export function AdvancedInstallationPage() {
 
       <div className="space-y-4">
         {error ? (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="rounded-md border border-error-border bg-error-surface px-4 py-3 text-sm text-error-content">
             {error.startsWith('wizard.') ? t(error as any) : error}
           </div>
         ) : (

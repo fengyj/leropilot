@@ -54,7 +54,12 @@
   --color-red-100: #fee2e2;
   --color-red-50: #fef2f2;
 
-  /* Semantic Colors */
+  /* Main Brand Colors (aliased for customization) */
+  --color-primary: var(--color-blue-600);
+  --color-primary-hover: var(--color-blue-700);
+  --color-primary-active: var(--color-blue-800);
+  --color-primary-content: #ffffff;
+
   --color-surface-primary: var(--bg-primary);
   --color-surface-secondary: var(--bg-secondary);
   --color-surface-tertiary: var(--bg-tertiary);
@@ -66,6 +71,10 @@
 
   --color-border-default: var(--border-primary);
   --color-border-subtle: var(--border-secondary);
+
+  --color-status-danger: var(--color-red-600);
+  --color-status-danger-hover: var(--color-red-700);
+  --color-status-danger-active: var(--color-red-800);
 
   /* Status Colors */
   --color-success-surface: var(--bg-success);
@@ -108,6 +117,7 @@
 :root,
 :root.dark,
 [data-theme='dark'] {
+  color-scheme: dark;
   --bg-primary: var(--color-zinc-950);
   --bg-secondary: var(--color-zinc-900);
   --bg-tertiary: var(--color-zinc-800);
@@ -143,6 +153,7 @@
 /* Light theme */
 :root.light,
 [data-theme='light'] {
+  color-scheme: light;
   --bg-primary: var(--color-zinc-50);
   --bg-secondary: #ffffff;
   --bg-tertiary: var(--color-zinc-100);

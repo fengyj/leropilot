@@ -86,9 +86,9 @@ export function StepRepoSelection() {
             role="button"
             tabIndex={0}
             className={cn(
-              'relative flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-all',
+              'relative flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-all focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none outline-none',
               config.repositoryId === repo.id
-                ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10'
+                ? 'border-primary bg-primary/5'
                 : 'border-border-default bg-surface-secondary hover:border-border-subtle',
             )}
           >
@@ -96,7 +96,7 @@ export function StepRepoSelection() {
               <div className="flex items-center gap-2">
                 <span className="text-content-primary font-medium">{repo.name}</span>
                 {repo.is_default && (
-                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 uppercase dark:bg-blue-900/30 dark:text-blue-300">
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary uppercase">
                     {t('wizard.repoSelection.official')}
                   </span>
                 )}
@@ -118,7 +118,7 @@ export function StepRepoSelection() {
 
             {config.repositoryId === repo.id && (
               <div className="absolute top-4 right-4">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-content">
                   <Check className="h-3 w-3" />
                 </div>
               </div>
@@ -132,7 +132,7 @@ export function StepRepoSelection() {
           {t('wizard.repoSelection.addCustom')}{' '}
           <Link
             to="/settings?section=repositories"
-            className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            className="font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
           >
             {t('wizard.repoSelection.settingsLink')}
           </Link>

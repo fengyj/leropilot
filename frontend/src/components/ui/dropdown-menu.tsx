@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn';
 
 interface DropdownMenuProps {
   trigger: React.ReactNode;
+  triggerClassName?: string;
   items: Array<{
     id: string;
     label: string;
@@ -14,7 +15,7 @@ interface DropdownMenuProps {
   align?: 'left' | 'right';
 }
 
-export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuProps) {
+export function DropdownMenu({ trigger, triggerClassName, items, align = 'right' }: DropdownMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<{
     top: number;
@@ -86,8 +87,9 @@ export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuPr
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'text-content-secondary hover:text-content-primary hover:bg-surface-tertiary inline-flex h-9 items-center gap-2 rounded-lg px-3 py-2 transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+          'text-content-secondary hover:text-content-primary hover:bg-surface-tertiary dark:hover:bg-zinc-700 inline-flex h-9 items-center gap-2 rounded-lg px-3 py-2 transition-all focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
           isOpen && 'bg-surface-tertiary text-content-primary',
+          triggerClassName,
         )}
       >
         {trigger}
@@ -113,9 +115,9 @@ export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuPr
                     setIsOpen(false);
                   }}
                   className={cn(
-                    'text-content-primary hover:bg-surface-tertiary flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none focus-visible:ring-inset',
+                    'text-content-primary hover:bg-surface-tertiary flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none focus-visible:ring-inset',
                     item.variant === 'danger' &&
-                      'text-content-tertiary hover:bg-red-50/10 hover:text-error-icon',
+                    'hover:text-status-danger hover:bg-status-danger/10 active:bg-status-danger/20',
                     index > 0 && 'border-border-default border-t',
                   )}
                 >

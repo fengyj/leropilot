@@ -120,9 +120,11 @@ export function EnvironmentListPage() {
 
     if (loading) {
         return (
-            <div className="relative flex h-64 items-center justify-center">
-                <LoadingOverlay message={t('environments.loading')} size="lg" fancy className="rounded-lg" />
-            </div>
+            <PageContainer>
+                <div className="relative flex h-[calc(100vh-theme(spacing.32))] w-full items-center justify-center">
+                    <LoadingOverlay message={t('environments.loading')} size="lg" fancy className="rounded-lg" />
+                </div>
+            </PageContainer>
         );
     }
 
