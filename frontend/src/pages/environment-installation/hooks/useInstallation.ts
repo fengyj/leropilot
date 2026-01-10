@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShellEvent, SHELL_EVENT_TYPES } from '../../../components/ShellIntegration';
+import { ShellEvent, SHELL_EVENT_TYPES } from '../../../components/shell-integration';
 import { InstallStep, InstallState, NextStep } from '../types';
 
 export function useInstallation(envId: string | undefined) {

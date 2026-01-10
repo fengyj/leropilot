@@ -1,5 +1,7 @@
 import React from 'react';
-import { Monitor, Loader2 } from 'lucide-react';
+import { Monitor } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { LoadingOverlay } from '../../../components/ui/loading-overlay';
 import { Button } from '../../../components/ui/button';
 import {
     Card,
@@ -16,16 +18,21 @@ export const CameraCard: React.FC<{
     isRefreshing?: boolean;
     onPreview: (camera: CameraSummary) => void;
 }> = ({ camera, isRefreshing, onPreview }) => {
+    const { t } = useTranslation();
     const resolution = camera.width && camera.height
         ? `${camera.width} x ${camera.height}`
-        : '未知';
+        : t('common.unknown');
 
     return (
-        <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
+        <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 max-w-[480px] w-full ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
             {isRefreshing && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-primary/60 backdrop-blur-[1px]">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
+                <LoadingOverlay
+                    message={t('hardware.robotCard.refreshing')}
+                    subtitle={t('hardware.robotCard.updatingStatus')}
+                    size="md"
+                    fancy
+                    className="rounded-xl"
+                />
             )}
             <CardHeader>
                 <div className="flex items-start justify-between">
@@ -46,7 +53,7 @@ export const CameraCard: React.FC<{
             </CardHeader>
             <CardContent className="flex-1 space-y-4">
                 <div className="space-y-1">
-                    <p className="text-content-tertiary text-xs">分辨率</p>
+                    <p className="text-content-tertiary text-xs">{t('hardware.cameraCard.resolution')}</p>
                     <p className="text-content-primary text-sm font-medium">
                         {resolution}
                     </p>
@@ -62,7 +69,7 @@ export const CameraCard: React.FC<{
                         onClick={() => onPreview(camera)}
                     >
                         <Monitor className="mr-2 h-3 w-3" />
-                        Preview
+                        {t('hardware.cameraCard.preview')}
                     </Button>
                 </div>
             </CardFooter>

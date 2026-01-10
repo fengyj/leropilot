@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from leropilot.logger import get_logger
@@ -16,7 +16,6 @@ from leropilot.models.api.repository import (
 from leropilot.services.config import EnvironmentInstallationConfigService, get_config
 from leropilot.services.git import GitService, GitToolManager
 from leropilot.services.hardware import GPUDetector
-from leropilot.services.i18n import I18nService
 from leropilot.utils import get_resources_dir
 
 logger = get_logger(__name__)
@@ -24,24 +23,21 @@ router = APIRouter(prefix="/api/repositories", tags=["repositories"])
 
 # Initialize services (will be properly initialized on startup)
 _config_service: EnvironmentInstallationConfigService | None = None
-_i18n_service: I18nService | None = None
 _gpu_detector: GPUDetector | None = None
 
 
-def get_services() -> tuple[EnvironmentInstallationConfigService, I18nService, GPUDetector]:
+def get_services() -> tuple[EnvironmentInstallationConfigService, GPUDetector]:
     """Get or initialize services."""
-    global _config_service, _i18n_service, _gpu_detector
+    global _config_service, _gpu_detector
 
     if not _config_service:
         resources_dir = get_resources_dir()
         _config_service = EnvironmentInstallationConfigService(resources_dir / "environment_installation_config.json")
-        _i18n_service = I18nService(resources_dir / "i18n.json")
         _gpu_detector = GPUDetector()
 
     assert _config_service is not None
-    assert _i18n_service is not None
     assert _gpu_detector is not None
-    return _config_service, _i18n_service, _gpu_detector
+    return _config_service, _gpu_detector
 
 
 # Request/Response Models
@@ -78,15 +74,6 @@ async def get_repositories() -> list[RepositoryInfo]:
 async def get_repository_versions(repo_id: str) -> list[VersionInfo]:
     """
     Get available versions (tags/branches) for a repository.
-
-    Args:
-        repo_id: Repository identifier
-
-    Returns:
-        List of version information
-
-    Raises:
-        HTTPException: If repository not found
     """
     from leropilot.services.git import GitService, GitToolManager
 
@@ -100,7 +87,7 @@ async def get_repository_versions(repo_id: str) -> list[VersionInfo]:
             break
 
     if not repo_url:
-        raise HTTPException(status_code=404, detail="Repository not found")
+        raise ResourceNotFoundError("app_settings.lerobot_repository.not_found", id=repo_id)
 
     # Check if we have a cached clone
     repo_dir = config.paths.get_repo_path(repo_id)
@@ -108,77 +95,70 @@ async def get_repository_versions(repo_id: str) -> list[VersionInfo]:
     git_manager = GitService(tool_manager)
 
     # Get services
-    config_service, _, gpu_detector = get_services()
+    config_service, gpu_detector = get_services()
     gpu_info = gpu_detector.detect()
 
-    try:
-        # Clone or update repository (shallow clone for speed)
-        if not repo_dir.exists():
-            await git_manager.clone_or_update(repo_url, repo_dir, "main")
+    # Clone or update repository (shallow clone for speed)
+    if not repo_dir.exists():
+        await git_manager.clone_or_update(repo_url, repo_dir, "main")
 
-        # Get tags and branches
-        tags = await git_manager.list_tags(repo_dir)
-        branches = await git_manager.list_branches(repo_dir)
+    # Get tags and branches
+    tags = await git_manager.list_tags(repo_dir)
+    branches = await git_manager.list_branches(repo_dir)
 
-        # Combine and format
-        versions = []
+    # Combine and format
+    versions = []
 
-        def build_version_info(ref_name: str, is_stable: bool) -> VersionInfo:
-            ver_config = config_service.get_version_config(repo_url, ref_name)
-            torch_ver = ver_config.torch_version if ver_config else None
-            python_ver = ver_config.python_version if ver_config else None
+    def build_version_info(ref_name: str, is_stable: bool) -> VersionInfo:
+        ver_config = config_service.get_version_config(repo_url, ref_name)
+        torch_ver = ver_config.torch_version if ver_config else None
+        python_ver = ver_config.python_version if ver_config else None
 
-            compat_matrix = []
-            if ver_config and ver_config.compatibility_matrix:
-                # Determine recommendation
-                # Default to first entry (newest Torch) if no hardware match found (fallback to CPU)
-                recommended_idx = 0
+        compat_matrix = []
+        if ver_config and ver_config.compatibility_matrix:
+            # Determine recommendation
+            recommended_idx = 0
 
-                # Find best match for hardware
-                # Matrix is assumed to be sorted by Torch version descending
-                for i, entry in enumerate(ver_config.compatibility_matrix):
-                    if gpu_info.has_nvidia_gpu and entry.cuda:
-                        recommended_idx = i
-                        break
-                    if gpu_info.has_amd_gpu and entry.rocm:
-                        recommended_idx = i
-                        break
+            # Find best match for hardware
+            for i, entry in enumerate(ver_config.compatibility_matrix):
+                if gpu_info.has_nvidia_gpu and entry.cuda:
+                    recommended_idx = i
+                    break
+                if gpu_info.has_amd_gpu and entry.rocm:
+                    recommended_idx = i
+                    break
 
-                for i, entry in enumerate(ver_config.compatibility_matrix):
-                    compat_matrix.append(
-                        VersionCompatibilityEntry(
-                            torch=entry.torch,
-                            cuda=entry.cuda,
-                            rocm=entry.rocm,
-                            cpu=entry.cpu,
-                            torchvision=entry.torchvision,
-                            torchaudio=entry.torchaudio,
-                            is_recommended=(i == recommended_idx),
-                        )
+            for i, entry in enumerate(ver_config.compatibility_matrix):
+                compat_matrix.append(
+                    VersionCompatibilityEntry(
+                        torch=entry.torch,
+                        cuda=entry.cuda,
+                        rocm=entry.rocm,
+                        cpu=entry.cpu,
+                        torchvision=entry.torchvision,
+                        torchaudio=entry.torchaudio,
+                        is_recommended=(i == recommended_idx),
                     )
+                )
 
-            return VersionInfo(
-                tag=ref_name,
-                is_stable=is_stable,
-                python_version=python_ver,
-                torch_version=torch_ver,
-                compatibility_matrix=compat_matrix,
-            )
+        return VersionInfo(
+            tag=ref_name,
+            is_stable=is_stable,
+            python_version=python_ver,
+            torch_version=torch_ver,
+            compatibility_matrix=compat_matrix,
+        )
 
-        # Add tags (stable versions)
-        for tag in tags:
-            versions.append(build_version_info(tag, True))
+    # Add tags (stable versions)
+    for tag in tags:
+        versions.append(build_version_info(tag, True))
 
-        # Add main branches (unstable)
-        for branch in ["main", "master", "develop"]:
-            if branch in branches:
-                versions.append(build_version_info(branch, False))
+    # Add main branches (unstable)
+    for branch in ["main", "master", "develop"]:
+        if branch in branches:
+            versions.append(build_version_info(branch, False))
 
-        return versions
-
-    except Exception as e:
-        logger.error(f"Failed to get versions for {repo_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get versions: {str(e)}") from e
+    return versions
 
 
 @router.get("/{repo_id}/status", response_model=RepositoryStatus)

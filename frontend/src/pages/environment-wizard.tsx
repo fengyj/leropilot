@@ -9,12 +9,12 @@ import { useWizardStore } from '../stores/environment-wizard-store';
 import { cn } from '../utils/cn';
 
 // Step Components
-import { StepRepoSelection } from '../components/environments/wizard/step-repo-selection';
-import { StepVersionSelection } from '../components/environments/wizard/step-version-selection';
-import { StepHardwareSelection } from '../components/environments/wizard/step-hardware-selection';
-import { StepExtrasSelection } from '../components/environments/wizard/step-extras-selection';
-import { StepNameConfig } from '../components/environments/wizard/step-name-config';
-import { StepReview } from '../components/environments/wizard/step-review';
+import { StepRepoSelection } from './environment-wizard/components/step-repo-selection';
+import { StepVersionSelection } from './environment-wizard/components/step-version-selection';
+import { StepHardwareSelection } from './environment-wizard/components/step-hardware-selection';
+import { StepExtrasSelection } from './environment-wizard/components/step-extras-selection';
+import { StepNameConfig } from './environment-wizard/components/step-name-config';
+import { StepReview } from './environment-wizard/components/step-review';
 
 export function EnvironmentWizard() {
   const { t, i18n } = useTranslation();

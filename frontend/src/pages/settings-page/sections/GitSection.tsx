@@ -71,7 +71,7 @@ export function GitSection({
   }, [config.tools.git.type, config.tools.git.custom_path, validate, clear]);
 
   const handleDownloadBundledGit = async () => {
-    setBundledGitDownloadProgress({ message: 'Starting download...', progress: 0 });
+    setBundledGitDownloadProgress({ message: t('settings.tools.startingDownload'), progress: 0 });
     try {
       const eventSource = new EventSource('/api/tools/git/bundled/download');
 
@@ -106,12 +106,12 @@ export function GitSection({
       eventSource.onerror = () => {
         eventSource.close();
         setBundledGitDownloadProgress(null);
-        setMessage({ type: 'error', text: 'Connection lost during download' });
+        setMessage({ type: 'error', text: t('settings.tools.connectionLost') });
       };
     } catch (err) {
       console.error('Failed to start download:', err);
       setBundledGitDownloadProgress(null);
-      setMessage({ type: 'error', text: 'Failed to start download' });
+      setMessage({ type: 'error', text: t('settings.tools.failedToDownload') });
     }
   };
 
@@ -150,7 +150,7 @@ export function GitSection({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-3">
-          <label className="text-content-primary text-sm font-medium">
+          <label htmlFor="git-source-bundled" className="text-content-primary text-sm font-medium">
             {t('settings.tools.source')}
           </label>
 
@@ -202,8 +202,11 @@ export function GitSection({
             <div className="space-y-2">
               <div className="relative">
                 <input
+                  id="git-source-bundled"
+                  name="git-source-bundled"
                   type="text"
                   readOnly
+                  aria-label={t('settings.tools.bundledInstalled')}
                   className={cn(
                     'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:outline-none',
                     bundledGitStatus?.installed
@@ -213,8 +216,8 @@ export function GitSection({
                   value={
                     bundledGitStatus?.installed
                       ? bundledGitStatus.path ||
-                        bundledGitStatus.version ||
-                        t('settings.tools.bundledInstalled')
+                      bundledGitStatus.version ||
+                      t('settings.tools.bundledInstalled')
                       : t('settings.tools.notInstalled')
                   }
                 />
@@ -261,15 +264,18 @@ export function GitSection({
             <div className="space-y-2">
               <div className="relative">
                 <input
+                  id="git-source-custom"
+                  name="git-source-custom"
                   type="text"
+                  aria-label={t('settings.tools.gitPathPlaceholder')}
                   placeholder={t('settings.tools.gitPathPlaceholder')}
                   className={cn(
                     'border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 pr-10 focus:border-blue-500 focus:outline-none',
                     gitValidation.error &&
-                      'border-error-border focus:border-error-border',
+                    'border-error-border focus:border-error-border',
                     !gitValidation.error &&
-                      gitValidation.validation &&
-                      'border-green-500',
+                    gitValidation.validation &&
+                    'border-green-500',
                   )}
                   value={config.tools.git.custom_path || ''}
                   onChange={(e) => {

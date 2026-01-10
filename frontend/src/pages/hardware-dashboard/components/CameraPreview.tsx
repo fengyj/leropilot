@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Camera } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { CameraSummary } from '../../../types/hardware';
 
 export const CameraPreview: React.FC<{ camera: CameraSummary }> = ({ camera }) => {
     const [error, setError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const { t } = useTranslation();
 
     return (
         <div className="flex flex-col items-center justify-center p-6 bg-black min-h-[400px] relative">
@@ -17,7 +19,7 @@ export const CameraPreview: React.FC<{ camera: CameraSummary }> = ({ camera }) =
                                 <Camera className="h-8 w-8 text-primary/40 animate-pulse" />
                             </div>
                             <p className="text-sm text-content-tertiary animate-pulse tracking-wide">
-                                正在建立连接 (Establishing Connection...)
+                                {t('hardware.cameraPreview.establishing')}
                             </p>
                         </div>
                     )}
@@ -33,14 +35,14 @@ export const CameraPreview: React.FC<{ camera: CameraSummary }> = ({ camera }) =
                     />
                     {!isLoading && (
                         <div className="absolute top-2 right-2 px-2 py-1 bg-black/50 backdrop-blur-md rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            LIVE • {camera.width}x{camera.height}
+                            {t('hardware.cameraPreview.live')} • {camera.width}x{camera.height}
                         </div>
                     )}
                 </div>
             ) : (
                 <div className="flex flex-col items-center gap-4 py-20 text-content-tertiary">
                     <Camera className="h-16 w-16 opacity-20" />
-                    <p>无法连接到摄像头画面</p>
+                    <p>{t('hardware.cameraCard.failedToConnect')}</p>
                 </div>
             )}
         </div>

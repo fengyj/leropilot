@@ -16,9 +16,10 @@ from typing import Any
 
 import httpx
 
+from leropilot.exceptions import OperationalError, ValidationError
 from leropilot.logger import get_logger
 from leropilot.services.config import get_config
-from leropilot.services.i18n import I18nService
+from leropilot.services.i18n import get_i18n_service
 from leropilot.utils import get_resources_dir
 from leropilot.utils.subprocess_executor import SubprocessExecutor
 
@@ -28,28 +29,14 @@ logger = get_logger(__name__)
 class GitToolManager:
     """Manages Git executable and bundled installation."""
 
-    def __init__(self, i18n_service: I18nService | None = None) -> None:
-        self.i18n_service = i18n_service
+    def __init__(self) -> None:
+        pass
 
     def _get_message(self, key: str, lang: str = "en", **kwargs: object) -> str:
         """Get localized message."""
-        # kwargs may contain formatting values, e.g., percent=int
-        if not self.i18n_service:
-            # Fallback to English
-            fallbacks = {
-                "downloading": "Downloading Git...",
-                "extracting": "Extracting Git...",
-                "installed": "Git installed successfully",
-                "downloading_progress": "Downloading Git: {percent}%",
-            }
-            msg = fallbacks.get(key, key)
-        else:
-            try:
-                msg = self.i18n_service._data.get("git", {}).get(key, {}).get(lang, key)
-            except (KeyError, AttributeError):
-                msg = key
-
-        return msg.format(**kwargs)
+        i18n = get_i18n_service()
+        # Use translate helper on i18n service (new domain app_settings.git)
+        return i18n.translate(f"app_settings.git.{key}", lang=lang, default=key, **kwargs)
 
     def get_git_executable(self) -> str:
         """Get Git executable path based on configuration."""
@@ -173,15 +160,7 @@ class GitToolManager:
 
         # macOS: provide installation instructions instead
         if system == "darwin":
-            raise Exception(
-                "Automatic Git installation is not available for macOS.\n\n"
-                "Please install Git using one of these methods:\n\n"
-                "1. Xcode Command Line Tools (recommended):\n"
-                "   xcode-select --install\n\n"
-                "2. Homebrew:\n"
-                "   brew install git\n\n"
-                "3. Download from: https://git-scm.com/download/mac"
-            )
+            raise ValidationError("app_settings.git.unsupported_macos")
 
         # Normalize machine name
         if machine in ["x86_64", "amd64"]:
@@ -189,13 +168,13 @@ class GitToolManager:
         elif machine in ["aarch64", "arm64"]:
             arch = "arm64"
         else:
-            raise Exception(f"Unsupported architecture: {machine}")
+            raise OperationalError("app_settings.git.unsupported_arch", arch=machine)
 
         if system not in deps_config["git"]:
-            raise Exception(f"Unsupported OS: {system}")
+            raise OperationalError("app_settings.git.unsupported_os", os=system)
 
         if arch not in deps_config["git"][system]:
-            raise Exception(f"Unsupported architecture {arch} for {system}")
+            raise OperationalError("app_settings.git.unsupported_arch_os", arch=arch, os=system)
 
         git_config = deps_config["git"][system][arch]
         url = git_config["url"]
@@ -230,7 +209,7 @@ class GitToolManager:
                                         self._get_message("downloading_progress", lang, percent=percent), percent
                                     )
             except httpx.HTTPError as e:
-                raise Exception(f"Failed to download Git: {e}") from e
+                raise OperationalError("app_settings.git.download_failed", error=str(e), url=url) from e
 
         if progress_callback:
             await progress_callback(self._get_message("extracting", lang), 90)
@@ -255,7 +234,7 @@ class GitToolManager:
             with tarfile.open(file_path, "r:*") as tar_ref:
                 tar_ref.extractall(target_dir)
         else:
-            raise Exception(f"Unsupported archive format: {file_path}")
+            raise OperationalError("app_settings.git.unsupported_format", filename=file_path.name)
 
     def _extract_deb(self, deb_path: Path, target_dir: Path) -> None:
         """Extract .deb package without sudo."""
@@ -276,12 +255,12 @@ class GitToolManager:
                     break
 
                 if not data_tar:
-                    raise Exception("data.tar.* not found in .deb")
+                    raise OperationalError("app_settings.git.extract_failed_no_data", filename=deb_path.name)
 
                 # Extract data.tar (supports .xz, .gz, .bz2)
                 SubprocessExecutor.run_sync("tar", "xf", str(data_tar), "-C", str(tmpdir_path), check=True)
             else:
-                raise Exception("Neither dpkg-deb nor ar found. Cannot extract .deb")
+                raise OperationalError("app_settings.git.extract_failed_no_tools")
 
             # Move extracted files to target_dir
             # .deb packages usually extract to usr/bin, usr/lib, etc.
@@ -311,10 +290,10 @@ class GitToolManager:
 
         if git_exec == "git":
             if not shutil.which("git"):
-                raise ValueError("Git is not installed or not found in PATH. Please configure Git in Settings.")
+                raise ValidationError("app_settings.git.not_found_in_path")
         else:
             if not Path(git_exec).exists() or not os.access(git_exec, os.X_OK):
-                raise ValueError(f"Configured Git path is invalid: {git_exec}. Please check Settings.")
+                raise ValidationError("app_settings.git.invalid_path", path=git_exec)
 
         return git_exec
 
@@ -332,7 +311,7 @@ class GitToolManager:
         if git_path:
             return {"path": git_path}
         else:
-            raise ValueError("Git not found in PATH")
+            raise ResourceNotFoundError("app_settings.git.not_found_in_path")
 
     async def download_bundled_git_with_config_update(
         self, lang: str, config_updater: Callable[[], None]

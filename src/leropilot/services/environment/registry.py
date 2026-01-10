@@ -12,6 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from leropilot.exceptions import ResourceConflictError, ResourceNotFoundError
 from leropilot.logger import get_logger
 from leropilot.models.environment import EnvironmentConfig
 
@@ -145,9 +146,9 @@ class EnvironmentRegistry:
 
             # Check for duplicates
             if any(e.id == env_config.id for e in data.environments):
-                raise ValueError(f"Environment with ID {env_config.id} already exists")
+                raise ResourceConflictError("environment.instance.conflict_id", id=env_config.id)
             if any(e.name == env_config.name for e in data.environments):
-                raise ValueError(f"Environment with name '{env_config.name}' already exists")
+                raise ResourceConflictError("environment.instance.conflict_name", name=env_config.name)
 
             entry = EnvironmentEntry(
                 id=env_config.id,
@@ -322,7 +323,7 @@ class EnvironmentPathResolver:
         """
         entry = self.registry.get_by_id(env_id)
         if entry is None:
-            raise ValueError(f"Environment not found: {env_id}")
+            raise ResourceNotFoundError("environment.instance.not_found", id=env_id)
         return self.environments_dir / entry.name
 
     def get_environment_venv_path(self, env_id: str) -> Path:

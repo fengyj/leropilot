@@ -4,7 +4,7 @@ import typing
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
 from leropilot.logger import get_logger
@@ -12,24 +12,18 @@ from leropilot.logger import get_logger
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 
-
-# Endpoints
+from leropilot.exceptions import ResourceNotFoundError, ValidationError
+from leropilot.services.git import GitToolManager
 
 
 @router.post("/git/validate")
 async def validate_git_path(path_data: dict[str, str]) -> dict[str, Any]:
     """
     Validate a Git executable path.
-
-    Args:
-        path_data: Dictionary containing "path" key
-
-    Returns:
-        Validation result with version info
     """
     path_str = path_data.get("path")
     if not path_str:
-        raise HTTPException(status_code=400, detail="Path is required")
+        raise ValidationError("app_settings.git.path_required")
 
     # If path is just a command name (like "git"), try to resolve it
     import shutil
@@ -42,8 +36,6 @@ async def validate_git_path(path_data: dict[str, str]) -> dict[str, Any]:
         # If not found in PATH, treat as absolute/relative path
         path = Path(path_str)
 
-    from leropilot.services.git import GitToolManager
-
     git_manager = GitToolManager()
     return await git_manager.validate_git_executable(path)
 
@@ -52,17 +44,9 @@ async def validate_git_path(path_data: dict[str, str]) -> dict[str, Any]:
 async def get_git_path() -> dict[str, str]:
     """
     Get the actual path to the git executable.
-
-    Returns:
-        Dictionary with 'path' key containing the git executable path
     """
-    from leropilot.services.git import GitToolManager
-
     git_manager = GitToolManager()
-    try:
-        return git_manager.get_git_path()
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    return git_manager.get_git_path()
 
 
 @router.get("/git/bundled/status")
@@ -80,14 +64,13 @@ async def get_bundled_git_status() -> dict[str, Any]:
 
 
 @router.get("/git/bundled/download")
-async def download_bundled_git() -> StreamingResponse:
+async def download_bundled_git(lang: str = Query("en", description="Language code")) -> StreamingResponse:
     """
     Download and install bundled Git.
     """
     from leropilot.services.config import get_config
 
     config = get_config()
-    lang = config.ui.preferred_language
 
     from leropilot.services.git import GitToolManager
 

@@ -32,7 +32,7 @@ def test_builtin_urdf_fallback():
     r = client.patch(
         f"/api/hardware/robots/{device_id}",
         params={"verify": "false"},
-        json={"labels": {"leropilot.ai/robot_type_id": "koch_follower"}},
+        json={"labels": {"leropilot.ai/robot_type_id": "koch-follower"}},
     )
     assert r.status_code == 200
 
@@ -49,7 +49,7 @@ def test_upload_get_delete_urdf_valid():
 
     # Load existing built-in urdf to use as upload content
     resource_files = importlib.resources.files("leropilot.resources")
-    urdf_file = resource_files.joinpath("robots").joinpath("koch_follower").joinpath("robot.urdf")
+    urdf_file = resource_files.joinpath("robots").joinpath("koch-follower").joinpath("robot.urdf")
     content = urdf_file.read_bytes()
 
     files = {"file": ("robot.urdf", content, "application/xml") }

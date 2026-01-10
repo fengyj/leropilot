@@ -13,6 +13,7 @@ import { RepositoriesSection } from './sections/RepositoriesSection';
 import { PyPISection } from './sections/PyPISection';
 import { HuggingFaceSection } from './sections/HuggingFaceSection';
 import { AdvancedSection } from './sections/AdvancedSection';
+import { LoadingOverlay } from '../../components/ui/loading-overlay';
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -33,8 +34,8 @@ export function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="text-content-tertiary">Loading settings...</div>
+      <div className="relative flex h-64 items-center justify-center">
+        <LoadingOverlay message="加载设置..." size="md" fancy className="rounded-lg" />
       </div>
     );
   }

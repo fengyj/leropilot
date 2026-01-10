@@ -4,7 +4,12 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "unknown": "Unknown",
+    "unknownError": "Unknown Error",
+    "error": "Error",
+    "create": "Create",
+    "close": "Close"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -22,6 +27,7 @@
     "subtitle": "Manage your LeRobot environments and dependencies.",
     "createNew": "Create New",
     "noEnvironments": "No environments found. Create one to get started.",
+    "loading": "Loading environments...",
     "launch": "Launch",
     "shell": "Shell",
     "python": "Python",
@@ -64,6 +70,8 @@
     "versionSelection": {
       "title": "Select Version",
       "subtitle": "Choose LeRobot version tag or branch.",
+      "help": "Choose the LeRobot version to use for this environment; stable releases are recommended.",
+      "noVersions": "No versions found for this repository.",
       "released": "Released",
       "stable": "Stable"
     },
@@ -157,8 +165,11 @@
       "waiting": "Waiting for execution...",
       "addStep": "Add Step",
       "stepName": "Step Name",
-      "stepNamePlaceholder": "e.g., Install Dependencies"
+      "stepNamePlaceholder": "e.g., Install Dependencies",
+      "noSteps": "No installation steps were generated for the selected repository/version. Check repository and version, or fall back to defaults.",
+      "failedToLoadSteps": "Failed to load installation steps. Please try again later."
     },
+
     "installation": {
       "title": "Installing Environment",
       "subtitle": "Setting up {{envName}}. Please do not close this window.",
@@ -239,7 +250,10 @@
       "bundledInstalled": "System Git detected",
       "bundledNotInstalled": "System Git not found",
       "bundledDescription": "Use the Git installed on your system.",
-      "downloadAndInstall": "Download & Install",
+      "downloadAndInstall": "Download and Install Bundled Git",
+      "startingDownload": "Starting download...",
+      "connectionLost": "Connection lost during download",
+      "failedToDownload": "Failed to start download",
       "autoDetect": "Auto-detect system Git",
       "notInstalled": "Not Installed"
     },
@@ -259,6 +273,7 @@
     "pypi": {
       "title": "PyPI Mirrors",
       "description": "Manage PyPI mirror sources for faster package installation. Enable one mirror to use it, or keep all disabled to use official PyPI.",
+      "officialPyPI": "Official PyPI",
       "currentMirror": "Default",
       "usingOfficial": "Using Official PyPI (no mirror enabled)",
       "addMirror": "Add",
@@ -314,5 +329,85 @@
     "notFound": "Repository not found",
     "downloadFailed": "Download failed",
     "connectionLost": "Connection lost"
+  },
+  "hardware": {
+    "dashboard": {
+      "title": "Robots & Arms",
+      "subtitle": "Manage your connected robots, arms, cameras and other auxiliary hardware.",
+      "addRobot": "Add",
+      "refreshRobots": "Refresh Robots",
+      "refreshCameras": "Refresh Cameras",
+      "robotsTitle": "Robots & Arms",
+      "camerasTitle": "Cameras",
+      "loadingDevices": "Loading devices...",
+      "refreshing": "Refreshing...",
+      "streaming": "Streaming",
+      "offline": "Offline",
+      "refreshingRobotsStatus": "Refreshing robots status",
+      "refreshingCamerasStatus": "Refreshing cameras status",
+      "previewCameraTitle": "Preview: {{name}}",
+      "loadingCameras": "Loading cameras...",
+      "noRobots": "No robots found. Add one to get started."
+    },
+    "status": {
+      "available": "Available",
+      "occupied": "Occupied",
+      "invalid": "Invalid",
+      "offline": "Offline"
+    },
+    "robotCard": {
+      "transient": "Transient Device",
+      "interfaces": "Interfaces",
+      "control": "Control",
+      "calibrate": "Calibrate",
+      "editConfig": "Edit Configuration",
+      "refreshStatus": "Refresh Status",
+      "refreshing": "Refreshing...",
+      "updatingStatus": "Updating status",
+      "delete": "Delete"
+    },
+    "cameraCard": {
+      "resolution": "Resolution",
+      "preview": "Preview",
+      "failedToConnect": "Failed to connect to camera stream."
+    },
+    "cameraPreview": {
+      "establishing": "Establishing Connection...",
+      "live": "LIVE"
+    },
+    "addRobotModal": {
+      "title": "Add Robot",
+      "syncing": "Syncing definitions and discovering hardware...",
+      "creating": "Creating and initializing robot...",
+      "robotType": "Robot Type",
+      "robotTypePlaceholder": "Select a robot type",
+      "customAssembly": "Custom Assembly",
+      "customRobotName": "Custom Assembled Robot",
+      "customRobotDescription": "This mode allows you to freely combine discovered motor buses. You can customize the logic name for each component and bind it to a specific hardware interface. Suitable for non-standard or prototype robot development.",
+      "noDescription": "No description available",
+      "addComponent": "Add Component",
+      "componentNamePlaceholder": "Component name (e.g., arm_left)",
+      "componentConnections": "Component Connections",
+      "selectDeviceFor": "Please select a device for {{component}}",
+      "selectDevicePlaceholder": "-- Please select hardware --",
+      "discoveryDetails": "Hardware Discovery",
+      "refreshDiscovery": "Refresh",
+      "scanningPorts": "Scanning hardware ports...",
+      "noRequirements": "This definition has no specific hardware component requirements.",
+      "noHardwareFound": "No available hardware found",
+      "noHardwareHelp": "Please ensure USB serial cables, CAN adapters, or motor power are correctly connected, then click 'Refresh' above.",
+      "noMotorsFound": "No motors found",
+      "error": "An error occurred during operation",
+      "addFailed": "Add failed: {{error}}",
+      "invalidComponentName": "Invalid component name \"{{name}}\" (letters, numbers, underscores only)",
+      "duplicateComponentName": "Component names must be unique",
+      "networkError": "Network error, please try again later",
+      "duplicateDeviceError": "A device cannot be reused across multiple components.",
+      "assigned": "Assigned",
+      "motors": "{{count}} motors",
+      "sendId": "Send ID:",
+      "recvId": "Recv ID:",
+      "motorId": "Motor ID:"
+    }
   }
 }

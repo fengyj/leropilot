@@ -27,6 +27,10 @@ def test_refresh_status_available(monkeypatch):
     # Prepare robot
     rdef = _make_robot_with_definition()
     robot = Robot(id="r1", name="R1", definition=rdef, is_transient=False, motor_bus_connections={"motorbus": RobotMotorBusConnection(motor_bus_type="FakeSerialBus", interface="COM3", baudrate=115200, serial_number=None)})
+    # Allow FakeSerialBus to be resolved during verification
+    from leropilot.services.hardware.motor_buses import motor_bus as mbmod
+    monkeypatch.setattr(mbmod.MotorBus, "resolve_bus_class", lambda t: FakeSerialBus)
+
     manager.add_robot(robot)
 
     # Fake discovered bus with matching motor and MotorModelInfo
@@ -47,6 +51,10 @@ def test_refresh_status_offline_and_remove_transient(monkeypatch):
     rdef = _make_robot_with_definition()
     # Transient robot with no connection
     robot = Robot(id="t1", name="T1", definition=rdef, is_transient=True, motor_bus_connections={"motorbus": RobotMotorBusConnection(motor_bus_type="FakeSerialBus", interface="COMX", baudrate=115200, serial_number=None)})
+    # Allow FakeSerialBus to be resolved during verification
+    from leropilot.services.hardware.motor_buses import motor_bus as mbmod
+    monkeypatch.setattr(mbmod.MotorBus, "resolve_bus_class", lambda t: FakeSerialBus)
+
     manager.add_robot(robot)
 
     # No discovered buses
@@ -64,6 +72,10 @@ def test_refresh_status_invalid_on_mismatch(monkeypatch):
 
     rdef = _make_robot_with_definition()
     robot = Robot(id="r2", name="R2", definition=rdef, is_transient=False, motor_bus_connections={"motorbus": RobotMotorBusConnection(motor_bus_type="FakeSerialBus", interface="COM3", baudrate=115200, serial_number=None)})
+    # Allow FakeSerialBus to be resolved during verification
+    from leropilot.services.hardware.motor_buses import motor_bus as mbmod
+    monkeypatch.setattr(mbmod.MotorBus, "resolve_bus_class", lambda t: FakeSerialBus)
+
     manager.add_robot(robot)
 
     # Discovered bus present but motor model differs

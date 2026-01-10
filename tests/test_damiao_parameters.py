@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from src.leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
-from src.leropilot.services.hardware.motor_drivers.damiao.tables import DamiaoConstants
+from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
+from leropilot.services.hardware.motor_drivers.damiao.tables import DamiaoConstants
 
 
 class TestDamiaoParameterAccess:

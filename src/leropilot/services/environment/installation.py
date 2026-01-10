@@ -292,15 +292,13 @@ class EnvironmentInstallationPlanGenerator:
         """
         from leropilot.services.config import get_config
 
-        from .registry import get_path_resolver
-
         config = get_config()
-        path_resolver = get_path_resolver()
 
-        # Calculate all paths
-        env_dir = path_resolver.get_environment_path(env_config.id)
+        # Calculate all paths without requiring the environment to be registered yet.
+        # Using the paths config allows generating steps for prospective (unregistered) envs.
+        env_dir = config.paths.get_environment_path(env_config.id)
         repo_dir = config.paths.get_repo_path(env_config.repo_id)
-        venv_path = path_resolver.get_environment_venv_path(env_config.id)
+        venv_path = config.paths.get_environment_venv_path(env_config.id)
         log_file = env_dir / "installation.log"
 
         # Get version config from service
@@ -321,9 +319,9 @@ class EnvironmentInstallationPlanGenerator:
             # Resolve variables in command templates
             commands = self._resolve_commands(step_tmpl, env_config, config)
 
-            # Get localized name and comment
-            name = self.i18n.get_step_text(step_tmpl.id, "name", lang)
-            comment = self.i18n.get_step_text(step_tmpl.id, "comment", lang)
+            # Get localized name and comment (use flat i18n.translate)
+            name = self.i18n.translate(f"environment.install_steps.{step_tmpl.id}.name", lang=lang, default=step_tmpl.id)
+            comment = self.i18n.translate(f"environment.install_steps.{step_tmpl.id}.comment", lang=lang, default="")
 
             # Determine working directory for this step
             cwd = self._resolve_cwd(step_tmpl, env_config, config)
@@ -413,14 +411,11 @@ class EnvironmentInstallationPlanGenerator:
         """
         from leropilot.services.config import get_config
 
-        from .registry import get_path_resolver
-
         app_config = get_config()
-        path_resolver = get_path_resolver()
 
-        # Build variable mapping
-        venv_path = path_resolver.get_environment_venv_path(env_config.id)
-        venv_tool_path = path_resolver.get_environment_bin_path(env_config.id)
+        # Build variable mapping (do not require environment to be registered)
+        venv_path = app_config.paths.get_environment_venv_path(env_config.id)
+        venv_tool_path = app_config.paths.get_environment_bin_path(env_config.id)
         cuda_tag = self._get_cuda_tag(env_config)
         pypi_mirror = self._get_pypi_mirror_param(app_config)
         repo_path = config.paths.get_repo_path(env_config.repo_id)
@@ -554,12 +549,8 @@ class EnvironmentInstallationPlanGenerator:
         if not step_tmpl.env_vars:
             return {}
 
-        from .registry import get_path_resolver
-
-        path_resolver = get_path_resolver()
-
-        # Build variable mapping for substitution
-        venv_path = path_resolver.get_environment_venv_path(env_config.id)
+        # Build variable mapping for substitution without requiring registry entry
+        venv_path = config.paths.get_environment_venv_path(env_config.id)
         repo_path = config.paths.get_repo_path(env_config.repo_id)
 
         variables = {

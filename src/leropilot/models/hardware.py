@@ -334,15 +334,6 @@ class MotorLimitTypes:
     ]
 
 
-
-class AmbiguousModelError(Exception):
-    """Raised when model identification yields multiple plausible matches and no base-model fallback is available."""
-
-
-class RobotVerificationError(ValueError):
-    """Raised when robot verification fails or encounters an operational error."""
-
-
 class MotorProtectionOverride(BaseModel):
     """User custom motor protection overrides"""
 
@@ -495,8 +486,8 @@ class RobotDefinition(BaseModel):
 
     id: str
     lerobot_name: str | None = None
-    display_name: str
-    description: str
+    display_name: str | dict[str, str]
+    description: str | dict[str, str]
     image: str | None = None
     support_version_from: str | None = None
     support_version_end: str | None = None

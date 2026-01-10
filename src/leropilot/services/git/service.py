@@ -5,8 +5,10 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
+from leropilot.exceptions import OperationalError, ResourceNotFoundError
 from leropilot.logger import get_logger
 from leropilot.models.app_config import AppConfig
+from leropilot.services.i18n import get_i18n_service
 from leropilot.utils.subprocess_executor import SubprocessExecutor
 
 from .tools import GitToolManager
@@ -41,7 +43,7 @@ class GitService:
                 break
 
         if not repo_url:
-            raise ValueError(f"Repository not found: {repo_id}")
+            raise ResourceNotFoundError("app_settings.lerobot_repository.not_found", id=repo_id)
 
         repo_dir = config.paths.get_repo_path(repo_id)
         return repo_url, repo_dir
@@ -67,27 +69,34 @@ class GitService:
         Raises:
             Exception: If git operation fails
         """
-        logger.info(f"Cloning/updating repository: {repo_url}")
-        logger.debug(f"Target directory: {target_dir}")
-        logger.debug(f"Ref: {ref}")
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
 
-        target_dir.mkdir(parents=True, exist_ok=True)
+            # Check if directory already has a git repo
+            git_dir = target_dir / ".git"
 
-        # Check if directory already has a git repo
-        git_dir = target_dir / ".git"
+            if git_dir.exists():
+                logger.info("Updating repository...")
+                await self._update_repo(target_dir, ref, progress_callback)
+            else:
+                logger.info("Cloning repository...")
+                await self._clone_repo(repo_url, target_dir, ref, progress_callback)
 
-        if git_dir.exists():
-            logger.info("Updating repository...")
-            await self._update_repo(target_dir, ref, progress_callback)
-        else:
-            logger.info("Cloning repository...")
-            await self._clone_repo(repo_url, target_dir, ref, progress_callback)
+            # Get current commit hash
+            commit_hash = await self._get_commit_hash(target_dir)
+            logger.info(f"Current commit: {commit_hash}")
 
-        # Get current commit hash
-        commit_hash = await self._get_commit_hash(target_dir)
-        logger.info(f"Current commit: {commit_hash}")
-
-        return commit_hash
+            return commit_hash
+        except subprocess.CalledProcessError as e:
+            raise OperationalError(
+                "app_settings.git.failed", retriable=True, error=str(e), url=repo_url
+            ) from e
+        except Exception as e:
+            if isinstance(e, AppBaseError):
+                raise
+            raise OperationalError(
+                "app_settings.git.unexpected_error", retriable=False, error=str(e), url=repo_url
+            ) from e
 
     async def _clone_repo(
         self,
@@ -184,7 +193,7 @@ class GitService:
         result = await SubprocessExecutor.run(git_exec, "rev-parse", "HEAD", cwd=repo_dir)
 
         if result.returncode != 0:
-            raise Exception("Failed to get commit hash")
+            raise OperationalError("app_settings.git.failed_commit_hash", retriable=True, path=str(repo_dir))
 
         return result.stdout.decode().strip() if result.stdout else ""
 

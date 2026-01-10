@@ -1,309 +1,507 @@
 {
-  "steps": {
-    "checkout_version": {
-      "name": {
-        "en": "Checkout Version",
-        "zh": "切换版本"
+  "app_settings": {
+    "git": {
+      "downloading": {
+        "en": "Downloading Git...",
+        "zh": "正在下载 Git..."
       },
-      "comment": {
-        "en": "Switch to the selected version",
-        "zh": "切换到选定的版本"
+      "extracting": {
+        "en": "Extracting Git...",
+        "zh": "正在解压 Git..."
+      },
+      "installed": {
+        "en": "Git installed successfully",
+        "zh": "Git 安装成功"
+      },
+      "downloading_progress": {
+        "en": "Downloading Git: {percent}%",
+        "zh": "下载 Git: {percent}%"
+      },
+      "path_required": {
+        "en": "Path is required",
+        "zh": "必须提供路径"
+      },
+      "failed": {
+        "en": "Git operation failed: {error} (URL: {url})",
+        "zh": "Git 操作失败: {error} (URL: {url})"
+      },
+      "unexpected_error": {
+        "en": "Unexpected git error: {error} (URL: {url})",
+        "zh": "未预料的 Git 错误: {error} (URL: {url})"
+      },
+      "failed_commit_hash": {
+        "en": "Failed to get commit hash for {path}",
+        "zh": "获取 {path} 的提交哈希失败"
       }
     },
-    "create_venv": {
-      "name": {
-        "en": "Create Virtual Environment",
-        "zh": "创建虚拟环境"
-      },
-      "comment": {
-        "en": "Create isolated Python environment",
-        "zh": "创建隔离的 Python 环境"
-      }
-    },
-    "ensure_ffmpeg": {
-      "name": {
-        "en": "Ensure FFmpeg",
-        "zh": "确保 FFmpeg"
-      },
-      "comment": {
-        "en": "Download and install FFmpeg to virtual environment (cached for faster setup)",
-        "zh": "下载并安装 FFmpeg 到虚拟环境（使用缓存加速）"
-      }
-    },
-    "install_pytorch": {
-      "name": {
-        "en": "Install PyTorch",
-        "zh": "安装 PyTorch"
-      },
-      "comment": {
-        "en": "Install deep learning framework",
-        "zh": "安装深度学习框架"
-      }
-    },
-    "install_lerobot": {
-      "name": {
-        "en": "Install LeRobot",
-        "zh": "安装 LeRobot"
-      },
-      "comment": {
-        "en": "Install LeRobot and selected robot support",
-        "zh": "安装 LeRobot 及选定的机器人支持"
+    "lerobot_repository": {
+      "not_found": {
+        "en": "Repository not found",
+        "zh": "未找到仓库"
       }
     }
   },
-  "git": {
-    "downloading": {
-      "en": "Downloading Git...",
-      "zh": "正在下载 Git..."
+  "environment": {
+    "install_steps": {
+      "checkout_version": {
+        "name": {
+          "en": "Checkout Version",
+          "zh": "切换版本"
+        },
+        "comment": {
+          "en": "Switch to the selected version",
+          "zh": "切换到选定的版本"
+        }
+      },
+      "create_venv": {
+        "name": {
+          "en": "Create Virtual Environment",
+          "zh": "创建虚拟环境"
+        },
+        "comment": {
+          "en": "Create isolated Python environment",
+          "zh": "创建隔离的 Python 环境"
+        }
+      },
+      "ensure_ffmpeg": {
+        "name": {
+          "en": "Ensure FFmpeg",
+          "zh": "确保 FFmpeg"
+        },
+        "comment": {
+          "en": "Download and install FFmpeg to virtual environment (cached for faster setup)",
+          "zh": "下载并安装 FFmpeg 到虚拟环境（使用缓存加速）"
+        }
+      },
+      "install_pytorch": {
+        "name": {
+          "en": "Install PyTorch",
+          "zh": "安装 PyTorch"
+        },
+        "comment": {
+          "en": "Install deep learning framework",
+          "zh": "安装深度学习框架"
+        }
+      },
+      "install_lerobot": {
+        "name": {
+          "en": "Install LeRobot",
+          "zh": "安装 LeRobot"
+        },
+        "comment": {
+          "en": "Install LeRobot and selected robot support",
+          "zh": "安装 LeRobot 及选定的机器人支持"
+        }
+      }
     },
-    "extracting": {
-      "en": "Extracting Git...",
-      "zh": "正在解压 Git..."
+    "lerobot_extra_packages": {
+      "dynamixel": {
+        "name": {
+          "en": "Dynamixel",
+          "zh": "Dynamixel"
+        },
+        "description": {
+          "en": "Support for Dynamixel servo motors",
+          "zh": "Dynamixel 舵机支持"
+        },
+        "category": "motors"
+      },
+      "feetech": {
+        "name": {
+          "en": "Feetech",
+          "zh": "Feetech"
+        },
+        "description": {
+          "en": "Support for Feetech servo motors",
+          "zh": "Feetech 舵机支持"
+        },
+        "category": "motors"
+      },
+      "gamepad": {
+        "name": {
+          "en": "Gamepad",
+          "zh": "游戏手柄"
+        },
+        "description": {
+          "en": "Gamepad teleoperation support",
+          "zh": "游戏手柄遥控支持"
+        },
+        "category": "robots"
+      },
+      "hopejr": {
+        "name": {
+          "en": "HopeJr",
+          "zh": "HopeJr"
+        },
+        "description": {
+          "en": "Support for HopeJr robot platform",
+          "zh": "HopeJr 机器人平台支持"
+        },
+        "category": "robots"
+      },
+      "lekiwi": {
+        "name": {
+          "en": "LeKiwi",
+          "zh": "LeKiwi"
+        },
+        "description": {
+          "en": "Support for LeKiwi robot platform",
+          "zh": "LeKiwi 机器人平台支持"
+        },
+        "category": "robots"
+      },
+      "reachy2": {
+        "name": {
+          "en": "Reachy 2",
+          "zh": "Reachy 2"
+        },
+        "description": {
+          "en": "Support for Reachy 2 humanoid robot",
+          "zh": "Reachy 2 人形机器人支持"
+        },
+        "category": "robots"
+      },
+      "kinematics": {
+        "name": {
+          "en": "Kinematics",
+          "zh": "运动学"
+        },
+        "description": {
+          "en": "Inverse kinematics computation support",
+          "zh": "逆运动学计算支持"
+        },
+        "category": "robots"
+      },
+      "intelrealsense": {
+        "name": {
+          "en": "Intel RealSense",
+          "zh": "Intel RealSense"
+        },
+        "description": {
+          "en": "Support for Intel RealSense cameras",
+          "zh": "Intel RealSense 相机支持"
+        },
+        "category": "robots"
+      },
+      "phone": {
+        "name": {
+          "en": "Phone",
+          "zh": "手机"
+        },
+        "description": {
+          "en": "Mobile phone teleoperation support",
+          "zh": "手机遥控支持"
+        },
+        "category": "robots"
+      },
+      "pi": {
+        "name": {
+          "en": "π₀ (Pi Zero)",
+          "zh": "π₀ (Pi Zero)"
+        },
+        "description": {
+          "en": "Physical Intelligence π₀ policy support",
+          "zh": "Physical Intelligence π₀ 策略支持"
+        },
+        "category": "policies"
+      },
+      "smolvla": {
+        "name": {
+          "en": "SmolVLA",
+          "zh": "SmolVLA"
+        },
+        "description": {
+          "en": "SmolVLA vision-language-action policy support",
+          "zh": "SmolVLA 视觉-语言-动作策略支持"
+        },
+        "category": "policies"
+      },
+      "groot": {
+        "name": {
+          "en": "Gr00t",
+          "zh": "Gr00t"
+        },
+        "description": {
+          "en": "NVIDIA Gr00t foundation model support",
+          "zh": "NVIDIA Gr00t 基础模型支持"
+        },
+        "category": "policies"
+      },
+      "hilserl": {
+        "name": {
+          "en": "HilSeRL",
+          "zh": "HilSeRL"
+        },
+        "description": {
+          "en": "Human-in-the-Loop Self-supervised RL support",
+          "zh": "人机协同自监督强化学习支持"
+        },
+        "category": "policies"
+      },
+      "async": {
+        "name": {
+          "en": "Async",
+          "zh": "异步"
+        },
+        "description": {
+          "en": "Asynchronous inference and control support",
+          "zh": "异步推理和控制支持"
+        },
+        "category": "features"
+      },
+      "aloha": {
+        "name": {
+          "en": "Aloha",
+          "zh": "Aloha"
+        },
+        "description": {
+          "en": "Aloha robot simulation environment",
+          "zh": "Aloha 机器人仿真环境"
+        },
+        "category": "simulation"
+      },
+      "pusht": {
+        "name": {
+          "en": "PushT",
+          "zh": "PushT"
+        },
+        "description": {
+          "en": "PushT 2D manipulation simulation",
+          "zh": "PushT 二维操作仿真"
+        },
+        "category": "simulation"
+      },
+      "xarm": {
+        "name": {
+          "en": "xArm",
+          "zh": "xArm"
+        },
+        "description": {
+          "en": "UFACTORY xArm simulation environment",
+          "zh": "UFACTORY xArm 仿真环境"
+        },
+        "category": "simulation"
+      },
+      "libero": {
+        "name": {
+          "en": "LIBERO",
+          "zh": "LIBERO"
+        },
+        "description": {
+          "en": "LIBERO benchmark simulation environments",
+          "zh": "LIBERO 基准测试仿真环境"
+        },
+        "category": "simulation"
+      },
+      "metaworld": {
+        "name": {
+          "en": "Meta-World",
+          "zh": "Meta-World"
+        },
+        "description": {
+          "en": "Meta-World multi-task benchmark",
+          "zh": "Meta-World 多任务基准测试"
+        },
+        "category": "simulation"
+      }
     },
-    "installed": {
-      "en": "Git installed successfully",
-      "zh": "Git 安装成功"
+    "lerobot_extra_package_categories": {
+      "robots": {
+        "en": "Robot Support",
+        "zh": "机器人支持"
+      },
+      "simulation": {
+        "en": "Simulation Environments",
+        "zh": "仿真环境"
+      },
+      "policies": {
+        "en": "Policies & Models",
+        "zh": "策略模型"
+      },
+      "features": {
+        "en": "Features",
+        "zh": "功能特性"
+      },
+      "motors": {
+        "en": "Motor Drivers",
+        "zh": "电机驱动"
+      },
+      "other": {
+        "en": "Other Tools",
+        "zh": "其他工具"
+      }
     },
-    "downloading_progress": {
-      "en": "Downloading Git: {percent}%",
-      "zh": "下载 Git: {percent}%"
+    "instance": {
+      "not_found": {
+        "en": "Environment not found",
+        "zh": "未找到环境"
+      },
+      "conflict_id": {
+        "en": "Environment with ID {id} already exists",
+        "zh": "ID 为 {id} 的环境已存在"
+      },
+      "conflict_name": {
+        "en": "Environment with name '{name}' already exists",
+        "zh": "名称为 '{name}' 的环境已存在"
+      },
+      "deleted": {
+        "en": "Environment {id} deleted successfully",
+        "zh": "环境 {id} 删除成功"
+      },
+      "not_ready_open_terminal": {
+        "en": "Environment is not ready. Only ready environments can open terminal.",
+        "zh": "环境尚未准备就绪，只有处于准备状态的环境才能打开终端。"
+      },
+      "terminal_opened": {
+        "en": "Terminal opened successfully",
+        "zh": "终端已成功打开"
+      },
+      "install_no_active": {
+        "en": "No active installation found for environment",
+        "zh": "未找到环境的活动安装任务"
+      },
+      "install_cannot_cancel": {
+        "en": "Installation cannot be cancelled",
+        "zh": "无法取消安装"
+      },
+      "install_cancelled": {
+        "en": "Installation cancelled",
+        "zh": "安装已取消"
+      },
+      "install_failed_start": {
+        "en": "Failed to start installation",
+        "zh": "启动安装失败"
+      },
+      "install_session_not_found": {
+        "en": "Installation session not found",
+        "zh": "未找到安装会话"
+      },
+      "install_failed_execute_step": {
+        "en": "Failed to execute installation step",
+        "zh": "执行安装步骤失败"
+      },
+      "install_not_found": {
+        "en": "Installation not found",
+        "zh": "安装未找到"
+      },
+      "install_failed_no_plan": {
+        "en": "Installation plan not found for environment {id}",
+        "zh": "未找到环境 {id} 的安装计划"
+      },
+      "install_failed_invalid_step": {
+        "en": "Invalid step ID {step_id}",
+        "zh": "无效的步骤 ID {step_id}"
+      },
+      "install_failed_invalid_command": {
+        "en": "Invalid command index {index} for step {step_id}",
+        "zh": "步骤 {step_id} 的命令索引 {index} 无效"
+      }
     }
   },
-  "extras": {
-    "dynamixel": {
-      "name": {
-        "en": "Dynamixel",
-        "zh": "Dynamixel"
+  "hardware": {
+    "robot_device": {
+      "not_found": {
+        "en": "Robot not found",
+        "zh": "未找到机器人"
       },
-      "description": {
-        "en": "Support for Dynamixel servo motors",
-        "zh": "Dynamixel 舵机支持"
+      "unknown_definition": {
+        "en": "Unknown robot definition ID '{id}'",
+        "zh": "未知的机器人定义 ID '{id}'"
       },
-      "category": "motors"
+      "conflict_id": {
+        "en": "Robot with ID '{id}' already exists",
+        "zh": "ID 为 '{id}' 的机器人已存在"
+      },
+      "missing_interface": {
+        "en": "Interface for connection '{id}' does not exist",
+        "zh": "连接 '{id}' 的接口不存在"
+      },
+      "unknown_bus_type": {
+        "en": "Unknown motorbus type '{bus_type}'",
+        "zh": "未知的电机总线类型 '{bus_type}'"
+      },
+      "connect_failed": {
+        "en": "Unable to connect to motorbus on interface '{interface}'",
+        "zh": "无法连接到接口 '{interface}' 上的电机总线"
+      },
+      "offline": {
+        "en": "Robot verification failed: robot is offline",
+        "zh": "机器人验证失败: 机器人离线"
+      },
+      "invalid_mismatch": {
+        "en": "Robot verification failed: robot is invalid (mismatch)",
+        "zh": "机器人验证失败: 机器人无效 (不匹配)"
+      },
+      "removed": {
+        "en": "Robot {id} removed",
+        "zh": "机器人 {id} 已移除"
+      },
+      "urdf_upload_success": {
+        "en": "URDF uploaded successfully",
+        "zh": "URDF 上传成功"
+      },
+      "discovery_failed": {
+        "en": "Discovery failed: {error}",
+        "zh": "发现失败: {error}"
+      },
+      "failed_retrieve_motor_models": {
+        "en": "Failed to retrieve motor models info",
+        "zh": "检索电机模型信息失败"
+      },
+      "urdf_resource_not_found": {
+        "en": "Resource not found",
+        "zh": "资源未找到"
+      },
+      "failed_serve_urdf_resource": {
+        "en": "Failed to serve resource",
+        "zh": "提供资源失败"
+      },
+      "failed_process_urdf": {
+        "en": "Failed to process uploaded URDF",
+        "zh": "处理上传的 URDF 失败"
+      },
+      "custom_urdf_not_found": {
+        "en": "Custom URDF not found",
+        "zh": "未找到自定义 URDF"
+      },
+      "failed_delete_urdf": {
+        "en": "Failed to delete URDF",
+        "zh": "删除 URDF 失败"
+      }
     },
-    "feetech": {
-      "name": {
-        "en": "Feetech",
-        "zh": "Feetech"
+    "camera_device": {
+      "invalid_camera_id": {
+        "en": "Invalid camera id",
+        "zh": "无效的相机 ID"
       },
-      "description": {
-        "en": "Support for Feetech servo motors",
-        "zh": "Feetech 舵机支持"
+      "failed_capture_frame": {
+        "en": "Failed to capture frame",
+        "zh": "捕获帧失败"
       },
-      "category": "motors"
+      "failed_encode_frame": {
+        "en": "Failed to encode frame",
+        "zh": "编码帧失败"
+      }
     },
-    "gamepad": {
-      "name": {
-        "en": "Gamepad",
-        "zh": "游戏手柄"
+    "robot_definition": {
+      "not_found": {
+        "en": "Definition not found",
+        "zh": "未找到定义"
       },
-      "description": {
-        "en": "Gamepad teleoperation support",
-        "zh": "游戏手柄遥控支持"
-      },
-      "category": "robots"
+      "thumbnail_not_found": {
+        "en": "Image not found",
+        "zh": "图像未找到"
+      }
     },
-    "hopejr": {
-      "name": {
-        "en": "HopeJr",
-        "zh": "HopeJr"
+    "motor_device": {
+      "ambiguous_model": {
+        "en": "Model ID {model_id} is ambiguous for brand {brand}: {matches}",
+        "zh": "型号 ID {model_id} 在品牌 {brand} 下存在歧义: {matches}"
       },
-      "description": {
-        "en": "Support for HopeJr robot platform",
-        "zh": "HopeJr 机器人平台支持"
-      },
-      "category": "robots"
-    },
-    "lekiwi": {
-      "name": {
-        "en": "LeKiwi",
-        "zh": "LeKiwi"
-      },
-      "description": {
-        "en": "Support for LeKiwi robot platform",
-        "zh": "LeKiwi 机器人平台支持"
-      },
-      "category": "robots"
-    },
-    "reachy2": {
-      "name": {
-        "en": "Reachy 2",
-        "zh": "Reachy 2"
-      },
-      "description": {
-        "en": "Support for Reachy 2 humanoid robot",
-        "zh": "Reachy 2 人形机器人支持"
-      },
-      "category": "robots"
-    },
-    "kinematics": {
-      "name": {
-        "en": "Kinematics",
-        "zh": "运动学"
-      },
-      "description": {
-        "en": "Inverse kinematics computation support",
-        "zh": "逆运动学计算支持"
-      },
-      "category": "robots"
-    },
-    "intelrealsense": {
-      "name": {
-        "en": "Intel RealSense",
-        "zh": "Intel RealSense"
-      },
-      "description": {
-        "en": "Support for Intel RealSense cameras",
-        "zh": "Intel RealSense 相机支持"
-      },
-      "category": "robots"
-    },
-    "phone": {
-      "name": {
-        "en": "Phone",
-        "zh": "手机"
-      },
-      "description": {
-        "en": "Mobile phone teleoperation support",
-        "zh": "手机遥控支持"
-      },
-      "category": "robots"
-    },
-    "pi": {
-      "name": {
-        "en": "π₀ (Pi Zero)",
-        "zh": "π₀ (Pi Zero)"
-      },
-      "description": {
-        "en": "Physical Intelligence π₀ policy support",
-        "zh": "Physical Intelligence π₀ 策略支持"
-      },
-      "category": "policies"
-    },
-    "smolvla": {
-      "name": {
-        "en": "SmolVLA",
-        "zh": "SmolVLA"
-      },
-      "description": {
-        "en": "SmolVLA vision-language-action policy support",
-        "zh": "SmolVLA 视觉-语言-动作策略支持"
-      },
-      "category": "policies"
-    },
-    "groot": {
-      "name": {
-        "en": "Gr00t",
-        "zh": "Gr00t"
-      },
-      "description": {
-        "en": "NVIDIA Gr00t foundation model support",
-        "zh": "NVIDIA Gr00t 基础模型支持"
-      },
-      "category": "policies"
-    },
-    "hilserl": {
-      "name": {
-        "en": "HilSeRL",
-        "zh": "HilSeRL"
-      },
-      "description": {
-        "en": "Human-in-the-Loop Self-supervised RL support",
-        "zh": "人机协同自监督强化学习支持"
-      },
-      "category": "policies"
-    },
-    "async": {
-      "name": {
-        "en": "Async",
-        "zh": "异步"
-      },
-      "description": {
-        "en": "Asynchronous inference and control support",
-        "zh": "异步推理和控制支持"
-      },
-      "category": "features"
-    },
-    "aloha": {
-      "name": {
-        "en": "Aloha",
-        "zh": "Aloha"
-      },
-      "description": {
-        "en": "Aloha robot simulation environment",
-        "zh": "Aloha 机器人仿真环境"
-      },
-      "category": "simulation"
-    },
-    "pusht": {
-      "name": {
-        "en": "PushT",
-        "zh": "PushT"
-      },
-      "description": {
-        "en": "PushT 2D manipulation simulation",
-        "zh": "PushT 二维操作仿真"
-      },
-      "category": "simulation"
-    },
-    "xarm": {
-      "name": {
-        "en": "xArm",
-        "zh": "xArm"
-      },
-      "description": {
-        "en": "UFACTORY xArm simulation environment",
-        "zh": "UFACTORY xArm 仿真环境"
-      },
-      "category": "simulation"
-    },
-    "libero": {
-      "name": {
-        "en": "LIBERO",
-        "zh": "LIBERO"
-      },
-      "description": {
-        "en": "LIBERO benchmark simulation environments",
-        "zh": "LIBERO 基准测试仿真环境"
-      },
-      "category": "simulation"
-    },
-    "metaworld": {
-      "name": {
-        "en": "Meta-World",
-        "zh": "Meta-World"
-      },
-      "description": {
-        "en": "Meta-World multi-task benchmark",
-        "zh": "Meta-World 多任务基准测试"
-      },
-      "category": "simulation"
-    }
-  },
-  "categories": {
-    "robots": {
-      "en": "Robot Support",
-      "zh": "机器人支持"
-    },
-    "simulation": {
-      "en": "Simulation Environments",
-      "zh": "仿真环境"
-    },
-    "policies": {
-      "en": "Policies & Models",
-      "zh": "策略模型"
-    },
-    "features": {
-      "en": "Features",
-      "zh": "功能特性"
-    },
-    "motors": {
-      "en": "Motor Drivers",
-      "zh": "电机驱动"
-    },
-    "other": {
-      "en": "Other Tools",
-      "zh": "其他工具"
+      "scan_failed": {
+        "en": "Failed to scan motors on {interface}",
+        "zh": "在接口 {interface} 上扫描电机失败"
+      }
     }
   }
 }

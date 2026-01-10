@@ -9,6 +9,7 @@ from typing import Any, Literal, cast
 
 import yaml
 
+from leropilot.exceptions import OperationalError, ResourceConflictError, ValidationError
 from leropilot.models.app_config import AppConfig, PyPIMirror, RepositorySource
 from leropilot.utils.paths import get_resources_dir
 
@@ -372,7 +373,7 @@ async def migrate_data_directory(old_dir: Path, new_dir: Path) -> None:
         new_dir: New data directory
 
     Raises:
-        ValueError: If migration fails
+        OperationalError: If migration fails
     """
     if not old_dir.exists():
         # Nothing to migrate
@@ -431,7 +432,8 @@ async def update_config_business_logic(new_config: AppConfig) -> AppConfig:
         Updated and reloaded configuration
 
     Raises:
-        ValueError: If update fails due to business logic constraints
+        ValidationError: If update fails due to validation constraints
+        ResourceConflictError: If data_dir change is blocked by existing environments
     """
     # Get current config to check if data_dir is being changed
     current_config = get_config()
@@ -461,16 +463,13 @@ async def update_config_business_logic(new_config: AppConfig) -> AppConfig:
         # Check if environments exist
         has_envs = await check_has_environments()
         if has_envs:
-            raise ValueError(
-                "Cannot change data directory after environments have been created. "
-                "This is to prevent data loss and ensure data integrity."
-            )
+            raise ResourceConflictError("app_settings.config.cannot_change_data_dir_with_envs")
 
         # Migrate existing data
         try:
             await migrate_data_directory(current_config.paths.data_dir, new_config.paths.data_dir)
         except Exception as e:
-            raise ValueError(f"Failed to migrate data: {str(e)}") from e
+            raise OperationalError("app_settings.config.migration_failed", error=str(e)) from e
 
     save_config(new_config)
     return reload_config()

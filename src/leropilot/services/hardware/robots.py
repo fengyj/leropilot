@@ -21,6 +21,11 @@ from typing import TYPE_CHECKING, Any, Optional, cast, Iterator
 if TYPE_CHECKING:
     from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
+from leropilot.exceptions import (
+    ResourceConflictError,
+    ResourceNotFoundError,
+    ValidationError,
+)
 from leropilot.models.hardware import (
     DeviceCategory,
     DeviceStatus,
@@ -30,11 +35,64 @@ from leropilot.models.hardware import (
     RobotDefinition,
     RobotMotorBusConnection,
     RobotMotorDefinition,
-    RobotVerificationError,
 )
 from leropilot.services.hardware.platform_adapter import PlatformAdapter
 
 logger = logging.getLogger(__name__)
+
+
+# --- Path helpers for robot data directory ----------------------------------
+
+def get_robots_base_dir(create: bool = True) -> Path:
+    """Return the base directory for robot persistent data: data_dir/hardwares/robots.
+
+    Args:
+        create: When True (default), ensure the directory exists.
+
+    Returns:
+        Path pointing to the robots directory.
+    """
+    from leropilot.services.config.manager import get_config
+
+    cfg = get_config()
+    data_dir = Path(cfg.paths.data_dir)
+    robots_dir = data_dir / "hardwares" / "robots"
+    if create:
+        robots_dir.mkdir(parents=True, exist_ok=True)
+    return robots_dir
+
+
+def get_robot_list_path() -> Path:
+    """Return the expected path to the persisted robots list.json (ensures parent dir exists)."""
+    robots_dir = get_robots_base_dir(create=True)
+    return robots_dir / "list.json"
+
+
+def get_robot_base_dir(robot_id: str, create: bool = True) -> Path:
+    """Return the per-robot base directory path (data_dir/hardwares/robots/<id>).
+
+    Args:
+        robot_id: Persisted robot id
+        create: Whether to ensure the directory exists
+    """
+    robot_dir = get_robots_base_dir(create=True) / robot_id
+    if create:
+        robot_dir.mkdir(parents=True, exist_ok=True)
+    return robot_dir
+
+
+def get_robot_urdf_dir(robot_id: str, create: bool = True) -> Path:
+    """Return the per-robot URDF directory path (data_dir/hardwares/robots/<id>/urdf).
+
+    Args:
+        robot_id: Persisted robot id
+        create: Whether to ensure the directory exists
+    """
+    robot_dir = get_robot_base_dir(robot_id, create=True) / "urdf"
+    if create:
+        robot_dir.mkdir(parents=True, exist_ok=True)
+    return robot_dir
+
 
 
 # --------------------------- Robot Config Service ---------------------------
@@ -97,7 +155,13 @@ class RobotSpecService:
             robots_data = (data or {}).get("robots", [])
             robots = [RobotDefinition(**r) for r in robots_data]
             # Sort robots by display_name for consistent UI presentation
-            robots.sort(key=lambda r: r.display_name)
+            def _get_sort_key(r: RobotDefinition) -> str:
+                if isinstance(r.display_name, str):
+                    return r.display_name
+                # Use "en" as fallback for sorting if it's a dict
+                return r.display_name.get("en") or (list(r.display_name.values())[0] if r.display_name else "")
+
+            robots.sort(key=_get_sort_key)
             logger.info(f"Loaded {len(robots)} robot specifications")
             return robots
         except Exception as e:
@@ -124,22 +188,6 @@ class RobotSpecService:
             if robot.id == robot_id:
                 return robot
         return None
-
-
-# --------------------------- Calibration Service ---------------------------
-
-# Default hardare directory
-HARDWARE_DATA_DIR = Path.home() / ".leropilot" / "hardwares"
-
-
-class CalibrationService:
-    """Manages motor calibration data persistence and retrieval"""
-
-    def __init__(self) -> None:
-        """Initialize calibration service"""
-        logger.info("CalibrationService initialized")
-
-    # NOTE: CalibrationService modifications will be performed later as requested.
 
 
 # --------------------------- Robot Manager ---------------------------
@@ -170,18 +218,9 @@ class RobotManager:
             self._load_robots()
             logger.info("RobotManager initialized")
 
-    def _get_list_path(self) -> Path:
-        from leropilot.services.config.manager import get_config
-
-        cfg = get_config()
-        data_dir = Path(cfg.paths.data_dir)
-        list_path = data_dir / "hardwares" / "robots" / "list.json"
-        list_path.parent.mkdir(parents=True, exist_ok=True)
-        return list_path
-
     def _load_robots(self) -> None:
         try:
-            list_path = self._get_list_path()
+            list_path = get_robot_list_path()
             if list_path.exists():
                 with open(list_path, encoding="utf-8") as f:
                     data = json.load(f)
@@ -237,7 +276,7 @@ class RobotManager:
         with self._lock:
             robot = self._robots.get(robot_id)
             if robot is None:
-                raise ValueError("Robot not found")
+                raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
 
             defn = robot.definition
             # Robot.definition must be a RobotDefinition object; string ids are not supported at runtime
@@ -282,7 +321,7 @@ class RobotManager:
             spec = RobotSpecService()
             defn = spec.get_robot_definition(robot.definition)
             if defn is None:
-                raise ValueError(f"Unknown robot definition id '{robot.definition}'")
+                raise ResourceNotFoundError("hardware.robot_device.unknown_definition", id=robot.definition)
             robot.definition = defn
 
     def add_robot(self, robot: Robot) -> Robot:
@@ -295,7 +334,7 @@ class RobotManager:
             self._normalize_robot(robot)
 
             if robot.id in self._robots:
-                raise ValueError(f"Robot with ID '{robot.id}' already exists")
+                raise ResourceConflictError("hardware.robot_device.conflict_id", id=robot.id)
 
             self.verify_robot(robot)
             self._save_robots()
@@ -318,8 +357,7 @@ class RobotManager:
         """
         with self._lock:
             if robot_id not in self._robots:
-                logger.warning(f"Robot {robot_id} not found")
-                return None
+                raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
             robot = self._robots[robot_id].model_copy()
             for k, v in kwargs.items():
                 # Apply provided values (including explicit None) — router is responsible
@@ -332,7 +370,7 @@ class RobotManager:
             # If requested, verify hardware now; verification errors propagate so callers
             # can decide how to map them (e.g., HTTP 409 in router layer).
             if verify:
-                # verify_robot raises RobotVerificationError on failure
+                # verify_robot raises ResourceConflictError/ValidationError on failure
                 self.verify_robot(robot)
 
             # Persist only when verification (if requested) passed
@@ -344,8 +382,7 @@ class RobotManager:
     def remove_robot(self, robot_id: str) -> bool:
         with self._lock:
             if robot_id not in self._robots:
-                logger.warning(f"Robot {robot_id} not found")
-                return False
+                raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
             del self._robots[robot_id]
             self._save_robots()
             logger.info(f"Removed robot {robot_id}")
@@ -354,7 +391,7 @@ class RobotManager:
     def _save_robots(self) -> None:
         with self._lock:
             try:
-                list_path = self._get_list_path()
+                list_path = get_robot_list_path()
                 data: dict[str, object] = {"version": "1.0", "robots": []}
                 # Exclude transient robots from save
                 for robot in self._robots.values():
@@ -862,9 +899,8 @@ class RobotManager:
         to compute the overall status.
 
         Raises:
-            RobotVerificationError: when a required interface is missing, when the motorbus
-                        type cannot be resolved, or when verification fails
-                        resulting in OFFLINE or INVALID status.
+            ResourceConflictError: when verification fails resulting in OFFLINE or INVALID status.
+            ValidationError: when a required interface is missing or when the motorbus type cannot be resolved.
 
         Returns:
             True on successful verification (AVAILABLE).
@@ -881,13 +917,13 @@ class RobotManager:
             for conn_key, conn in (robot.motor_bus_connections or {}).items():
                 # Interface must be present to construct the runtime motorbus
                 if not conn.interface:
-                    raise RobotVerificationError(f"Interface for connection '{conn_key}' does not exist")
+                    raise ValidationError("hardware.robot_device.missing_interface", id=conn_key)
 
                 # Resolve bus class
                 try:
                     cls = MotorBus.resolve_bus_class(conn.motor_bus_type)
                 except Exception as e:
-                    raise RobotVerificationError(f"Unknown motorbus type '{conn.motor_bus_type}': {e}") from e
+                    raise ValidationError("hardware.robot_device.unknown_bus_type", bus_type=conn.motor_bus_type) from e
 
                 # Create and probe the motorbus
                 try:
@@ -897,7 +933,7 @@ class RobotManager:
                             bus.disconnect()
                         except Exception:
                             pass
-                        raise RobotVerificationError(f"Unable to connect to motorbus on interface '{conn.interface}'")
+                        raise ValidationError("hardware.robot_device.connect_failed", interface=conn.interface)
 
                     buses_to_close.append(bus)
                     # scan_motors should populate bus.motors
@@ -917,9 +953,9 @@ class RobotManager:
             status, _should_remove = self._check_robot_status(robot, discovered)
 
             if status == DeviceStatus.OFFLINE:
-                raise RobotVerificationError("Robot verification failed: robot is offline")
+                raise ResourceConflictError("hardware.robot_device.offline")
             if status == DeviceStatus.INVALID:
-                raise RobotVerificationError("Robot verification failed: robot is invalid (mismatch)")
+                raise ResourceConflictError("hardware.robot_device.invalid_mismatch")
 
             # AVAILABLE -> verification passed
             return True
@@ -1002,8 +1038,16 @@ class RobotManager:
             return self._robots.get(robot_id)
 
 
+# --------------------------- Calibration Service ---------------------------
 
+class CalibrationService:
+    """Manages motor calibration data persistence and retrieval"""
 
+    def __init__(self) -> None:
+        """Initialize calibration service"""
+        logger.info("CalibrationService initialized")
+
+    # NOTE: CalibrationService modifications will be performed later as requested.
 
 
 # Robot URDF manager
@@ -1013,23 +1057,13 @@ class RobotUrdfManager:
     def __init__(self, robot_manager: RobotManager | None = None) -> None:
         self._robot_manager = robot_manager or get_robot_manager()
 
-    def _get_robots_dir(self) -> Path:
-        from leropilot.services.config.manager import get_config
-
-        cfg = get_config()
-        data_dir = Path(cfg.paths.data_dir)
-        robots_dir = data_dir / "hardwares" / "robots"
-        robots_dir.mkdir(parents=True, exist_ok=True)
-        return robots_dir
-
     def _get_urdf_file(self, robot_id: str) -> Path:
         """Internal helper returning the expected custom URDF file path for a robot.
 
         Note: this returns the canonical path where a custom URDF would be stored;
         it does not guarantee the file exists. Callers should check existence.
         """
-        robots_dir = self._get_robots_dir()
-        return robots_dir / robot_id / "urdf" / "robot.urdf"
+        return get_robot_urdf_dir(robot_id) / "robot.urdf"
 
     def delete_custom_urdf(self, robot_id: str) -> None:
         """Delete a previously uploaded custom URDF and any related resource files.
@@ -1074,11 +1108,9 @@ class RobotUrdfManager:
         # Basic validation
         robot = self._robot_manager.get_robot(robot_id)
         if robot is None:
-            raise ValueError("Robot not found")
-        if getattr(robot, "category", DeviceCategory.ROBOT) != DeviceCategory.ROBOT:
-            raise ValueError("URDFs can only be uploaded for robots")
+            raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
 
-        target_dir = self._get_robots_dir() / robot_id / "urdf"
+        target_dir = get_robot_urdf_dir(robot_id, create=True)
         target_dir.mkdir(parents=True, exist_ok=True)
 
         def _validate_and_mark(urdf_file: Path) -> None:

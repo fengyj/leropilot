@@ -36,7 +36,7 @@ export const EnvironmentCard: React.FC<EnvironmentCardProps> = ({
     const { t } = useTranslation();
 
     return (
-        <Card className="flex flex-col">
+        <Card className="flex flex-col max-w-[480px] w-full">
             <CardHeader>
                 <div className="flex items-start justify-between">
                     <div className="space-y-1">

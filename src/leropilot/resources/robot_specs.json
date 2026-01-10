@@ -3,8 +3,14 @@
         {
             "id": "so100-follower-standard",
             "lerobot_name": "so100_follower",
-            "display_name": "SO-100 Follower (Standard)",
-            "description": "Standard 6-DOF arm with Feetech STS3215-C002 motors (12V version)",
+            "display_name": {
+                "en": "SO-100 Follower (Standard)",
+                "zh": "SO-100 跟随手臂 (标准版)"
+            },
+            "description": {
+                "en": "Standard 6-DOF arm with Feetech STS3215-C002 motors (12V version)",
+                "zh": "标准的 6 自由度机械臂，配备飞特 STS3215-C002 电机 (12V 版本)"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": null,
             "urdf": "so100_follower",
@@ -56,8 +62,14 @@
         {
             "id": "so100-leader-standard",
             "lerobot_name": "so100_leader",
-            "display_name": "SO-100 Leader (Standard)",
-            "description": "Standard 6-DOF arm with mixed Feetech motors (STS3215-C001, C002) (12V version)",
+            "display_name": {
+                "en": "SO-100 Leader (Standard)",
+                "zh": "SO-100 操控手臂 (标准版)"
+            },
+            "description": {
+                "en": "Standard 6-DOF arm with mixed Feetech motors (STS3215-C001, C002) (12V version)",
+                "zh": "标准的 6 自由度机械臂，配备飞特 STS3215 混合电机 (STS3215-C001, C002) (12V 版本)"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": null,
             "motor_buses": {
@@ -108,8 +120,14 @@
         {
             "id": "so101-follower-high-voltage",
             "lerobot_name": "so101_follower",
-            "display_name": "SO-101 Follower (12 Volt Version)",
-            "description": "SO-101 Follower arm with 6x STS3215-C018 motors (12V version)",
+            "display_name": {
+                "en": "SO-101 Follower (12 Volt Version)",
+                "zh": "SO-101 跟随手臂（12V 版本）"
+            },
+            "description": {
+                "en": "SO-101 Follower arm with 6x STS3215-C018 motors (12V version)",
+                "zh": "SO-101 跟随手臂，配备 6 个 STS3215-C018 电机（12V 版本）"
+            },
             "support_version_from": "0.4.0",
             "support_version_end": null,
             "urdf": "so101_follower",
@@ -161,8 +179,14 @@
         {
             "id": "so101-follower-low-voltage",
             "lerobot_name": "so101_follower",
-            "display_name": "SO-101 Follower (5 Volt Version)",
-            "description": "SO-101 Follower arm with 6x STS3215-C001 motors (5V version)",
+            "display_name": {
+                "en": "SO-101 Follower (5 Volt Version)",
+                "zh": "SO-101 跟随手臂（5V 版本）"
+            },
+            "description": {
+                "en": "SO-101 Follower arm with 6x STS3215-C001 motors (5V version)",
+                "zh": "SO-101 跟随手臂，配备 6 个 STS3215-C001 电机（5V 版本）"
+            },
             "support_version_from": "0.4.1",
             "support_version_end": null,
             "urdf": "so101_follower",
@@ -214,8 +238,14 @@
         {
             "id": "so101-leader",
             "lerobot_name": "so101_leader",
-            "display_name": "SO-101 Leader",
-            "description": "SO-101 Leader arm with mixed STS3215 variants (C001, C044, C046) (5V version)",
+            "display_name": {
+                "en": "SO-101 Leader",
+                "zh": "SO-101 操控手臂"
+            },
+            "description": {
+                "en": "SO-101 Leader arm with mixed STS3215 variants (C001, C044, C046) (5V version)",
+                "zh": "SO-101 操控手臂，配备混合 STS3215 型号（C001、C044、C046）（5V 版本）"
+            },
             "support_version_from": "0.4.0",
             "support_version_end": null,
             "motor_buses": {
@@ -266,8 +296,14 @@
         {
             "id": "koch-follower",
             "lerobot_name": "koch_follower",
-            "display_name": "Koch v1.1 Follower",
-            "description": "Koch v1.1 Follower arm with 6x XL330-M288 motors",
+            "display_name": {
+                "en": "Koch v1.1 Follower",
+                "zh": "Koch v1.1 跟随手臂"
+            },
+            "description": {
+                "en": "Koch v1.1 Follower arm with 6x XL330-M288 motors",
+                "zh": "Koch v1.1 跟随手臂，配备 6 个 XL330-M288 电机"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": null,
             "urdf": "koch_follower",
@@ -319,8 +355,14 @@
         {
             "id": "koch-leader",
             "lerobot_name": "koch_leader",
-            "display_name": "Koch v1.1 Leader",
-            "description": "Koch v1.1 Leader arm with 6x XL330-M077 motors",
+            "display_name": {
+                "en": "Koch v1.1 Leader",
+                "zh": "Koch v1.1 操控手臂"
+            },
+            "description": {
+                "en": "Koch v1.1 Leader arm with 6x XL330-M077 motors",
+                "zh": "Koch v1.1 操控手臂，配备 6 个 XL330-M077 电机"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": null,
             "motor_buses": {
@@ -371,8 +413,14 @@
         {
             "id": "aloha-follower",
             "lerobot_name": "aloha_follower",
-            "display_name": "Aloha Follower",
-            "description": "7-DOF arm used in Aloha systems with 2x XM430-W350 and 5x XL430-W250 motors",
+            "display_name": {
+                "en": "Aloha Follower",
+                "zh": "Aloha 跟随手臂"
+            },
+            "description": {
+                "en": "7-DOF arm used in Aloha systems with 2x XM430-W350 and 5x XL430-W250 motors",
+                "zh": "用于 Aloha 系统的 7 自由度手臂，配备 2 个 XM430-W350 与 5 个 XL430-W250 电机"
+            },
             "support_version_from": "0.4.2",
             "support_version_end": null,
             "motor_buses": {
@@ -429,8 +477,14 @@
         {
             "id": "aloha-leader",
             "lerobot_name": "aloha_leader",
-            "display_name": "Aloha Leader",
-            "description": "7-DOF arm used in Aloha systems with 1x XC430-W150 and 6x XL330-M077 motors (5V version)",
+            "display_name": {
+                "en": "Aloha Leader",
+                "zh": "Aloha 操控手臂"
+            },
+            "description": {
+                "en": "7-DOF arm used in Aloha systems with 1x XC430-W150 and 6x XL330-M077 motors (5V version)",
+                "zh": "用于 Aloha 系统的 7 自由度手臂，配备 1 个 XC430-W150 与 6 个 XL330-M077 电机（5V 版本）"
+            },
             "support_version_from": "0.4.2",
             "support_version_end": null,
             "motor_buses": {
@@ -487,8 +541,14 @@
         {
             "id": "lekiwi-base-3wheel",
             "lerobot_name": "lekiwi",
-            "display_name": "LeKiwi Base (3-Wheel Omni)",
-            "description": "LeKiwi mobile base with 3-wheel omni configuration and SO-101 Follower arm (5V version)",
+            "display_name": {
+                "en": "LeKiwi Base (3-Wheel Omni)",
+                "zh": "LeKiwi 底座（三轮全向）"
+            },
+            "description": {
+                "en": "LeKiwi mobile base with 3-wheel omni configuration and SO-101 Follower arm (5V version)",
+                "zh": "LeKiwi 移动底座，三轮全向布局，配备 SO-101 跟随手臂（5V 版本）"
+            },
             "support_version_from": "0.4.2",
             "support_version_end": null,
             "urdf": "lekiwi",
@@ -561,8 +621,14 @@
         {
             "id": "omx-follower",
             "lerobot_name": "omx_follower",
-            "display_name": "OMX Follower",
-            "description": "Open Manipulator-X Follower arm with 4x XL430-W250 and 2x XL330-M288 motors",
+            "display_name": {
+                "en": "OMX Follower",
+                "zh": "OMX 跟随手臂"
+            },
+            "description": {
+                "en": "Open Manipulator-X Follower arm with 4x XL430-W250 and 2x XL330-M288 motors",
+                "zh": "Open Manipulator-X 跟随手臂，配备 4 个 XL430-W250 与 2 个 XL330-M288 电机"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": null,
             "motor_buses": {
@@ -613,8 +679,14 @@
         {
             "id": "omx-leader",
             "lerobot_name": "omx_leader",
-            "display_name": "OMX Leader",
-            "description": "Open Manipulator-X Leader arm with 4x XL430-W250 and 2x XL330-M077 motors (5V version)",
+            "display_name": {
+                "en": "OMX Leader",
+                "zh": "OMX 操控手臂"
+            },
+            "description": {
+                "en": "Open Manipulator-X Leader arm with 4x XL430-W250 and 2x XL330-M077 motors (5V version)",
+                "zh": "Open Manipulator-X 操控手臂，配备 4 个 XL430-W250 与 2 个 XL330-M077 电机（5V 版本）"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": null,
             "motor_buses": {
@@ -665,8 +737,14 @@
         {
             "id": "hope-jr-arm",
             "lerobot_name": "hope_jr_arm",
-            "display_name": "Hope Jr Arm",
-            "description": "Hope Jr Arm with mixed Feetech motors including 1x SM8512BL, 3x ST3215-C018 and 3x ST3250-C001 motors",
+            "display_name": {
+                "en": "Hope Jr Arm",
+                "zh": "Hope Jr 手臂"
+            },
+            "description": {
+                "en": "Hope Jr Arm with mixed Feetech motors including 1x SM8512BL, 3x ST3215-C018 and 3x ST3250-C001 motors",
+                "zh": "Hope Jr 手臂，混合飞特电机：1x SM8512BL、3x ST3215-C018、3x ST3250-C001"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": "0.4.0",
             "motor_buses": {
@@ -723,8 +801,14 @@
         {
             "id": "hope-jr-hand",
             "lerobot_name": "hope_jr_hand",
-            "display_name": "Hope Jr Hand",
-            "description": "Hope Jr Hand with 16x SCS0009 micro servos for finger articulation",
+            "display_name": {
+                "en": "Hope Jr Hand",
+                "zh": "Hope Jr 手部"
+            },
+            "description": {
+                "en": "Hope Jr Hand with 16x SCS0009 micro servos for finger articulation",
+                "zh": "Hope Jr 手部，配备 16 个 SCS0009 微舵机用于手指动作"
+            },
             "support_version_from": "0.3.3",
             "support_version_end": "0.4.0",
             "motor_buses": {
@@ -835,8 +919,14 @@
         {
             "id": "openarm-dual-arm",
             "lerobot_name": "openarm",
-            "display_name": "OpenArm Dual Arm Robot",
-            "description": "Dual-arm collaborative robot with 7-DOF per arm using Damiao CAN motors",
+            "display_name": {
+                "en": "OpenArm Dual Arm Robot",
+                "zh": "OpenArm 双臂机器人"
+            },
+            "description": {
+                "en": "Dual-arm collaborative robot with 7-DOF per arm using Damiao CAN motors",
+                "zh": "双臂协作机器人，双臂各 7 自由度，使用 Damiao CAN 电机"
+            },
             "support_version_from": "0.4.0",
             "support_version_end": null,
             "urdf": "openarm",
@@ -845,43 +935,64 @@
                     "type": "DamiaoMotorBus",
                     "motors": [
                         {
-                            "id": [1, 17],
+                            "id": [
+                                1,
+                                17
+                            ],
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
                         },
                         {
-                            "id": [2, 18],
+                            "id": [
+                                2,
+                                18
+                            ],
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
                         },
                         {
-                            "id": [3, 19],
+                            "id": [
+                                3,
+                                19
+                            ],
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340P"
                         },
                         {
-                            "id": [4, 20],
+                            "id": [
+                                4,
+                                20
+                            ],
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340"
                         },
                         {
-                            "id": [5, 21],
+                            "id": [
+                                5,
+                                21
+                            ],
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
                         },
                         {
-                            "id": [6, 22],
+                            "id": [
+                                6,
+                                22
+                            ],
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
                         },
                         {
-                            "id": [7, 23],
+                            "id": [
+                                7,
+                                23
+                            ],
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
@@ -889,48 +1000,68 @@
                     ],
                     "baud_rate": 1000000
                 },
-
                 "right_arm": {
                     "type": "DamiaoMotorBus",
                     "motors": [
                         {
-                            "id": [1, 17],
+                            "id": [
+                                1,
+                                17
+                            ],
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
                         },
                         {
-                            "id": [2, 18],
+                            "id": [
+                                2,
+                                18
+                            ],
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
                         },
                         {
-                            "id": [3, 19],
+                            "id": [
+                                3,
+                                19
+                            ],
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340P"
                         },
                         {
-                            "id": [4, 20],
+                            "id": [
+                                4,
+                                20
+                            ],
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340"
                         },
                         {
-                            "id": [5, 21],
+                            "id": [
+                                5,
+                                21
+                            ],
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
                         },
                         {
-                            "id": [6, 22],
+                            "id": [
+                                6,
+                                22
+                            ],
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
                         },
                         {
-                            "id": [7, 23],
+                            "id": [
+                                7,
+                                23
+                            ],
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"

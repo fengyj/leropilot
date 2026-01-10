@@ -4,8 +4,12 @@ import json
 from pathlib import Path
 
 from leropilot.logger import get_logger
+from leropilot.exceptions import OperationalError, ResourceNotFoundError, ValidationError
 from leropilot.models.api.environment import EnvironmentListItem
-from leropilot.models.environment import EnvironmentConfig
+from leropilot.models.environment import (
+    EnvironmentConfig,
+    EnvironmentInstallationPlan,
+)
 
 from .registry import get_path_resolver, get_registry
 

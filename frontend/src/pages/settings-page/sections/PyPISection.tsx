@@ -89,10 +89,12 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
           <div className="bg-surface-secondary mb-4 space-y-3 rounded-lg border p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-content-secondary text-xs font-medium uppercase">
+                <label htmlFor="pypi-mirror-name" className="text-content-secondary text-xs font-medium uppercase">
                   {t('settings.pypi.name')}
                 </label>
                 <input
+                  id="pypi-mirror-name"
+                  name="pypi-mirror-name"
                   type="text"
                   className="border-border-default bg-surface-primary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   value={newMirrorName}
@@ -101,10 +103,12 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-content-secondary text-xs font-medium uppercase">
+                <label htmlFor="pypi-mirror-url" className="text-content-secondary text-xs font-medium uppercase">
                   {t('settings.pypi.url')}
                 </label>
                 <input
+                  id="pypi-mirror-url"
+                  name="pypi-mirror-url"
                   type="text"
                   className="border-border-default bg-surface-primary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   value={newMirrorUrl}
@@ -158,7 +162,7 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-content-primary font-medium">Official PyPI</span>
+                <span className="text-content-primary font-medium">{t('settings.pypi.officialPyPI')}</span>
                 {!activeMirror && (
                   <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-500">
                     {t('settings.pypi.currentMirror')}

@@ -4,7 +4,12 @@
     "cancel": "取消",
     "delete": "删除",
     "yes": "是",
-    "no": "否"
+    "no": "否",
+    "unknown": "未知",
+    "unknownError": "未知错误",
+    "error": "错误",
+    "create": "创建",
+    "close": "关闭"
   },
   "nav": {
     "dashboard": "仪表板",
@@ -20,8 +25,9 @@
   "environments": {
     "title": "环境",
     "subtitle": "管理您的 LeRobot 环境和依赖项。",
-    "createNew": "创建新环境",
-    "noEnvironments": "未找到环境。请创建一个新环境以开始使用。",
+    "createNew": "新建环境",
+    "noEnvironments": "未发现环境。请新建一个以开始。",
+    "loading": "正在加载环境...",
     "launch": "启动",
     "shell": "终端",
     "python": "Python",
@@ -64,6 +70,8 @@
     "versionSelection": {
       "title": "选择版本",
       "subtitle": "选择 LeRobot 版本标签或分支。",
+      "help": "选择要用于此环境的 LeRobot 版本；稳定版通常更可靠。",
+      "noVersions": "未找到该仓库的版本。",
       "released": "发布于",
       "stable": "稳定版"
     },
@@ -157,7 +165,9 @@
       "waiting": "等待执行...",
       "addStep": "添加步骤",
       "stepName": "步骤名称",
-      "stepNamePlaceholder": "例如：安装依赖"
+      "stepNamePlaceholder": "例如：安装依赖",
+      "noSteps": "未为所选仓库或版本生成任何安装步骤。请检查仓库和版本，或返回默认设置。",
+      "failedToLoadSteps": "无法加载安装步骤，请稍后重试。"
     },
     "installation": {
       "title": "正在安装环境",
@@ -239,7 +249,10 @@
       "bundledInstalled": "检测到系统 Git",
       "bundledNotInstalled": "未找到系统 Git",
       "bundledDescription": "使用系统安装的 Git。",
-      "downloadAndInstall": "下载并安装",
+      "downloadAndInstall": "下载并安装内置 Git",
+      "startingDownload": "正在启动下载...",
+      "connectionLost": "下载过程中连接丢失",
+      "failedToDownload": "无法启动下载",
       "autoDetect": "自动检测系统 Git",
       "notInstalled": "未安装"
     },
@@ -259,6 +272,7 @@
     "pypi": {
       "title": "PyPI 镜像",
       "description": "管理 PyPI 镜像源以加快包安装速度。启用一个镜像使用它，或保持全部禁用以使用官方 PyPI。",
+      "officialPyPI": "官方 PyPI",
       "currentMirror": "默认",
       "usingOfficial": "使用官方 PyPI（未启用镜像）",
       "addMirror": "添加",
@@ -314,5 +328,85 @@
     "notFound": "仓库不存在",
     "downloadFailed": "下载失败",
     "connectionLost": "连接中断"
+  },
+  "hardware": {
+    "dashboard": {
+      "title": "机器人与机械臂",
+      "subtitle": "管理您连接的机器人、手臂、相机及其他辅助硬件。",
+      "addRobot": "添加",
+      "refreshRobots": "刷新机器人",
+      "refreshCameras": "刷新相机",
+      "robotsTitle": "机器人与机械臂",
+      "camerasTitle": "相机",
+      "loadingDevices": "加载设备...",
+      "refreshing": "正在刷新...",
+      "streaming": "推流中",
+      "offline": "离线",
+      "refreshingRobotsStatus": "正在刷新机器人状态",
+      "refreshingCamerasStatus": "正在刷新相机状态",
+      "previewCameraTitle": "预览: {{name}}",
+      "loadingCameras": "正在加载相机...",
+      "noRobots": "未发现机器人。请添加一个以开始。"
+    },
+    "status": {
+      "available": "可用",
+      "occupied": "占用",
+      "invalid": "无效",
+      "offline": "离线"
+    },
+    "robotCard": {
+      "transient": "临时设备",
+      "interfaces": "接口",
+      "control": "控制",
+      "calibrate": "标定",
+      "editConfig": "编辑配置",
+      "refreshStatus": "刷新状态",
+      "refreshing": "正在刷新...",
+      "updatingStatus": "正在更新状态",
+      "delete": "删除"
+    },
+    "cameraCard": {
+      "resolution": "分辨率",
+      "preview": "预览",
+      "failedToConnect": "无法连接到摄像头画面。"
+    },
+    "cameraPreview": {
+      "establishing": "正在建立连接...",
+      "live": "实时"
+    },
+    "addRobotModal": {
+      "title": "添加机器人",
+      "syncing": "正在同步定义和发现硬件...",
+      "creating": "正在创建并初始化机器人...",
+      "robotType": "机器人类型",
+      "robotTypePlaceholder": "请选择机器人类型",
+      "customAssembly": "自定义组装",
+      "customRobotName": "自定义组装机器人",
+      "customRobotDescription": "该模式允许您自由组合已发现的电机总线。您可以为每个组件自定义逻辑名称，并将其绑定到特定的硬件接口上。适合非标准或原型阶段的机器人开发。",
+      "noDescription": "暂无描述信息",
+      "addComponent": "增加组件",
+      "componentNamePlaceholder": "组件名称 (如: arm_left)",
+      "componentConnections": "硬件连接",
+      "selectDeviceFor": "请为组件 {{component}} 选择一个设备",
+      "selectDevicePlaceholder": "-- 请选择硬件 --",
+      "discoveryDetails": "硬件探测详情",
+      "refreshDiscovery": "重新探测",
+      "scanningPorts": "正在扫描硬件端口...",
+      "noRequirements": "该定义暂无特殊的硬件组件需求。",
+      "noHardwareFound": "未发现可用硬件",
+      "noHardwareHelp": "请确保 USB 串口线、CAN 适配器或电机电源已正确连接，然后点击上方“重新探测”。",
+      "noMotorsFound": "未发现电机",
+      "error": "操作发生错误",
+      "addFailed": "添加失败: {{error}}",
+      "invalidComponentName": "组件名称 \"{{name}}\" 无效 (仅限字母、数字、下划线)",
+      "duplicateComponentName": "组件名称不能重复",
+      "networkError": "网络错误，请稍后再试",
+      "duplicateDeviceError": "设备不能在多个组件中重复使用。",
+      "assigned": "已分配",
+      "motors": "{{count}} 个电机",
+      "sendId": "Send ID:",
+      "recvId": "Recv ID:",
+      "motorId": "Motor ID:"
+    }
   }
 }

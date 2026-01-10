@@ -2,7 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Loader2, XCircle } from 'lucide-react';
-import WebTerminal from '../../components/WebTerminal';
+import WebTerminal from '../../components/web-terminal';
 import { Button } from '../../components/ui/button';
 import { PageContainer } from '../../components/ui/page-container';
 import { useWizardStore } from '../../stores/environment-wizard-store';

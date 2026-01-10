@@ -1,0 +1,270 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../../contexts/theme-context';
+import { isEqual } from 'lodash';
+import type { AppConfig } from '../types';
+
+interface UseSettingsReturn {
+  config: AppConfig | null;
+  savedConfig: AppConfig | null;
+  setConfig: (config: AppConfig | null) => void;
+  hasEnvironments: boolean;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  message: { type: 'success' | 'error'; text: string } | null;
+  setMessage: (message: { type: 'success' | 'error'; text: string } | null) => void;
+  configPath: string | null;
+  saveConfig: () => Promise<void>;
+  resetConfig: () => Promise<void>;
+  // Returns whether ANY setting differs from saved config (global check).
+  hasUnsavedChanges: () => boolean;
+  // Check whether a specific section (theme | language) has unsaved changes
+  sectionHasUnsaved: (section: 'theme' | 'language') => boolean;
+} 
+
+/**
+ * Custom hook for managing settings state and operations
+ */
+export const useSettings = (): UseSettingsReturn => {
+  const { t, i18n } = useTranslation();
+  const { setTheme: setAppTheme } = useTheme();
+
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [savedConfig, setSavedConfig] = useState<AppConfig | null>(null);
+  const [hasEnvironments, setHasEnvironments] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [configPath, setConfigPath] = useState<string | null>(null);
+
+  // Store cleanup state in ref to avoid dependency issues
+  const cleanupStateRef = useRef<{
+    savedConfig: AppConfig | null;
+    currentConfig: AppConfig | null;
+  }>({ savedConfig: null, currentConfig: null });
+
+  const setAppThemeRef = useRef(setAppTheme);
+  const tRef = useRef(t);
+  const i18nRef = useRef(i18n);
+
+  useEffect(() => {
+    setAppThemeRef.current = setAppTheme;
+  }, [setAppTheme]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
+  useEffect(() => {
+    i18nRef.current = i18n;
+  }, [i18n]);
+
+  const loadConfig = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch('/api/app-config', { signal });
+      if (!response.ok)
+        throw new Error(`Failed to load config: ${response.statusText}`);
+      const data = await response.json();
+      setConfig(data);
+      setConfigPath(data.paths.data_dir);
+      setSavedConfig(data);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Error loading config:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error loading config');
+      setMessage({ type: 'error', text: tRef.current('settings.messages.saveError') });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const checkEnvironments = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch('/api/environments/has-environments', { signal });
+      if (!response.ok) throw new Error('Failed to check environments');
+      const data = await response.json();
+      setHasEnvironments(data.has_environments);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to check environments:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    loadConfig(abortController.signal);
+    checkEnvironments(abortController.signal);
+
+    return () => {
+      abortController.abort();
+    };
+  }, [loadConfig, checkEnvironments]);
+
+  // Cleanup: revert theme and language on unmount if not saved
+  useEffect(() => {
+    return () => {
+      const { savedConfig, currentConfig } = cleanupStateRef.current;
+      if (savedConfig && currentConfig) {
+        if (savedConfig.ui.theme !== currentConfig.ui.theme) {
+          setAppThemeRef.current(savedConfig.ui.theme);
+        }
+        if (savedConfig.ui.preferred_language !== currentConfig.ui.preferred_language) {
+          i18nRef.current.changeLanguage(savedConfig.ui.preferred_language);
+        }
+      }
+    };
+  }, []); // Only run cleanup on unmount
+
+  // Update cleanup state ref when config or savedConfig changes
+  useEffect(() => {
+    cleanupStateRef.current = {
+      savedConfig,
+      currentConfig: config,
+    };
+  }, [savedConfig, config]);
+
+  // Live preview: Apply theme changes immediately
+  useEffect(() => {
+    if (config?.ui.theme) {
+      setAppThemeRef.current(config.ui.theme);
+    }
+  }, [config?.ui.theme]);
+
+  // Live preview: Apply language changes immediately
+  useEffect(() => {
+    const targetLang = config?.ui.preferred_language;
+    if (!targetLang || i18n.language === targetLang) return;
+
+    i18n
+      .changeLanguage(targetLang)
+      .catch((error) => console.error('Failed to change language:', error));
+  }, [config?.ui.preferred_language, i18n]);
+
+  const hasUnsavedChanges = () => {
+    if (!config || !savedConfig) return false;
+
+    // Global deep equality check for any changes
+    return !isEqual(config, savedConfig);
+  };
+
+  const sectionHasUnsaved = (section: 'theme' | 'language') => {
+    if (!config || !savedConfig) return false;
+    if (section === 'theme') return config.ui.theme !== savedConfig.ui.theme;
+    if (section === 'language') return config.ui.preferred_language !== savedConfig.ui.preferred_language;
+    return false;
+  };
+ 
+
+  // Auto-hide success message after a delay, and clear immediately when config changes
+  const messageTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Clear timeout when message changes
+    if (messageTimeoutRef.current) {
+      window.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+
+    if (message && message.type === 'success') {
+      // Auto-clear after 5s
+      messageTimeoutRef.current = window.setTimeout(() => setMessage(null), 5000);
+    }
+
+    return () => {
+      if (messageTimeoutRef.current) {
+        window.clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = null;
+      }
+    };
+  }, [message, setMessage]);
+
+  // If user makes additional changes after a success message, clear the banner immediately
+  useEffect(() => {
+    if (!message || message.type !== 'success') return;
+    if (!savedConfig || !config) return;
+    if (!isEqual(config, savedConfig)) {
+      setMessage(null);
+    }
+  }, [config, savedConfig, message, setMessage]);
+
+
+  const saveConfig = async () => {
+    if (!config) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/app-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to save config');
+      }
+
+      setSavedConfig(config);
+      setMessage({ type: 'success', text: t('settings.messages.saveSuccess') });
+
+      // Reload to get updated config
+      await loadConfig();
+      await checkEnvironments();
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : t('settings.messages.saveError'),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetConfig = async () => {
+    if (!confirm(t('settings.messages.resetConfirm'))) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/app-config/reset', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to reset config');
+      const data = await response.json();
+      setConfig(data);
+      setConfigPath(data.paths.data_dir);
+      setMessage({ type: 'success', text: t('settings.messages.saveSuccess') });
+    } catch {
+      setMessage({ type: 'error', text: t('settings.messages.saveError') });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return {
+    config,
+    savedConfig,
+    setConfig,
+    hasEnvironments,
+    loading,
+    saving,
+    error,
+    message,
+    setMessage,
+    configPath,
+    saveConfig,
+    resetConfig,
+    hasUnsavedChanges,
+    sectionHasUnsaved,
+  };
+};

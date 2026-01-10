@@ -9,6 +9,7 @@ import {
     Loader2,
     Trash2,
 } from 'lucide-react';
+import { LoadingOverlay } from '../../../components/ui/loading-overlay';
 import { Button } from '../../../components/ui/button';
 import {
     Card,
@@ -37,11 +38,15 @@ export const RobotCard: React.FC<{
         : '';
 
     return (
-        <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
+        <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 max-w-[480px] w-full ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
             {isRefreshing && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-primary/60 backdrop-blur-[1px]">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
+                <LoadingOverlay
+                    message={t('hardware.robotCard.refreshing')}
+                    subtitle={t('hardware.robotCard.updatingStatus')}
+                    size="md"
+                    fancy
+                    className="rounded-xl"
+                />
             )}
             <CardHeader>
                 <div className="flex items-start justify-between">
@@ -54,7 +59,7 @@ export const RobotCard: React.FC<{
                                 {robot.is_transient && (
                                     <div>
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-tertiary text-content-secondary border border-border-default">
-                                            临时设备
+                                            {t('hardware.robotCard.transient')}
                                         </span>
                                     </div>
                                 )}
@@ -68,7 +73,7 @@ export const RobotCard: React.FC<{
             </CardHeader>
             <CardContent className="flex-1 space-y-4">
                 <div className="space-y-1">
-                    <p className="text-content-tertiary text-xs">Interfaces</p>
+                    <p className="text-content-tertiary text-xs">{t('hardware.robotCard.interfaces')}</p>
                     <p className="text-content-primary text-sm font-medium break-all" title={interfaces}>
                         {robot.status !== 'offline' && interfaces ? interfaces : '—'}
                     </p>
@@ -84,7 +89,7 @@ export const RobotCard: React.FC<{
                         onClick={() => navigate(`/hardware/${robot.id}/control`)}
                     >
                         <Activity className="mr-2 h-3 w-3" />
-                        Control
+                        {t('hardware.robotCard.control')}
                     </Button>
                     <Button
                         variant="secondary"
@@ -93,7 +98,7 @@ export const RobotCard: React.FC<{
                         onClick={() => navigate(`/hardware/${robot.id}/calibrate`)}
                     >
                         <Settings className="mr-2 h-3 w-3" />
-                        Calibrate
+                        {t('hardware.robotCard.calibrate')}
                     </Button>
                 </div>
                 <DropdownMenu
@@ -105,13 +110,13 @@ export const RobotCard: React.FC<{
                     items={[
                         {
                             id: 'edit',
-                            label: 'Edit Configuration',
+                            label: t('hardware.robotCard.editConfig'),
                             onClick: () => navigate(`/hardware/${robot.id}/settings`),
                             icon: <Edit className="h-4 w-4" />,
                         },
                         {
                             id: 'refresh',
-                            label: 'Refresh Status',
+                            label: t('hardware.robotCard.refreshStatus'),
                             onClick: () => onRefresh(robot.id),
                             icon: <Loader2 className="h-4 w-4" />,
                         },

@@ -12,7 +12,7 @@ def test_verify_robot_raises_on_missing_interface():
         motor_bus_connections={
             "mb": RobotMotorBusConnection(motor_bus_type="Fake", interface=None, baudrate=0)
         },
-        definition=RobotDefinition(id="", display_name="no-interface", motor_buses={}),
+        definition=RobotDefinition(id="", display_name="no-interface", description="", motor_buses={}),
     )
 
     with pytest.raises(RobotVerificationError) as exc:

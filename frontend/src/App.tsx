@@ -3,8 +3,8 @@ import { DashboardLayout } from './layouts/dashboard-layout';
 import { EnvironmentListPage } from './pages/environment-list';
 import { EnvironmentWizard } from './pages/environment-wizard';
 import { EnvironmentInstallationPage } from './pages/environment-installation';
-import { AdvancedInstallationPage } from './pages/advanced-installation-page';
-import { SettingsPage } from './pages/settings-page';
+import { AdvancedInstallationPage } from './pages/advanced-installation';
+import { SettingsPage } from './pages/settings';
 import { HardwareDashboard } from './pages/hardware-dashboard';
 
 interface ElectronAPI {

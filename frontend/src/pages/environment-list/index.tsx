@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { EmptyState } from '../../components/ui/empty-state';
 import { PageContainer } from '../../components/ui/page-container';
+import { LoadingOverlay } from '../../components/ui/loading-overlay';
 import { Environment } from './types';
 import { EnvironmentCard } from './components/EnvironmentCard';
 
@@ -118,8 +119,8 @@ export function EnvironmentListPage() {
 
     if (loading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="text-content-tertiary h-8 w-8 animate-spin" />
+            <div className="relative flex h-64 items-center justify-center">
+                <LoadingOverlay message={t('environments.loading')} size="lg" fancy className="rounded-lg" />
             </div>
         );
     }

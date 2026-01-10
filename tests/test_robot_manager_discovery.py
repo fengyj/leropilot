@@ -25,8 +25,9 @@ def test_discover_motor_buses_serial(monkeypatch):
     manager = RobotManager()
     results = manager._discover_motor_buses()
 
-    # results are tuples (bus, serial_number, manufacturer)
-    assert any(isinstance(item[0], FeetechMotorBus) for item in results)
+    # results are tuples (bus, serial_number, manufacturer). Implementations may return proxy
+    # objects whose class name matches the real class to avoid keeping hardware open.
+    assert any(item[0].__class__.__name__ == "FeetechMotorBus" for item in results)
     # ensure serial number propagated
     assert any(item[1] == 'SN1' for item in results)
 
@@ -58,6 +59,6 @@ def test_discover_motor_buses_with_filters(monkeypatch):
     # Only probe Feetech @ 1000000
     results = manager._discover_motor_buses(filters=[('feetech', 1000000)])
 
-    assert any(isinstance(item[0], FeetechMotorBus) for item in results)
+    assert any(item[0].__class__.__name__ == "FeetechMotorBus" for item in results)
     # Damiao should not be present because filters restrict to feetech
     assert not any(isinstance(item[0], DamiaoMotorBus) for item in results)

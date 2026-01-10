@@ -23,6 +23,8 @@ interface RepositoryStatusButtonProps {
   disabledTooltip?: string;
   onStatusChange?: (status: RepositoryStatus) => void;
   onDownloadComplete?: () => void;
+  // If true, the download/update control will be hidden until the initial status check completes (useful for wizard UX)
+  hideUntilChecked?: boolean;
 }
 
 export function RepositoryStatusButton({
@@ -36,6 +38,7 @@ export function RepositoryStatusButton({
   disabledTooltip,
   onStatusChange,
   onDownloadComplete,
+  hideUntilChecked = false,
 }: RepositoryStatusButtonProps) {
   const { t } = useTranslation();
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -46,6 +49,8 @@ export function RepositoryStatusButton({
   const [downloadProgress, setDownloadProgress] = useState<string | null>(null);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [isChecking, setIsChecking] = useState(true);
+  const [checkedOnce, setCheckedOnce] = useState(false); // whether initial check has completed
+
 
   const checkStatus = useCallback(
     async (signal?: AbortSignal) => {
@@ -63,6 +68,7 @@ export function RepositoryStatusButton({
           setHasUpdates(data.has_updates || false);
           onStatusChange?.(data);
         }
+        setCheckedOnce(true);
         setIsChecking(false);
       } catch (err) {
         // Ignore AbortError - this is expected when component unmounts
@@ -71,6 +77,7 @@ export function RepositoryStatusButton({
           return;
         }
         console.error('Failed to check repository status:', err);
+        setCheckedOnce(true);
         setIsChecking(false);
       }
     },
@@ -100,6 +107,8 @@ export function RepositoryStatusButton({
           console.error('Failed to check repository status:', err);
         }
       } finally {
+        // Mark that initial check completed (so callers that hideUntilChecked know we finished)
+        setCheckedOnce(true);
         setIsChecking(false);
       }
     };
@@ -185,8 +194,8 @@ export function RepositoryStatusButton({
     );
   }
 
-  // Show loading indicator while checking status
-  if (isChecking) {
+  // Show loading indicator while checking status OR until initial check completes when hideUntilChecked is used
+  if (isChecking || (!checkedOnce && hideUntilChecked)) {
     return (
       <div className="text-content-tertiary flex items-center gap-2">
         <Loader2 className="h-3 w-3 animate-spin" />
@@ -197,8 +206,8 @@ export function RepositoryStatusButton({
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      {/* Show button only if not checking and (not downloaded or has updates) */}
-      {!isChecking && (!isDownloaded || hasUpdates) && (
+      {/* Show button only if initial check completed (if requested) and (not downloaded or has updates) */}
+      {!isChecking && (!hideUntilChecked || checkedOnce) && (!isDownloaded || hasUpdates) && (
         <>
           {variant === 'link' ? (
             <button

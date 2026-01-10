@@ -12,6 +12,8 @@ from pathlib import Path
 # OS Detection
 IS_WINDOWS = platform.system() == "Windows"
 
+from leropilot.exceptions import OperationalError, ValidationError
+
 if IS_WINDOWS:
     from winpty import PtyProcess
 else:
@@ -163,7 +165,7 @@ class PtySession:
 
             except Exception as e:
                 logger.error(f"Failed to spawn PTY: {e}")
-                raise RuntimeError(f"Failed to spawn shell: {e}") from e
+                raise OperationalError("pty.spawn_failed", error=str(e)) from e
         else:
             # Linux/macOS: Native PTY (imported dynamically to satisfy mypy)
             self.pid, self.fd = _pty.fork()

@@ -13,6 +13,7 @@ from leropilot.models.environment import (
     EnvironmentInstallationPlan,
     EnvironmentInstallStep,
 )
+from leropilot.exceptions import ResourceNotFoundError, ValidationError
 from leropilot.services.pty import PtySession
 
 logger = get_logger(__name__)
@@ -46,7 +47,7 @@ class EnvironmentInstallationExecutor:
         logger.info(f"[EnvironmentInstallationExecutor] Loading installation plan from {self.env_dir}")
         self.plan = self._load_plan()
         if not self.plan:
-            raise ValueError("Installation plan not found")
+            raise ResourceNotFoundError("environment.install_failed_no_plan", id=self.env_id)
         logger.info(f"[EnvironmentInstallationExecutor] Plan loaded successfully with {len(self.plan.steps)} steps")
 
         # Delete old state file (always start fresh)
@@ -112,11 +113,13 @@ class EnvironmentInstallationExecutor:
     def _execute_command(self, step_id: str, command_index: int) -> dict[str, Any]:
         """Execute the specified command."""
         step = self._find_step(step_id)
+        if not self.installation:
+            raise ResourceNotFoundError("environment.install_not_found", id=self.env_id)
         if not step:
-            raise ValueError(f"Step {step_id} not found")
+            raise ResourceNotFoundError("environment.install_failed_invalid_step", step_id=step_id)
 
         if command_index >= len(step.commands):
-            raise ValueError(f"Command index {command_index} out of range")
+            raise ValidationError("environment.install_failed_invalid_command", index=command_index, step_id=step_id)
 
         # Check if this command is already being executed
         command_key = (step_id, command_index)

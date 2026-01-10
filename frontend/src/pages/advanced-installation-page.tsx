@@ -230,14 +230,16 @@ export function AdvancedInstallationPage() {
                       </div>
 
                       {step.commands.map((command, cmdIndex) => (
-                        <div key={cmdIndex} className="flex items-start gap-2">
+                        <div key={`command-${step.id}-${cmdIndex}`} className="flex items-start gap-2">
                           <div className="min-w-0 flex-1 space-y-1">
-                            <label className="text-content-secondary text-xs font-medium">
+                            <label htmlFor={`command-${step.id}-${cmdIndex}`} className="text-content-secondary text-xs font-medium">
                               {t('wizard.advanced.commandLabel', {
                                 number: cmdIndex + 1,
                               })}
                             </label>
                             <CodeEditor
+                              id={`command-${step.id}-${cmdIndex}`}
+                              name={`command_${step.id}_${cmdIndex}`}
                               value={command}
                               onChange={(value) =>
                                 handleCommandUpdate(step.id, cmdIndex, value)

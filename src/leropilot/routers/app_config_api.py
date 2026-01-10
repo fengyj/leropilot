@@ -1,6 +1,6 @@
 """Configuration API endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from leropilot.logger import get_logger
 from leropilot.models.app_config import AppConfig
@@ -31,30 +31,11 @@ async def get_current_config() -> AppConfig:
 
 @router.put("", response_model=AppConfig)
 async def update_config(config: AppConfig) -> AppConfig:
-    """Update application configuration with validation and data migration.
-
-    Args:
-        config: New configuration
-
-    Returns:
-        Updated configuration
-
-    Raises:
-        HTTPException: If config save fails or data_dir change is invalid
-    """
-    try:
-        return await update_config_business_logic(config)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save config: {str(e)}") from e
+    """Update application configuration with validation and data migration."""
+    return await update_config_business_logic(config)
 
 
 @router.post("/reset", response_model=AppConfig)
 async def reset_config() -> AppConfig:
-    """Reset configuration to defaults, preserving data_dir if environments exist.
-
-    Returns:
-        Reset configuration
-    """
+    """Reset configuration to defaults, preserving data_dir if environments exist."""
     return await reset_config_business_logic()

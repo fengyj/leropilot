@@ -17,8 +17,12 @@ import importlib.resources
 import json
 import logging
 
+from leropilot.exceptions import (
+    OperationalError,
+    ResourceNotFoundError,
+    ValidationError,
+)
 from leropilot.models.hardware import (
-    AmbiguousModelError,
     InterfaceType,
     MotorBrand,
     MotorDiscoverResult,
@@ -221,7 +225,12 @@ class MotorService:
 
         # If multiple matches and no base match, this is ambiguous
         if len(matches) > 1:
-            raise AmbiguousModelError(f"Model id {model_id} is ambiguous for brand {brand}: {[m[0] for m in matches]}")
+            raise ValidationError(
+                "hardware.motor_device.ambiguous_model",
+                model_id=model_id,
+                brand=brand,
+                matches=[m[0] for m in matches],
+            )
 
         # Single match
         return matches[0]

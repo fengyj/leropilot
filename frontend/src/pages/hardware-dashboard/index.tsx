@@ -4,19 +4,20 @@ import {
     Plus,
     Bot,
     Camera,
+    RefreshCw,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Modal } from '../../components/ui/modal';
-import { AddRobotModal } from '../../components/add-robot-modal';
+import { AddRobotModal } from './components/add-robot-modal';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { EmptyState } from '../../components/ui/empty-state';
 import { PageContainer } from '../../components/ui/page-container';
 import { Robot, CameraSummary } from '../../types/hardware';
+import { LoadingOverlay } from '../../components/ui/loading-overlay';
 
 import { RobotCard } from './components/RobotCard';
 import { CameraCard } from './components/CameraCard';
 import { CameraPreview } from './components/CameraPreview';
-import { LoadingSkeleton } from './components/LoadingSkeleton';
 
 export function HardwareDashboard() {
     const { t } = useTranslation();
@@ -24,7 +25,8 @@ export function HardwareDashboard() {
     const [cameras, setCameras] = useState<CameraSummary[]>([]);
     const [loadingRobots, setLoadingRobots] = useState(true);
     const [loadingCameras, setLoadingCameras] = useState(true);
-    const [refreshing, setRefreshing] = useState<string | null>(null); // robot id
+    const [refreshing, setRefreshing] = useState<string | null>(null); // robot id or 'all'
+    const [refreshingCameras, setRefreshingCameras] = useState(false);
     const [previewCamera, setPreviewCamera] = useState<CameraSummary | null>(null);
     const [isAddRobotOpen, setIsAddRobotOpen] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -54,6 +56,18 @@ export function HardwareDashboard() {
         }
     };
 
+    const handleRefreshAllRobots = async () => {
+        try {
+            setRefreshing('all');
+            await fetch('/api/hardware/robots?refresh_status=true');
+            await fetchRobots();
+        } catch (error) {
+            console.error('Failed to refresh robots:', error);
+        } finally {
+            setRefreshing(null);
+        }
+    };
+
     const fetchCameras = async () => {
         try {
             const response = await fetch('/api/hardware/cameras');
@@ -64,6 +78,17 @@ export function HardwareDashboard() {
             console.error('Failed to fetch cameras:', error);
         } finally {
             setLoadingCameras(false);
+        }
+    };
+
+    const handleRefreshAllCameras = async () => {
+        try {
+            setRefreshingCameras(true);
+            await fetchCameras();
+        } catch (error) {
+            console.error('Failed to refresh cameras:', error);
+        } finally {
+            setRefreshingCameras(false);
         }
     };
 
@@ -131,44 +156,62 @@ export function HardwareDashboard() {
                 onCancel={handleDeleteCancel}
             />
 
-            {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-content-primary text-2xl font-bold tracking-tight">
-                        {t('nav.devices')}
+                        {t('hardware.dashboard.title')}
                     </h1>
                     <p className="text-content-secondary">
-                        管理您连接的机器人、手臂、相机及其他辅助硬件。
+                        {t('hardware.dashboard.subtitle')}
                     </p>
-                </div>
-                <div>
-                    <Button onClick={() => setIsAddRobotOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        添加机器人
-                    </Button>
                 </div>
             </div>
 
             {/* Robots Group */}
             <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold text-content-primary">
-                        Robots & Arms
-                    </h2>
-                    <span className="ml-2 rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-content-secondary border border-border-default">
-                        {robots.length}
-                    </span>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Bot className="h-5 w-5 text-primary" />
+                        <h2 className="text-lg font-semibold text-content-primary">
+                            {t('hardware.dashboard.robotsTitle')}
+                        </h2>
+                        <span className="ml-2 rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-content-secondary border border-border-default">
+                            {robots.length}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={() => setIsAddRobotOpen(true)}
+                            className={`h-10 px-4 py-2 ${loadingRobots || refreshing === 'all' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            disabled={loadingRobots || refreshing === 'all'}
+                            aria-disabled={loadingRobots || refreshing === 'all'}
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('hardware.dashboard.addRobot')}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRefreshAllRobots}
+                            disabled={loadingRobots || refreshing === 'all'}
+                            className="h-10 w-10 flex items-center justify-center rounded-md hover:bg-surface-secondary/10"
+                            title={t('hardware.dashboard.refreshRobots')}
+                            aria-label={t('hardware.dashboard.refreshRobots')}
+                        >
+                            <RefreshCw className={`h-4 w-4 ${refreshing === 'all' ? 'animate-spin' : ''}`} />
+                            <span className="sr-only">{t('hardware.dashboard.refreshRobots')}</span>
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="min-h-[200px]">
+                <div className="min-h-[200px] relative">
                     {robots.length > 0 ? (
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                             {robots.map((robot) => (
                                 <RobotCard
                                     key={robot.id}
                                     robot={robot}
-                                    isRefreshing={refreshing === robot.id || refreshing === 'all'}
+                                    isRefreshing={refreshing === robot.id}
                                     onRefresh={handleRefreshRobot}
                                     onDelete={handleDeleteRobot}
                                 />
@@ -180,30 +223,55 @@ export function HardwareDashboard() {
                             message={t('hardware.noRobots')}
                             size="md"
                             action={{
-                                label: '添加机器人',
+                                label: t('hardware.dashboard.addRobot'),
                                 icon: <Plus className="mr-2 h-4 w-4" />,
                                 onClick: () => setIsAddRobotOpen(true),
                             }}
                         />
-                    ) : (
-                        <LoadingSkeleton />
+                    ) : null}
+
+                    {/* Group / page-level loading overlay */}
+                    {(loadingRobots || refreshing === 'all') && (
+                        <LoadingOverlay
+                            message={loadingRobots ? t('hardware.dashboard.loadingDevices') : t('hardware.dashboard.refreshing')}
+                            subtitle={loadingRobots ? undefined : t('hardware.dashboard.refreshingRobotsStatus')}
+                            size="lg"
+                            fancy
+                            className="rounded-lg"
+                        />
                     )}
                 </div>
             </section>
 
             {/* Cameras Group */}
             <section className="space-y-4 pt-4 border-t border-border-default">
-                <div className="flex items-center gap-2">
-                    <Camera className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold text-content-primary">
-                        Cameras
-                    </h2>
-                    <span className="ml-2 rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-content-secondary border border-border-default">
-                        {cameras.length}
-                    </span>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Camera className="h-5 w-5 text-primary" />
+                        <h2 className="text-lg font-semibold text-content-primary">
+                            {t('hardware.dashboard.camerasTitle')}
+                        </h2>
+                        <span className="ml-2 rounded-full bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-content-secondary border border-border-default">
+                            {cameras.length}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRefreshAllCameras}
+                            disabled={loadingCameras || refreshingCameras}
+                            className="h-10 w-10 flex items-center justify-center rounded-md hover:bg-surface-secondary/10 disabled:opacity-60 disabled:cursor-not-allowed"
+                            title={t('hardware.dashboard.refreshCameras')}
+                            aria-label={t('hardware.dashboard.refreshCameras')}
+                        >
+                            <RefreshCw className={`h-4 w-4 ${refreshingCameras ? 'animate-spin' : ''}`} />
+                            <span className="sr-only">{t('hardware.dashboard.refreshCameras')}</span>
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="min-h-[200px]">
+                <div className="min-h-[200px] relative">
                     {cameras.length > 0 ? (
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                             {cameras.map((camera) => (
@@ -220,8 +288,16 @@ export function HardwareDashboard() {
                             message={t('hardware.noCameras')}
                             size="md"
                         />
-                    ) : (
-                        <LoadingSkeleton />
+                    ) : null}
+
+                    {(loadingCameras || refreshingCameras) && (
+                        <LoadingOverlay
+                            message={loadingCameras ? t('hardware.dashboard.loadingCameras') : t('hardware.dashboard.refreshing')}
+                            subtitle={loadingCameras ? undefined : t('hardware.dashboard.refreshingCamerasStatus')}
+                            size="lg"
+                            fancy
+                            className="rounded-lg"
+                        />
                     )}
                 </div>
             </section>
@@ -230,7 +306,7 @@ export function HardwareDashboard() {
             <Modal
                 isOpen={!!previewCamera}
                 onClose={() => setPreviewCamera(null)}
-                title={previewCamera ? `Preview: ${previewCamera.name}` : ''}
+                title={previewCamera ? t('hardware.dashboard.previewCameraTitle', { name: previewCamera.name }) : ''}
                 className="max-w-4xl border-zinc-700 shadow-2xl ring-1 ring-white/10"
             >
                 {previewCamera && (
@@ -238,7 +314,7 @@ export function HardwareDashboard() {
                         <CameraPreview camera={previewCamera} />
                         <div className="p-4 bg-surface-secondary border-t border-border-subtle flex justify-end items-center gap-4">
                             <div className="mr-auto text-xs text-content-tertiary">
-                                {previewCamera.available ? '● Streaming' : '○ Offline'}
+                                {previewCamera.available ? t('hardware.dashboard.streaming') : t('hardware.dashboard.offline')}
                             </div>
                             <Button
                                 variant="secondary"
@@ -246,7 +322,7 @@ export function HardwareDashboard() {
                                 onClick={() => setPreviewCamera(null)}
                                 className="px-6"
                             >
-                                关闭 (Close)
+                                {t('common.close')}
                             </Button>
                         </div>
                     </div>

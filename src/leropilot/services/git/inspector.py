@@ -136,14 +136,28 @@ class ExtrasMetadataService:
         """
         enriched = []
         for extra_key in raw_extras:
-            info = self.i18n.get_extra_info(extra_key, lang)
+            # Resolve localized name & description (prefer flat keys)
+            name = self.i18n.translate(
+                f"environment.lerobot_extra_packages.{extra_key}.name", lang=lang, default=extra_key
+            )
+            description = self.i18n.translate(
+                f"environment.lerobot_extra_packages.{extra_key}.description", lang=lang, default=""
+            )
+
+            # Determine category from i18n data (strict flat key only)
+            extra_data = self.i18n.get_block("environment.lerobot_extra_packages").get(extra_key, {})
+            category = extra_data.get("category", "other")
+            category_label = self.i18n.translate(
+                f"environment.lerobot_extra_package_categories.{category}", lang=lang, default=category
+            )
+
             enriched.append(
                 {
                     "id": extra_key,
-                    "name": info["name"],
-                    "description": info["description"],
-                    "category": info["category"],
-                    "category_label": info["category_label"],
+                    "name": name,
+                    "description": description,
+                    "category": category,
+                    "category_label": category_label,
                 }
             )
         return enriched

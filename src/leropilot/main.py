@@ -4,12 +4,13 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from leropilot import __version__
+from leropilot.exceptions import AppBaseError
 from leropilot.logger import get_logger
 from leropilot.middleware import IdempotencyMiddleware
 from leropilot.routers import app_config_api as config_router
@@ -19,6 +20,7 @@ from leropilot.routers import repositories_api as repositories_router
 from leropilot.routers import tools_api as tools_router
 from leropilot.routers import web_sockets_api as terminal_router
 from leropilot.services.config import get_config
+from leropilot.services.i18n import get_i18n_service
 from leropilot.utils import get_static_dir
 
 # Configure basic logging early to capture config loading messages
@@ -55,6 +57,34 @@ app.add_middleware(
 
 # Add Idempotency middleware (after CORS)
 app.add_middleware(IdempotencyMiddleware, ttl_hours=24)
+
+
+@app.exception_handler(AppBaseError)
+async def app_base_error_handler(request: Request, exc: AppBaseError) -> JSONResponse:
+    """Global handler for application-specific errors."""
+    # Log the error with English detail and stack trace
+    logger.exception(f"Application error: {exc}")
+
+    # Extract language from query params (fallback to system config)
+    lang = request.query_params.get("lang")
+    if not lang:
+        from leropilot.services.config import get_config
+        config = get_config()
+        lang = config.ui.preferred_language
+
+    # Translate the message
+    i18n = get_i18n_service()
+    detail = i18n.translate(exc.i18n_key, lang=lang, **exc.params)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": detail,
+            "key": exc.i18n_key,
+            "retriable": exc.retriable,
+            "params": exc.params,
+        },
+    )
 
 
 @app.get("/api/hello", operation_id="hello_api_hello_get")
