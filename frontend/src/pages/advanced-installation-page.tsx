@@ -179,7 +179,7 @@ export function AdvancedInstallationPage() {
               key={step.id}
               className={cn(
                 'transition-all',
-                step.status === 'running' && 'border-blue-500 ring-1 ring-blue-500',
+                step.status === 'running' && 'border-primary ring-1 ring-primary',
               )}
             >
               <div
@@ -255,7 +255,7 @@ export function AdvancedInstallationPage() {
                           </div>
                           <button
                             onClick={() => handleDeleteCommand(step.id, cmdIndex)}
-                            className="mt-6 rounded p-1 text-content-tertiary transition-colors hover:bg-surface-tertiary hover:text-error-icon focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+                            className="mt-6 focus-visible:ring-primary rounded p-1 text-content-tertiary transition-colors hover:bg-surface-tertiary hover:text-error-icon focus-visible:ring-2 focus-visible:outline-none"
                             title={t('wizard.advanced.deleteCommand')}
                           >
                             <Trash2 className="text-content-tertiary hover:text-error-icon h-4 w-4" />

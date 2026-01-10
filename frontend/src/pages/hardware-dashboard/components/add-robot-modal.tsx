@@ -598,8 +598,8 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
               </div>
 
               {/* Bottom Actions: Part of scroll flow */}
-              <div className="pt-6 border-t border-zinc-800 flex justify-end items-center gap-3 mt-auto">
-                <Button variant="secondary" onClick={onClose} className="border-zinc-700">
+              <div className="pt-6 border-t border-border-default flex justify-end items-center gap-3 mt-auto">
+                <Button variant="secondary" onClick={onClose} className="border-border-default">
                   {t('common.cancel')}
                 </Button>
                 <Button
@@ -625,14 +625,14 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         className="max-w-md"
       >
         <div className="p-6 flex flex-col items-center text-center">
-          <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-            <AlertCircle className="h-6 w-6 text-red-500" />
+          <div className="h-12 w-12 rounded-full bg-error-surface flex items-center justify-center mb-4">
+            <AlertCircle className="h-6 w-6 text-error-icon" />
           </div>
           <h3 className="text-lg font-bold text-content-primary mb-2">{t('hardware.addRobotModal.error')}</h3>
           <p className="text-sm text-content-secondary mb-6">
             {errorMsg}
           </p>
-          <Button onClick={() => setErrorMsg(null)} className="w-full bg-red-600 hover:bg-red-700 text-white border-0">
+          <Button onClick={() => setErrorMsg(null)} variant="danger" className="w-full">
             {t('common.confirm')}
           </Button>
         </div>

@@ -26,7 +26,7 @@ export function LanguageSection({
             </p>
           </div>
           {hasUnsavedChanges && (
-            <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
+            <span className="rounded border border-warning-border bg-warning-surface px-2 py-1 text-xs font-medium text-warning-content">
               {t('settings.unsavedChanges')}
             </span>
           )}
@@ -38,7 +38,7 @@ export function LanguageSection({
             {t('settings.language.preferredLanguage')}
           </label>
           <select
-            className="border-border-default bg-surface-secondary text-content-primary mt-2 w-full rounded-md border px-3 py-2 focus:border-blue-500 focus:outline-none"
+            className="border-border-default bg-surface-secondary text-content-primary mt-2 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none"
             value={config.ui.preferred_language}
             onChange={(e) => {
               setConfig({

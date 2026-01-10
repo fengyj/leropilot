@@ -212,7 +212,7 @@ export function StepVersionSelection() {
               className={cn(
                 'relative flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all',
                 config.lerobotVersion === version.tag
-                  ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10'
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
                   : 'border-border-default bg-surface-secondary hover:border-border-subtle',
               )}
             >
@@ -236,7 +236,7 @@ export function StepVersionSelection() {
               </div>
 
               {config.lerobotVersion === version.tag && (
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
+                <div className="bg-primary text-primary-content flex h-5 w-5 items-center justify-center rounded-full">
                   <Check className="h-3 w-3" />
                 </div>
               )}

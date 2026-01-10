@@ -15,7 +15,7 @@ export const InstallStepList = ({ steps }: InstallStepListProps) => {
             {steps.length === 0 ? (
                 <div className="flex items-center justify-center py-8">
                     <div className="flex items-center gap-3">
-                        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                        <Loader2 className="text-primary h-5 w-5 animate-spin" />
                         <span className="text-content-secondary">
                             {t('wizard.installation.preparingSteps')}
                         </span>
@@ -37,16 +37,16 @@ export const InstallStepList = ({ steps }: InstallStepListProps) => {
                                         className={cn(
                                             'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all',
                                             isPending && 'border-border-default bg-surface-primary',
-                                            isRunning && 'border-blue-600 bg-blue-50 dark:bg-blue-950',
-                                            isSuccess && 'border-green-600 bg-green-50 dark:bg-green-950',
-                                            isError && 'border-red-600 bg-red-50 dark:bg-red-950',
+                                            isRunning && 'border-primary bg-primary/10',
+                                            isSuccess && 'border-success-icon bg-success-surface',
+                                            isError && 'border-error-icon bg-error-surface',
                                         )}
                                     >
                                         {isPending && (
                                             <Circle className="text-content-tertiary h-5 w-5" />
                                         )}
                                         {isRunning && (
-                                            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                                            <Loader2 className="text-primary h-5 w-5 animate-spin" />
                                         )}
                                         {isSuccess && (
                                             <CheckCircle2 className="text-success-icon h-5 w-5" />
@@ -58,9 +58,9 @@ export const InstallStepList = ({ steps }: InstallStepListProps) => {
                                             className={cn(
                                                 'max-w-[120px] truncate text-xs font-medium',
                                                 isPending && 'text-content-tertiary',
-                                                isRunning && 'text-blue-600',
-                                                isSuccess && 'text-green-600',
-                                                isError && 'text-red-600',
+                                                isRunning && 'text-primary',
+                                                isSuccess && 'text-success-icon',
+                                                isError && 'text-error-icon',
                                             )}
                                             title={step.name}
                                         >
@@ -74,7 +74,7 @@ export const InstallStepList = ({ steps }: InstallStepListProps) => {
                                     <div
                                         className={cn(
                                             'mx-2 h-0.5 w-8 flex-shrink-0 transition-all lg:w-16',
-                                            isSuccess ? 'bg-green-600' : 'bg-border-default',
+                                            isSuccess ? 'bg-success-icon' : 'bg-border-default',
                                         )}
                                     />
                                 )}

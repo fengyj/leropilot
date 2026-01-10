@@ -138,7 +138,7 @@ export function StepExtrasSelection() {
           className={cn(
             'relative flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-all',
             isAllSelected
-              ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10'
+              ? 'border-primary bg-primary/5 dark:bg-primary/10'
               : 'border-border-default bg-surface-secondary hover:border-border-subtle',
           )}
         >
@@ -153,7 +153,7 @@ export function StepExtrasSelection() {
             </p>
           </div>
           {isAllSelected && (
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
+            <div className="bg-primary text-primary-content flex h-5 w-5 items-center justify-center rounded-full">
               <Check className="h-3 w-3" />
             </div>
           )}
@@ -182,7 +182,7 @@ export function StepExtrasSelection() {
                       ? 'border-border-default bg-surface-tertiary cursor-not-allowed'
                       : 'cursor-pointer',
                     !isAllSelected && (config.extras || []).includes(extra.id)
-                      ? 'border-blue-600 bg-blue-600/5 dark:bg-blue-600/10'
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
                       : !isAllSelected &&
                           'border-border-default bg-surface-secondary hover:border-border-subtle',
                   )}
@@ -198,7 +198,7 @@ export function StepExtrasSelection() {
                     </p>
                   </div>
                   {!isAllSelected && (config.extras || []).includes(extra.id) && (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white">
+                    <div className="bg-primary text-primary-content flex h-5 w-5 items-center justify-center rounded-full">
                       <Check className="h-3 w-3" />
                     </div>
                   )}

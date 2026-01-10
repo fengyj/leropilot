@@ -51,9 +51,9 @@ export function EnvironmentInstallationPage() {
                 <div className="border-border-default bg-surface-secondary/50 flex items-center justify-between border-b px-4 py-3">
                     <div className="flex items-center gap-2">
                         <div className="flex gap-1.5">
-                            <div className="h-3 w-3 rounded-full bg-red-500" />
-                            <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                            <div className="h-3 w-3 rounded-full bg-green-500" />
+                            <div className="bg-error-icon h-3 w-3 rounded-full" />
+                            <div className="bg-warning-icon h-3 w-3 rounded-full" />
+                            <div className="bg-success-icon h-3 w-3 rounded-full" />
                         </div>
                         <span className="text-content-primary ml-2 text-sm font-medium">
                             {t('wizard.installation.terminal')}
@@ -73,7 +73,7 @@ export function EnvironmentInstallationPage() {
                         )}
                     </div>
                 </div>
-                <div className="h-[500px] w-full bg-[#1e1e1e]">
+                <div className="bg-surface-primary h-[500px] w-full">
                     {ptySessionId ? (
                         <WebTerminal
                             sessionId={ptySessionId}

@@ -213,7 +213,7 @@ export function EnvironmentWizard() {
               className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors',
                 step >= s.id
-                  ? 'border-blue-600 bg-blue-600 text-white'
+                  ? 'border-primary bg-primary text-primary-content'
                   : 'border-border-default bg-surface-secondary text-content-tertiary',
               )}
             >
@@ -223,7 +223,7 @@ export function EnvironmentWizard() {
               className={cn(
                 'hidden text-xs font-medium sm:block',
                 step >= s.id
-                  ? 'text-blue-600 dark:text-blue-500'
+                  ? 'text-primary'
                   : 'text-content-tertiary',
               )}
             >

@@ -52,7 +52,7 @@ test.describe('Settings - Theme and Language', () => {
     // The button for "Light" theme should have the active class
     // We can find it by text "Light" (or "亮色" if it was Chinese, but default is en)
     const lightThemeBtn = page.getByRole('button', { name: 'Light' });
-    await expect(lightThemeBtn).toHaveClass(/border-blue-600/);
+    await expect(lightThemeBtn).toHaveClass(/border-primary/);
 
     // Check Language "English" is selected
     const langSelect = page.locator('select').filter({ hasText: 'English' });

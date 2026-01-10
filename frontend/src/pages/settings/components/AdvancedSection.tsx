@@ -27,7 +27,7 @@ export function AdvancedSection({ config, setConfig }: AdvancedSectionProps) {
           </label>
           <input
             type="number"
-            className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-primary focus:outline-none"
             value={config.advanced.installation_timeout}
             onChange={(e) =>
               setConfig({
@@ -49,7 +49,7 @@ export function AdvancedSection({ config, setConfig }: AdvancedSectionProps) {
             {t('settings.advanced.logLevel')}
           </label>
           <select
-            className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-primary focus:outline-none"
             value={config.advanced.log_level}
             onChange={(e) =>
               setConfig({

@@ -37,7 +37,7 @@ export function PathsSection({
               <div className="space-y-1">
                 <input
                   type="text"
-                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="border-border-default bg-surface-secondary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-primary focus:outline-none"
                   value={config.paths.data_dir}
                   onChange={(e) =>
                     setConfig({

@@ -102,7 +102,7 @@ export function StepReview() {
               {t('wizard.review.advancedMode')}
             </span>
           </div>
-          <div className="text-sm font-medium text-blue-600">
+          <div className="text-primary text-sm font-medium">
             {t('wizard.review.customize')} &gt;
           </div>
         </button>

@@ -40,7 +40,7 @@ export function CommandsEditor({ stepId, commands, onChange, onDelete, onAdd }: 
           </div>
           <button
             onClick={() => onDelete(stepId, cmdIndex)}
-            className="mt-6 rounded p-1 text-content-tertiary transition-colors hover:bg-surface-tertiary hover:text-error-icon focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+            className="mt-6 focus-visible:ring-primary rounded p-1 text-content-tertiary transition-colors hover:bg-surface-tertiary hover:text-error-icon focus-visible:ring-2 focus-visible:outline-none"
             title={t('wizard.advanced.deleteCommand')}
           >
             <Trash2 className="text-content-tertiary hover:text-error-icon h-4 w-4" />

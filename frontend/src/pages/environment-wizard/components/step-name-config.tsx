@@ -244,15 +244,15 @@ export function StepNameConfig() {
             onBlur={(e) => validateName(e.target.value, false)}
             placeholder="e.g. My LeRobot Project"
             className={cn(
-              'border-border-default bg-surface-secondary text-content-primary placeholder:text-content-tertiary w-full rounded-lg border px-4 py-2 transition-colors outline-none focus:border-blue-600',
-              friendlyNameError && 'border-red-500 focus:border-red-500',
+              'border-border-default bg-surface-secondary text-content-primary placeholder:text-content-tertiary w-full rounded-lg border px-4 py-2 transition-colors outline-none focus:border-primary',
+              friendlyNameError && 'border-error-border focus:border-error-border',
             )}
           />
           <p className="text-content-tertiary text-xs">
             {t('wizard.nameConfig.friendlyNameHelp')}
           </p>
           {friendlyNameError && (
-            <p className="text-sm text-red-500">{friendlyNameError}</p>
+            <p className="text-error-content text-sm">{friendlyNameError}</p>
           )}
         </div>
 
@@ -270,15 +270,15 @@ export function StepNameConfig() {
               onBlur={(e) => validateName(e.target.value, true)}
               placeholder="e.g. my-lerobot-project"
               className={cn(
-                'border-border-default bg-surface-secondary text-content-primary placeholder:text-content-tertiary w-full rounded-lg border px-4 py-2 font-mono text-sm transition-colors outline-none focus:border-blue-600',
-                envNameError && 'border-red-500 focus:border-red-500',
+                'border-border-default bg-surface-secondary text-content-primary placeholder:text-content-tertiary w-full rounded-lg border px-4 py-2 font-mono text-sm transition-colors outline-none focus:border-primary',
+                envNameError && 'border-error-border focus:border-error-border',
               )}
             />
           </div>
           <p className="text-content-tertiary text-xs">
             {t('wizard.nameConfig.internalNameHelp')}
           </p>
-          {envNameError && <p className="text-sm text-red-500">{envNameError}</p>}
+          {envNameError && <p className="text-error-content text-sm">{envNameError}</p>}
         </div>
       </div>
     </div>

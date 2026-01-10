@@ -87,7 +87,7 @@ export function DropdownMenu({ trigger, triggerClassName, items, align = 'right'
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'text-content-secondary hover:text-content-primary hover:bg-surface-tertiary dark:hover:bg-zinc-700 inline-flex h-9 items-center gap-2 rounded-lg px-3 py-2 transition-all focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+          'text-content-secondary hover:text-content-primary hover:bg-surface-tertiary dark:hover:bg-border-subtle inline-flex h-9 items-center gap-2 rounded-lg px-3 py-2 transition-all focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
           isOpen && 'bg-surface-tertiary text-content-primary',
           triggerClassName,
         )}

@@ -233,7 +233,7 @@ describe('SettingsPage', () => {
       const lightButton = screen
         .getByText('settings.appearance.light')
         .closest('button');
-      expect(lightButton).toHaveClass('border-blue-600');
+      expect(lightButton).toHaveClass('border-primary');
     });
   });
 

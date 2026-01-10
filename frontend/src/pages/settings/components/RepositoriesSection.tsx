@@ -115,7 +115,7 @@ export function RepositoriesSection({
                 </label>
                 <input
                   type="text"
-                  className="border-border-default bg-surface-primary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="border-border-default bg-surface-primary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-primary focus:outline-none"
                   value={newRepoName}
                   onChange={(e) => setNewRepoName(e.target.value)}
                   placeholder="e.g. Official"
@@ -127,7 +127,7 @@ export function RepositoriesSection({
                 </label>
                 <input
                   type="text"
-                  className="border-border-default bg-surface-primary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="border-border-default bg-surface-primary text-content-primary w-full rounded-md border px-3 py-2 text-sm focus:border-primary focus:outline-none"
                   value={newRepoUrl}
                   onChange={(e) => setNewRepoUrl(e.target.value)}
                   placeholder="https://github.com/..."

@@ -28,7 +28,7 @@ export function AppearanceSection({
             </p>
           </div>
           {hasUnsavedChanges && (
-            <span className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
+            <span className="bg-warning-surface text-warning-content border-warning-border rounded border px-2 py-1 text-xs font-medium">
               {t('settings.unsavedChanges')}
             </span>
           )}
@@ -53,7 +53,7 @@ export function AppearanceSection({
                   className={cn(
                     'flex flex-col items-center gap-2 rounded-lg border p-4 transition-all',
                     config.ui.theme === theme
-                      ? 'border-blue-600 bg-blue-600/10 text-blue-500'
+                      ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border-default bg-surface-tertiary text-content-secondary hover:border-border-subtle',
                   )}
                 >

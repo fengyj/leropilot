@@ -214,7 +214,7 @@ export function RepositoryStatusButton({
               type="button"
               onClick={handleDownload}
               disabled={loading}
-              className="text-sm text-blue-500 hover:underline disabled:opacity-50"
+              className="text-info-icon text-sm hover:underline disabled:opacity-50"
               title={
                 isDownloaded
                   ? `${t('repositoryStatus.update')} ${repoName}`
@@ -241,7 +241,7 @@ export function RepositoryStatusButton({
                   'relative gap-2 overflow-hidden transition-all',
                   isDownloaded && !loading
                     ? 'text-content-secondary hover:text-content-primary hover:border-content-secondary'
-                    : 'border-blue-200 bg-blue-50 text-blue-600 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40',
+                    : 'border-info-border bg-info-surface text-info-icon hover:brightness-95 dark:hover:brightness-125',
                 )}
                 style={
                   loading && progressPercent > 0
@@ -283,7 +283,7 @@ export function RepositoryStatusButton({
                 )}
               </Button>
               {disabled && disabledTooltip && (
-                <div className="absolute top-full left-1/2 z-10 mt-1 hidden -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+                <div className="bg-surface-inverse text-content-inverse absolute top-full left-1/2 z-10 mt-1 hidden -translate-x-1/2 rounded-md px-3 py-2 text-xs whitespace-nowrap shadow-lg group-hover:block">
                   {disabledTooltip}
                 </div>
               )}
@@ -295,8 +295,8 @@ export function RepositoryStatusButton({
       {/* Show status icon only if not checking, downloaded, not loading, and up-to-date (no updates) */}
       {!isChecking && isDownloaded && !loading && !hasUpdates && (
         <div className="group relative">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
-          <div className="absolute top-6 left-1/2 z-10 hidden -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+          <CheckCircle2 className="text-success-icon h-4 w-4" />
+          <div className="bg-surface-inverse text-content-inverse absolute top-6 left-1/2 z-10 hidden -translate-x-1/2 rounded-md px-3 py-2 text-xs whitespace-nowrap shadow-lg group-hover:block">
             {lastUpdatedTime
               ? t('repositoryStatus.updatedAt', {
                   date: new Date(parseInt(lastUpdatedTime)).toLocaleDateString(),
