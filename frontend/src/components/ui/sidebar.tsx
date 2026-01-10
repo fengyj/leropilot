@@ -25,11 +25,14 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="border-border-default bg-surface-secondary flex w-64 flex-shrink-0 flex-col border-r">
-      <div className="border-border-default flex h-16 items-center border-b px-6">
+    <div className="relative border-border-default bg-surface-secondary/95 supports-[backdrop-filter]:bg-surface-secondary/60 flex w-64 flex-shrink-0 flex-col border-r backdrop-blur-md">
+      {/* Sidebar background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+      
+      <div className="border-border-subtle flex h-16 items-center border-b px-6 relative z-10">
         <div className="flex items-center gap-2">
           <img src={logo} alt="LeRoPilot Logo" className="h-8 w-8 rounded-lg" />
-          <span className="text-content-primary text-lg font-bold">LeRoPilot</span>
+          <span className="text-content-primary font-sans text-lg font-bold tracking-tight">LeRoPilot</span>
         </div>
       </div>
 
@@ -43,13 +46,16 @@ export function Sidebar() {
               key={item.href}
               to={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group relative',
                 isActive
-                  ? 'bg-info-surface text-info-icon'
+                  ? 'bg-primary/10 text-primary shadow-sm'
                   : 'text-content-secondary hover:bg-surface-tertiary hover:text-content-primary',
               )}
             >
-              <Icon className="h-5 w-5" />
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 bg-primary rounded-r-full" />
+              )}
+              <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", isActive && "text-primary")} />
               {item.label}
             </Link>
           );

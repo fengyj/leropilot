@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Loader2, Circle, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Circle, XCircle } from 'lucide-react';
+import { StatusBadge } from '../../../components/ui/status-badge';
 import { cn } from '../../../utils/cn';
 import { InstallStep } from '../types';
 
@@ -49,7 +50,7 @@ export const InstallStepList = ({ steps }: InstallStepListProps) => {
                                             <Loader2 className="text-primary h-5 w-5 animate-spin" />
                                         )}
                                         {isSuccess && (
-                                            <CheckCircle2 className="text-success-icon h-5 w-5" />
+                                            <div className="h-2 w-2 rounded-full bg-success-icon" />
                                         )}
                                         {isError && <XCircle className="text-error-icon h-5 w-5" />}
                                     </div>

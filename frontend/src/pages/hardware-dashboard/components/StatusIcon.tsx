@@ -1,30 +1,36 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { DeviceStatus } from '../../../types/hardware';
+import { StatusBadge, StatusVariant, PulseSpeed } from '../../../components/ui/status-badge';
 
 export const StatusIcon: React.FC<{ status: DeviceStatus }> = ({ status }) => {
     const { t } = useTranslation();
 
-    const icon = () => {
-        switch (status) {
+    const getStatusConfig = (s: DeviceStatus): { variant: StatusVariant; pulse?: PulseSpeed } => {
+        switch (s) {
             case 'available':
-                return <CheckCircle2 className="text-success-icon h-5 w-5" />;
+                // Use default 'slow' pulse for success
+                return { variant: 'success' };
             case 'occupied':
-                return <Clock className="text-warning-icon h-5 w-5" />;
+                return { variant: 'warning' };
             case 'invalid':
-                return <AlertTriangle className="text-error-icon h-5 w-5" />;
+                return { variant: 'error', pulse: 'fast' };
             case 'offline':
             default:
-                return <div className="h-5 w-5 rounded-full border-2 border-border-default opacity-50" />;
+                return { variant: 'neutral', pulse: 'none' };
         }
     };
 
-    const statusKey = `hardware.status.${status}` as const;
+    const config = getStatusConfig(status);
+    const statusKey = `hardware.status.${status}`;
 
     return (
-        <div className="cursor-help" title={t(statusKey)}>
-            {icon()}
-        </div>
+        <StatusBadge 
+            variant={config.variant} 
+            pulse={config.pulse} 
+            title={t(statusKey)}
+        >
+            {t(statusKey)}
+        </StatusBadge>
     );
 };

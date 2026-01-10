@@ -24,6 +24,7 @@ import { LoadingOverlay } from '../../components/ui/loading-overlay';
 import { PageContainer } from '../../components/ui/page-container';
 import { Modal } from '../../components/ui/modal';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { StatusBadge } from '../../components/ui/status-badge';
 
 export function DesignSystemPreview() {
     const [showModal, setShowModal] = useState(false);
@@ -252,25 +253,11 @@ export function DesignSystemPreview() {
 
                     <div className="space-y-6">
                         <div className="flex flex-wrap gap-4 items-center">
-                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-success-surface text-success-content text-xs font-semibold border border-success-border">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-icon opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-success-icon"></span>
-                                </span>
-                                ONLINE
-                            </span>
-                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-tertiary text-content-secondary text-xs font-semibold border border-border-default">
-                                <span className="h-2 w-2 rounded-full bg-content-tertiary"></span>
-                                OFFLINE
-                            </span>
-                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-warning-surface text-warning-content text-xs font-semibold border border-warning-border">
-                                <span className="h-2 w-2 rounded-full bg-warning-icon"></span>
-                                READY
-                            </span>
-                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-error-surface text-error-content text-xs font-semibold border border-error-border">
-                                <span className="h-2 w-2 rounded-full bg-error-icon"></span>
-                                ERROR
-                            </span>
+                            <StatusBadge variant="success">ONLINE</StatusBadge>
+                            <StatusBadge variant="success" pulse="none">ONLINE (No Pulse)</StatusBadge>
+                            <StatusBadge variant="neutral">OFFLINE</StatusBadge>
+                            <StatusBadge variant="warning">READY</StatusBadge>
+                            <StatusBadge variant="error" pulse="fast">ERROR</StatusBadge>
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-2">

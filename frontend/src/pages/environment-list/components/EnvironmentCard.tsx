@@ -5,8 +5,6 @@ import {
     Terminal,
     MoreVertical,
     Trash2,
-    AlertCircle,
-    CheckCircle2,
     Loader2,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -19,6 +17,8 @@ import {
     CardTitle,
 } from '../../../components/ui/card';
 import { Environment } from '../types';
+
+import { StatusBadge } from '../../../components/ui/status-badge';
 
 interface EnvironmentCardProps {
     env: Environment;
@@ -46,17 +46,17 @@ export const EnvironmentCard: React.FC<EnvironmentCardProps> = ({
                         </div>
                     </div>
                     {env.status === 'ready' ? (
-                        <div title={t('environments.status.ready')}>
-                            <CheckCircle2 className="text-success-icon h-5 w-5" />
-                        </div>
+                        <StatusBadge variant="success" title={t('environments.status.ready')}>
+                            {t('environments.status.ready')}
+                        </StatusBadge>
                     ) : env.status === 'error' ? (
-                        <div title={t('environments.status.error')}>
-                            <AlertCircle className="text-warning-icon h-5 w-5" />
-                        </div>
+                        <StatusBadge variant="error" pulse="fast" title={t('environments.status.error')}>
+                            {t('environments.status.error')}
+                        </StatusBadge>
                     ) : (
-                        <div title={t('environments.status.installing')}>
-                            <Loader2 className="text-content-tertiary h-5 w-5 animate-spin" />
-                        </div>
+                        <StatusBadge variant="neutral" icon={<Loader2 className="h-3 w-3 animate-spin" />} title={t('environments.status.installing')}>
+                            {t('environments.status.installing')}
+                        </StatusBadge>
                     )}
                 </div>
             </CardHeader>

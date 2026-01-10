@@ -42,10 +42,10 @@ export function Modal({ isOpen, onClose, title, children, className, contentClas
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-surface-primary/50 backdrop-blur-sm p-4">
       <div 
         className={cn(
-          "bg-surface-primary border-border-default w-full max-w-lg rounded-lg border shadow-lg flex flex-col max-h-[90vh]",
+          "bg-surface-primary border-border-strong w-full max-w-lg rounded-lg border shadow-lg flex flex-col max-h-[90vh]",
           className
         )}
       >

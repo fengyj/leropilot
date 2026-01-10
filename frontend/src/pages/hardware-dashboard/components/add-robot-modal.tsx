@@ -278,20 +278,23 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
       isOpen={isOpen}
       onClose={onClose}
       title={t('hardware.addRobotModal.title')}
-      className="max-w-5xl min-w-[800px] h-[75vh] min-h-[600px] p-0 border-border-default shadow-2xl ring-1 ring-border-subtle/50"
+      className="max-w-5xl min-w-[800px] h-[75vh] min-h-[600px] p-0 border border-border-strong shadow-2xl"
       contentClassName="overflow-hidden p-0"
     >
       <div className="flex-1 flex overflow-hidden h-[calc(75vh-60px)] min-h-[540px]">
         {/* Left Side: Visual Preview */}
-        <div className="hidden md:flex w-[40%] bg-surface-tertiary border-r border-border-default relative flex-col pt-12 pb-10 px-10 overflow-hidden">
+        <div className="hidden md:flex w-[40%] bg-surface-secondary/50 border-r border-border-default relative flex-col pt-12 pb-10 px-10 overflow-hidden">
+          {/* Background Gradient Effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+          
           {/* Image Area: Takes remaining space */}
-          <div className="flex-1 flex items-center justify-center relative min-h-0 w-full">
+          <div className="flex-1 flex items-center justify-center relative min-h-0 w-full z-10">
             {selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id ? (
               <img
                 key={selectedDef.id}
                 src={`/api/hardware/robots/definitions/${selectedDef.id}/image`}
                 alt={selectedDef.display_name}
-                className="block max-w-full max-h-full w-auto h-auto object-contain drop-shadow-xl animate-in fade-in zoom-in slide-in-from-bottom-4 duration-700 ease-out"
+                className="block max-w-full max-h-full w-auto h-auto mx-auto object-contain drop-shadow-xl animate-in fade-in zoom-in slide-in-from-bottom-4 duration-700 ease-out"
                 // Fallback for when image fails to load (optional but recommended)
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';

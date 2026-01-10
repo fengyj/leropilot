@@ -84,12 +84,9 @@ export function SettingsPage() {
               : 'border-error-border bg-error-surface text-error-content',
           )}
         >
-          {message.type === 'success' ? (
-            <CheckCircle2 className="text-success-icon h-5 w-5" />
-          ) : (
-            <AlertCircle className="text-error-icon h-5 w-5" />
-          )}
-          <span>{message.text}</span>
+          <StatusBadge variant={message.type === 'success' ? 'success' : 'error'}>
+            {message.text}
+          </StatusBadge>
         </div>
       )}
 
@@ -151,7 +148,7 @@ export function SettingsPage() {
         <Button onClick={saveConfig} disabled={saving || !hasAnyChanges}>
           {saving ? (
             <>
-              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-content border-t-transparent" />
               {t('settings.saving')}
             </>
           ) : (

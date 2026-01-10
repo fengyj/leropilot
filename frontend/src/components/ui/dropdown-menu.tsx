@@ -99,7 +99,7 @@ export function DropdownMenu({ trigger, triggerClassName, items, align = 'right'
         createPortal(
           <div
             ref={containerRef}
-            className="bg-surface-primary border-border-default animate-in fade-in zoom-in-95 fixed z-50 min-w-max rounded-lg border shadow-lg"
+            className="bg-surface-primary border-border-strong animate-in fade-in zoom-in-95 fixed z-50 min-w-max rounded-lg border shadow-lg"
             style={{
               top: `${menuStyle.top}px`,
               left: menuStyle.left !== undefined ? `${menuStyle.left}px` : 'auto',
