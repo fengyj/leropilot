@@ -221,16 +221,14 @@ async def create_environment(
     # Use custom steps if provided, otherwise generate from config
     if request.custom_steps:
         from leropilot.services.config import get_config
-        from leropilot.services.environment import get_path_resolver
 
         config = get_config()
-        path_resolver = get_path_resolver()
         env_config = request.env_config
 
         # Calculate paths
-        env_dir = path_resolver.get_environment_path(env_config.id)
+        env_dir = env_manager.get_environment_path(env_config.id)
         repo_dir = config.paths.get_repo_path(env_config.repo_id)
-        venv_path = path_resolver.get_environment_venv_path(env_config.id)
+        venv_path = env_manager.get_environment_venv_path(env_config.id)
         log_file = env_dir / "installation.log"
 
         # Prepare environment variables
@@ -373,6 +371,8 @@ async def start_installation(env_id: str) -> StartInstallationResponse:
     """
     Start environment installation.
     """
+    env_manager = get_env_manager()
+
     # Check if there's already an active executor for this environment
     existing_executor = _active_executors.get(env_id)
     if existing_executor and existing_executor.installation and existing_executor.installation.session_id:
@@ -387,10 +387,7 @@ async def start_installation(env_id: str) -> StartInstallationResponse:
             is_windows=platform.system() == "Windows",
         )
 
-    from leropilot.services.environment import get_path_resolver
-
-    path_resolver = get_path_resolver()
-    env_dir = path_resolver.get_environment_path(env_id)
+    env_dir = env_manager.get_environment_path(env_id)
     executor = EnvironmentInstallationExecutor(env_id, str(env_dir))
 
     result = executor.start()
@@ -449,10 +446,8 @@ async def get_installation_status(env_id: str) -> InstallationStatusResponse:
     # If not in memory, try to load from disk
     if not executor:
         try:
-            from leropilot.services.environment import get_path_resolver
-
-            path_resolver = get_path_resolver()
-            env_dir = path_resolver.get_environment_path(env_id)
+            env_manager = get_env_manager()
+            env_dir = env_manager.get_environment_path(env_id)
             if env_dir.exists():
                 executor = EnvironmentInstallationExecutor(env_id, str(env_dir))
                 # This will load existing state if available
@@ -505,11 +500,8 @@ async def open_terminal(env_id: str) -> OpenTerminalResponse:
         raise ValidationError("environment.instance.not_ready_open_terminal")
 
     # Get paths
-    from leropilot.services.environment import get_path_resolver
-
-    path_resolver = get_path_resolver()
-    env_dir = path_resolver.get_environment_path(env_id)
-    venv_path = path_resolver.get_environment_venv_path(env_id)
+    env_dir = env_manager.get_environment_path(env_id)
+    venv_path = env_manager.get_environment_venv_path(env_id)
 
     TerminalService.open_terminal(env_dir, venv_path)
     return OpenTerminalResponse(success=True, message="Terminal opened successfully")

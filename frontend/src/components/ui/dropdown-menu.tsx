@@ -115,7 +115,7 @@ export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuPr
                   className={cn(
                     'text-content-primary hover:bg-surface-tertiary flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none focus-visible:ring-inset',
                     item.variant === 'danger' &&
-                      'text-red-600 hover:bg-red-50/10 hover:text-red-700',
+                      'text-content-tertiary hover:bg-red-50/10 hover:text-error-icon',
                     index > 0 && 'border-border-default border-t',
                   )}
                 >

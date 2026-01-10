@@ -4,14 +4,7 @@ from functools import lru_cache
 
 from .executor import EnvironmentInstallationExecutor
 from .installation import EnvironmentInstallationPlanGenerator, InstallationManager
-from .manager import EnvironmentManager
-from .registry import (
-    EnvironmentEntry,
-    EnvironmentPathResolver,
-    EnvironmentRegistry,
-    get_path_resolver,
-    get_registry,
-)
+from .manager import EnvironmentEntry, EnvironmentManager
 from .terminal import TerminalService
 
 
@@ -23,14 +16,9 @@ def get_env_manager() -> EnvironmentManager:
 
 __all__ = [
     "EnvironmentEntry",
-    "EnvironmentInstallationExecutor",
     "EnvironmentManager",
-    "EnvironmentPathResolver",
-    "EnvironmentRegistry",
     "InstallationManager",
     "EnvironmentInstallationPlanGenerator",
     "TerminalService",
     "get_env_manager",
-    "get_path_resolver",
-    "get_registry",
 ]

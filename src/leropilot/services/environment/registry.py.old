@@ -356,7 +356,6 @@ class EnvironmentPathResolver:
 
 # Global instances (initialized lazily)
 _registry: EnvironmentRegistry | None = None
-_path_resolver: EnvironmentPathResolver | None = None
 
 
 def get_registry() -> EnvironmentRegistry:
@@ -369,15 +368,3 @@ def get_registry() -> EnvironmentRegistry:
         assert config.paths.environments_dir is not None
         _registry = EnvironmentRegistry(config.paths.environments_dir)
     return _registry
-
-
-def get_path_resolver() -> EnvironmentPathResolver:
-    """Get the global path resolver instance."""
-    global _path_resolver
-    if _path_resolver is None:
-        from leropilot.services.config import get_config
-
-        config = get_config()
-        assert config.paths.environments_dir is not None
-        _path_resolver = EnvironmentPathResolver(config.paths.environments_dir, get_registry())
-    return _path_resolver

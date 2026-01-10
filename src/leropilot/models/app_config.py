@@ -132,40 +132,6 @@ class PathsConfig(BaseModel):
         assert self.tools_cache_dir is not None
         return self.tools_cache_dir
 
-    def get_environment_path(self, env_id: str) -> Path:
-        """
-        Get path for a specific environment.
-
-        Args:
-            env_id: Environment identifier
-        Returns:
-            Path to environment directory
-        """
-        assert self.environments_dir is not None
-        return self.environments_dir / env_id
-
-    def get_environment_venv_path(self, env_id: str) -> Path:
-        """
-        Get virtual environment path for a specific environment.
-
-        Args:
-            env_id: Environment identifier
-        Returns:
-            Path to virtual environment directory
-        """
-        return self.get_environment_path(env_id) / ".venv"
-
-    def get_environment_bin_path(self, env_id: str) -> Path:
-        """
-        Get binaries path for a specific environment.
-
-        Args:
-            env_id: Environment identifier
-        Returns:
-            Path to binaries directory
-        """
-        return self.get_environment_venv_path(env_id) / ("Scripts" if sys.platform == "win32" else "bin")
-
 
 class ToolSource(BaseModel):
     """Tool source configuration."""

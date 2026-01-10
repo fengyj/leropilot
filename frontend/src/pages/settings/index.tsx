@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 import { Save, RotateCcw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { Button } from '../../components/ui/button';
 import { PageContainer } from '../../components/ui/page-container';
 import { cn } from '../../utils/cn';
@@ -32,11 +34,12 @@ export function SettingsPage() {
     hasUnsavedChanges,
     sectionHasUnsaved,
   } = useSettings();
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   if (loading) {
     return (
       <div className="relative flex h-64 items-center justify-center">
-        <LoadingOverlay message="加载设置..." size="md" fancy className="rounded-lg" />
+        <LoadingOverlay message="Loading settings..." size="md" fancy className="rounded-lg" />
       </div>
     );
   }
@@ -139,7 +142,7 @@ export function SettingsPage() {
               {t('settings.unsavedChanges')}
             </span>
           )}
-          <Button variant="secondary" onClick={resetConfig} disabled={saving}>
+          <Button variant="secondary" onClick={() => setShowResetDialog(true)} disabled={saving}>
             <RotateCcw className="mr-2 h-4 w-4" />
             {t('settings.buttons.reset')}
           </Button>
@@ -159,6 +162,20 @@ export function SettingsPage() {
           )}
         </Button>
       </div>
+
+      <ConfirmDialog
+        isOpen={showResetDialog}
+        title={t('settings.buttons.reset')}
+        message={t('settings.messages.resetConfirm')}
+        confirmText={t('common.confirm')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        onConfirm={async () => {
+          setShowResetDialog(false);
+          await resetConfig();
+        }}
+        onCancel={() => setShowResetDialog(false)}
+      />
     </PageContainer>
   );
 }

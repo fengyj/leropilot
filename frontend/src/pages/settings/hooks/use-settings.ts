@@ -232,7 +232,7 @@ export const useSettings = (): UseSettingsReturn => {
   };
 
   const resetConfig = async () => {
-    if (!confirm(t('settings.messages.resetConfirm'))) return;
+    // NOTE: Confirmation should be handled by the UI layer (page) using ConfirmDialog.
 
     setSaving(true);
     setMessage(null);

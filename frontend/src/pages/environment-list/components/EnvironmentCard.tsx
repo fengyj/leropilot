@@ -119,7 +119,7 @@ export const EnvironmentCard: React.FC<EnvironmentCardProps> = ({
                             label: t('environments.delete'),
                             onClick: () => onDelete(env.id, env.display_name),
                             variant: 'danger',
-                            icon: <Trash2 className="h-4 w-4" />,
+                            icon: <Trash2 className="text-content-tertiary hover:text-error-icon h-4 w-4" />,
                         },
                     ]}
                     align="right"

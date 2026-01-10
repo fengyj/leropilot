@@ -1,4 +1,4 @@
-import { X, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { CodeEditor } from '../../../components/code-editor';
 import { useTranslation } from 'react-i18next';
@@ -40,10 +40,10 @@ export function CommandsEditor({ stepId, commands, onChange, onDelete, onAdd }: 
           </div>
           <button
             onClick={() => onDelete(stepId, cmdIndex)}
-            className="mt-6 rounded p-1 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/20"
+            className="mt-6 rounded p-1 text-content-tertiary transition-colors hover:bg-surface-tertiary hover:text-error-icon focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             title={t('wizard.advanced.deleteCommand')}
           >
-            <X className="h-4 w-4" />
+            <Trash2 className="text-content-tertiary hover:text-error-icon h-4 w-4" />
           </button>
         </div>
       ))}

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { SettingsPage } from '../../src/pages/settings-page';
+import { SettingsPage } from '../../src/pages/settings';
 import { ThemeProvider } from '../../src/contexts/theme-context';
 import { BrowserRouter } from 'react-router-dom';
 import { ReactNode } from 'react';
@@ -33,6 +33,7 @@ vi.mock('lucide-react', () => ({
   Loader2: () => <div>Loader Icon</div>,
   Globe: () => <div>Globe Icon</div>,
   Server: () => <div>Server Icon</div>,
+  X: () => <div>X Icon</div>,
 }));
 
 const mockConfig = {
@@ -476,9 +477,6 @@ describe('SettingsPage', () => {
 
   describe('Reset Configuration', () => {
     it('should call reset API when reset is confirmed', async () => {
-      // Mock window.confirm
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
       mockFetch.mockImplementation((url: string, options?: RequestInit) => {
         if (url === '/api/app-config/reset' && options?.method === 'POST') {
           return Promise.resolve({
@@ -530,18 +528,18 @@ describe('SettingsPage', () => {
       const resetButton = screen.getByRole('button', { name: /reset/i });
       fireEvent.click(resetButton);
 
+      // Confirm dialog should appear; click confirm
+      const confirmBtn = await screen.findByRole('button', { name: /confirm/i });
+      fireEvent.click(confirmBtn);
+
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith('/api/app-config/reset', {
           method: 'POST',
         });
       });
-
-      confirmSpy.mockRestore();
     });
 
     it('should not call reset API when reset is cancelled', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-
       render(
         <Wrapper>
           <SettingsPage />
@@ -555,11 +553,13 @@ describe('SettingsPage', () => {
       const resetButton = screen.getByRole('button', { name: /reset/i });
       fireEvent.click(resetButton);
 
+      // Find cancel button in the confirm dialog and click it
+      const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
+      fireEvent.click(cancelBtn);
+
       expect(mockFetch).not.toHaveBeenCalledWith('/api/app-config/reset', {
         method: 'POST',
       });
-
-      confirmSpy.mockRestore();
     });
   });
 

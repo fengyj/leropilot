@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Server } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
+import { ConfirmDialog } from '../../../components/ui/confirm-dialog';
 import { cn } from '../../../utils/cn';
 import type { AppConfig, PyPIMirror } from '../types';
 
@@ -40,16 +41,26 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
     setIsAdding(false);
   };
 
+  const [deleteMirrorConfirm, setDeleteMirrorConfirm] = useState<{ isOpen: boolean; name: string | null }>({ isOpen: false, name: null });
+
   const handleDeleteMirror = (name: string) => {
-    if (window.confirm(t('settings.pypi.deleteConfirm', { name }))) {
-      setConfig({
-        ...config,
-        pypi: {
-          ...config.pypi,
-          mirrors: config.pypi.mirrors.filter((m) => m.name !== name),
-        },
-      });
-    }
+    setDeleteMirrorConfirm({ isOpen: true, name });
+  };
+
+  const confirmDeleteMirror = () => {
+    if (!deleteMirrorConfirm.name) return;
+    setConfig({
+      ...config,
+      pypi: {
+        ...config.pypi,
+        mirrors: config.pypi.mirrors.filter((m) => m.name !== deleteMirrorConfirm.name),
+      },
+    });
+    setDeleteMirrorConfirm({ isOpen: false, name: null });
+  };
+
+  const cancelDeleteMirror = () => {
+    setDeleteMirrorConfirm({ isOpen: false, name: null });
   };
 
   const handleEnableMirror = (name: string | null) => {
@@ -244,6 +255,17 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
           ))}
         </div>
       </CardContent>
+
+      <ConfirmDialog
+        isOpen={deleteMirrorConfirm.isOpen}
+        title={t('settings.pypi.delete')}
+        message={t('settings.pypi.deleteConfirm', { name: deleteMirrorConfirm.name || '' })}
+        confirmText={t('common.confirm')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        onConfirm={confirmDeleteMirror}
+        onCancel={cancelDeleteMirror}
+      />
     </Card>
   );
 }

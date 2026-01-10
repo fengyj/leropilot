@@ -167,10 +167,7 @@ class InstallationManager:
         # Check if there is a status file on disk that is newer
         if installation:
             try:
-                from .registry import get_path_resolver
-
-                path_resolver = get_path_resolver()
-                env_dir = path_resolver.get_environment_path(installation.env_config.id)
+                env_dir = self.env_manager.get_environment_path(installation.env_config.id)
                 status_file = env_dir / "installation_status.json"
 
                 if status_file.exists():
@@ -296,9 +293,9 @@ class EnvironmentInstallationPlanGenerator:
 
         # Calculate all paths without requiring the environment to be registered yet.
         # Using the paths config allows generating steps for prospective (unregistered) envs.
-        env_dir = config.paths.get_environment_path(env_config.id)
+        env_dir = config.paths.environments_dir / env_config.name
         repo_dir = config.paths.get_repo_path(env_config.repo_id)
-        venv_path = config.paths.get_environment_venv_path(env_config.id)
+        venv_path = env_dir / ".venv"
         log_file = env_dir / "installation.log"
 
         # Get version config from service
@@ -414,8 +411,8 @@ class EnvironmentInstallationPlanGenerator:
         app_config = get_config()
 
         # Build variable mapping (do not require environment to be registered)
-        venv_path = app_config.paths.get_environment_venv_path(env_config.id)
-        venv_tool_path = app_config.paths.get_environment_bin_path(env_config.id)
+        venv_path = config.paths.environments_dir / env_config.name / ".venv"
+        venv_tool_path = venv_path / ("Scripts" if sys.platform == "win32" else "bin")
         cuda_tag = self._get_cuda_tag(env_config)
         pypi_mirror = self._get_pypi_mirror_param(app_config)
         repo_path = config.paths.get_repo_path(env_config.repo_id)
@@ -550,7 +547,7 @@ class EnvironmentInstallationPlanGenerator:
             return {}
 
         # Build variable mapping for substitution without requiring registry entry
-        venv_path = config.paths.get_environment_venv_path(env_config.id)
+        venv_path = config.paths.environments_dir / env_config.name / ".venv"
         repo_path = config.paths.get_repo_path(env_config.repo_id)
 
         variables = {

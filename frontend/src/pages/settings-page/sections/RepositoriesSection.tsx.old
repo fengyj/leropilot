@@ -4,6 +4,7 @@ import { Plus, Trash2, Globe, Star } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
+import { ConfirmDialog } from '../../../components/ui/confirm-dialog';
 import { RepositoryStatusButton } from '../../../components/repository-status-button';
 import { cn } from '../../../utils/cn';
 import type { AppConfig, RepositorySource } from '../types';
@@ -24,6 +25,7 @@ export function RepositoriesSection({
   const [newRepoUrl, setNewRepoUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [hoveredRepoId, setHoveredRepoId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; repoId: string | null; name: string | null }>({ isOpen: false, repoId: null, name: null });
 
   const handleAddRepository = () => {
     if (!newRepoName || !newRepoUrl) return;
@@ -50,22 +52,27 @@ export function RepositoriesSection({
 
   const handleDeleteRepository = (id: string) => {
     const repoToDelete = config.repositories.lerobot_sources.find((r) => r.id === id);
-    if (
-      repoToDelete &&
-      window.confirm(
-        t('settings.repositories.deleteConfirm', { name: repoToDelete.name }),
-      )
-    ) {
-      setConfig({
-        ...config,
-        repositories: {
-          ...config.repositories,
-          lerobot_sources: config.repositories.lerobot_sources.filter(
-            (r) => r.id !== id,
-          ),
-        },
-      });
+    if (repoToDelete) {
+      setDeleteConfirm({ isOpen: true, repoId: id, name: repoToDelete.name });
     }
+  };
+
+  const confirmDeleteRepository = () => {
+    if (!deleteConfirm.repoId) return;
+    setConfig({
+      ...config,
+      repositories: {
+        ...config.repositories,
+        lerobot_sources: config.repositories.lerobot_sources.filter(
+          (r) => r.id !== deleteConfirm.repoId,
+        ),
+      },
+    });
+    setDeleteConfirm({ isOpen: false, repoId: null, name: null });
+  };
+
+  const cancelDeleteRepository = () => {
+    setDeleteConfirm({ isOpen: false, repoId: null, name: null });
   };
 
   const handleSetDefault = (id: string) => {
@@ -224,6 +231,17 @@ export function RepositoriesSection({
           ))}
         </div>
       </CardContent>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t('settings.repositories.delete')}
+        message={t('settings.repositories.deleteConfirm', { name: deleteConfirm.name || '' })}
+        confirmText={t('common.confirm')}
+        cancelText={t('common.cancel')}
+        variant="danger"
+        onConfirm={confirmDeleteRepository}
+        onCancel={cancelDeleteRepository}
+      />
     </Card>
   );
 }

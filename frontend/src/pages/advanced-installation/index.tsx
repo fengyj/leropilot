@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { useWizardStore } from '../../stores/environment-wizard-store';
 import { AdvancedStepCard } from './components/AdvancedStepCard';
 
@@ -24,6 +25,7 @@ export function AdvancedInstallationPage() {
   const [envId, setEnvId] = useState<string | null>(null);
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -283,7 +285,7 @@ export function AdvancedInstallationPage() {
                 navigate(`/environments/${envId}/install`);
               } catch (error) {
                 console.error('Failed to create environment:', error);
-                alert('Failed to create environment. Please try again.');
+                setErrorDialog({ isOpen: true, message: t('environments.createError') });
               }
             }}
             className="bg-success-surface text-success-content hover:bg-success-surface/90"
@@ -292,6 +294,15 @@ export function AdvancedInstallationPage() {
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={errorDialog.isOpen}
+        title={t('common.error')}
+        message={errorDialog.message}
+        confirmText={t('common.ok')}
+        onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
+        onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
+      />
     </div>
   );
 }

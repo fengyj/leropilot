@@ -22,6 +22,7 @@ export function EnvironmentWizard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { step, setStep, reset, config } = useWizardStore();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
 
   const STEPS = [
     { id: 1, title: t('wizard.steps.repo'), component: StepRepoSelection },
@@ -165,7 +166,7 @@ export function EnvironmentWizard() {
         navigate(`/environments/${newEnvId}/install`);
       } catch (error) {
         console.error('Failed to create environment:', error);
-        alert('Failed to create environment. Please try again.');
+        setErrorDialog({ isOpen: true, message: t('environments.createError') });
       }
     }
   };
@@ -270,6 +271,16 @@ export function EnvironmentWizard() {
         onConfirm={handleConfirmCancel}
         onCancel={handleCancelDialog}
         variant="danger"
+      />
+
+      {/* Error Dialog (use instead of browser alert) */}
+      <ConfirmDialog
+        isOpen={errorDialog.isOpen}
+        title={t('common.error')}
+        message={errorDialog.message}
+        confirmText={t('common.ok')}
+        onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
+        onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
       />
     </div>
   );

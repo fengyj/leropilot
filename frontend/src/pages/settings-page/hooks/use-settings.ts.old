@@ -191,8 +191,6 @@ export const useSettings = (): UseSettingsReturn => {
   };
 
   const resetConfig = async () => {
-    if (!confirm(t('settings.messages.resetConfirm'))) return;
-
     setSaving(true);
     setMessage(null);
 

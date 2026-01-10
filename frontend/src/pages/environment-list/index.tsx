@@ -25,6 +25,9 @@ export function EnvironmentListPage() {
         envName: null,
     });
     const [openingTerminal, setOpeningTerminal] = useState<string | null>(null);
+    const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>(
+        { isOpen: false, message: '' },
+    );
 
     useEffect(() => {
         const abortController = new AbortController();
@@ -105,13 +108,11 @@ export function EnvironmentListPage() {
             } else {
                 const error = await response.json();
                 console.error(t('environments.terminalOpenError'), error.detail);
-                alert(
-                    `${t('environments.terminalOpenError')}: ${error.detail || 'Unknown error'}`,
-                );
+                setErrorDialog({ isOpen: true, message: `${t('environments.terminalOpenError')}: ${error.detail || t('common.unknownError')}` });
             }
         } catch (error) {
             console.error('Error opening terminal:', error);
-            alert(t('environments.terminalOpenError'));
+            setErrorDialog({ isOpen: true, message: t('environments.terminalOpenError') });
         } finally {
             setOpeningTerminal(null);
         }
@@ -175,6 +176,16 @@ export function EnvironmentListPage() {
                     ))}
                 </div>
             )}
+
+            {/* Error dialog for terminal open failures */}
+            <ConfirmDialog
+                isOpen={errorDialog.isOpen}
+                title={t('environments.terminalOpenError')}
+                message={errorDialog.message}
+                confirmText={t('common.ok')}
+                onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
+                onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
+            />
         </PageContainer>
     );
 }
