@@ -135,11 +135,6 @@ export function SettingsPage() {
       {/* Action Buttons */}
       <div className="border-border-default flex items-center justify-between border-t pt-6">
         <div className="flex items-center gap-3">
-          {hasAnyChanges && (
-            <span className="rounded border border-warning-border bg-warning-surface px-2 py-1 text-xs font-medium text-warning-content">
-              {t('settings.unsavedChanges')}
-            </span>
-          )}
           <Button variant="secondary" onClick={() => setShowResetDialog(true)} disabled={saving}>
             <RotateCcw className="mr-2 h-4 w-4" />
             {t('settings.buttons.reset')}
