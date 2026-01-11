@@ -21,36 +21,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 2,
+                            "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 3,
+                            "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 4,
+                            "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 5,
+                            "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 6,
+                            "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
@@ -79,36 +85,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 2,
+                            "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 3,
+                            "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 4,
+                            "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 5,
+                            "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
                         {
                             "id": 6,
+                            "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
@@ -137,36 +149,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
                         {
                             "id": 2,
+                            "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
                         {
                             "id": 3,
+                            "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
                         {
                             "id": 4,
+                            "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
                         {
                             "id": 5,
+                            "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
                         {
                             "id": 6,
+                            "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
@@ -196,36 +214,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 2,
+                            "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 3,
+                            "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 4,
+                            "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 5,
+                            "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 6,
+                            "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
@@ -254,36 +278,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 2,
+                            "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C044"
                         },
                         {
                             "id": 3,
+                            "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C044"
                         },
                         {
                             "id": 4,
+                            "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
                         {
                             "id": 5,
+                            "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
                         {
                             "id": 6,
+                            "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
@@ -313,36 +343,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
@@ -371,36 +407,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
@@ -429,42 +471,49 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XM430-W350",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XM430-W350",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 7,
+                            "name": "joint_7",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
@@ -493,42 +542,49 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XC430-W150",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 7,
+                            "name": "joint_7",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
@@ -558,6 +614,7 @@
                     "motors": [
                         {
                             "id": 17,
+                            "name": "base_left_wheel",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046",
@@ -565,6 +622,7 @@
                         },
                         {
                             "id": 18,
+                            "name": "base_back_wheel",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046",
@@ -572,6 +630,7 @@
                         },
                         {
                             "id": 19,
+                            "name": "base_right_wheel",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046",
@@ -579,36 +638,42 @@
                         },
                         {
                             "id": 1,
+                            "name": "arm_shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
                         {
                             "id": 2,
+                            "name": "arm_shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
                         {
                             "id": 3,
+                            "name": "arm_elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
                         {
                             "id": 4,
+                            "name": "arm_wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
                         {
                             "id": 5,
+                            "name": "arm_wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
                         {
                             "id": 6,
+                            "name": "arm_gripper",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
@@ -637,36 +702,42 @@
                     "motors": [
                         {
                             "id": 11,
+                            "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 12,
+                            "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 13,
+                            "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 14,
+                            "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 15,
+                            "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
                         {
                             "id": 16,
+                            "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
@@ -695,36 +766,42 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
@@ -753,42 +830,49 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "shoulder_pitch",
                             "brand": "feetech",
                             "model": "SM8512BL",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "shoulder_yaw",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "shoulder_roll",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "wrist_yaw",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
                         {
                             "id": 7,
+                            "name": "wrist_pitch",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
@@ -817,96 +901,112 @@
                     "motors": [
                         {
                             "id": 1,
+                            "name": "thumb_cmc",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 2,
+                            "name": "thumb_mcp",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 3,
+                            "name": "thumb_pip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 4,
+                            "name": "thumb_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 5,
+                            "name": "index_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 6,
+                            "name": "index_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 7,
+                            "name": "index_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 8,
+                            "name": "middle_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 9,
+                            "name": "middle_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 10,
+                            "name": "middle_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 11,
+                            "name": "ring_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 12,
+                            "name": "ring_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 13,
+                            "name": "ring_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 14,
+                            "name": "pinky_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 15,
+                            "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
                         },
                         {
                             "id": 16,
+                            "name": "pinky_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null
@@ -939,6 +1039,7 @@
                                 1,
                                 17
                             ],
+                            "name": "joint_1",
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
@@ -948,6 +1049,7 @@
                                 2,
                                 18
                             ],
+                            "name": "joint_2",
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
@@ -957,6 +1059,7 @@
                                 3,
                                 19
                             ],
+                            "name": "joint_3",
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340P"
@@ -966,6 +1069,7 @@
                                 4,
                                 20
                             ],
+                            "name": "joint_4",
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340"
@@ -975,6 +1079,7 @@
                                 5,
                                 21
                             ],
+                            "name": "joint_5",
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
@@ -984,6 +1089,7 @@
                                 6,
                                 22
                             ],
+                            "name": "joint_6",
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
@@ -993,6 +1099,17 @@
                                 7,
                                 23
                             ],
+                            "name": "joint_7",
+                            "brand": "damiao",
+                            "model": "DM4310",
+                            "variant": "DM4310"
+                        },
+                        {
+                            "id": [
+                                8,
+                                24
+                            ],
+                            "name": "gripper",
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
@@ -1008,6 +1125,7 @@
                                 1,
                                 17
                             ],
+                            "name": "joint_1",
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
@@ -1017,6 +1135,7 @@
                                 2,
                                 18
                             ],
+                            "name": "joint_2",
                             "brand": "damiao",
                             "model": "DM8009",
                             "variant": "DM8009P"
@@ -1026,6 +1145,7 @@
                                 3,
                                 19
                             ],
+                            "name": "joint_3",
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340P"
@@ -1035,6 +1155,7 @@
                                 4,
                                 20
                             ],
+                            "name": "joint_4",
                             "brand": "damiao",
                             "model": "DM4340",
                             "variant": "DM4340"
@@ -1044,6 +1165,7 @@
                                 5,
                                 21
                             ],
+                            "name": "joint_5",
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
@@ -1053,6 +1175,7 @@
                                 6,
                                 22
                             ],
+                            "name": "joint_6",
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
@@ -1062,6 +1185,17 @@
                                 7,
                                 23
                             ],
+                            "name": "joint_7",
+                            "brand": "damiao",
+                            "model": "DM4310",
+                            "variant": "DM4310"
+                        },
+                        {
+                            "id": [
+                                8,
+                                24
+                            ],
+                            "name": "gripper",
                             "brand": "damiao",
                             "model": "DM4310",
                             "variant": "DM4310"
