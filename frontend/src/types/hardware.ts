@@ -15,6 +15,7 @@ export interface RobotMotorDefinition {
   model: string;
   is_active: boolean;
   bus_id: number;
+  drive_mode?: number; // 0 = normal, 1 = inverted
 }
 
 export interface MotorBusDefinition {

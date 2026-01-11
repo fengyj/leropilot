@@ -388,6 +388,7 @@ class RobotMotorDefinition(BaseModel):
     model: str
     variant: str | None = None
     need_calibration: bool = Field(True, description="Whether the motor needs calibration")
+    drive_mode: int = Field(0, description="0 = normal, 1 = inverted direction")  # default to 0 when missing from JSON
 
     @field_validator("id", mode="before")
     def _normalize_id(cls, v):
@@ -499,8 +500,11 @@ class RobotDefinition(BaseModel):
     image: str | None = None
     support_version_from: str | None = None
     support_version_end: str | None = None
-    urdf: str | None = None
+    device_category: DeviceCategory = Field(DeviceCategory.ROBOT, description="Device category (robot|controller)")
     motor_buses: dict[str, MotorBusDefinition]
+
+    class Config:
+        use_enum_values = True
 
 
 # ============================================================================
