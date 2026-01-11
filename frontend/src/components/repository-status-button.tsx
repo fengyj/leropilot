@@ -246,7 +246,7 @@ export function RepositoryStatusButton({
                 style={
                   loading && progressPercent > 0
                     ? {
-                        background: `linear-gradient(to right, rgba(59, 130, 246, 0.3) ${progressPercent}%, transparent ${progressPercent}%)`,
+                        background: `linear-gradient(to right, var(--color-primary) ${progressPercent}%, transparent ${progressPercent}%)`,
                       }
                     : undefined
                 }

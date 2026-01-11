@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { Save, RotateCcw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, RotateCcw } from 'lucide-react';
+import { StatusBadge } from '../../components/ui/status-badge';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { Button } from '../../components/ui/button';
 import { PageContainer } from '../../components/ui/page-container';

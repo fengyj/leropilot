@@ -121,7 +121,7 @@
   --bg-primary: #020617; /* Slate 950 */
   --bg-secondary: #0f172a; /* Slate 900 */
   --bg-tertiary: #1e293b; /* Slate 800 */
-  --bg-card: rgba(15, 23, 42, 0.6); /* Glassy Slate 900 */
+  --bg-card: rgba(30, 41, 59, 0.4); /* Glassy Slate 800 - Lighter than background for better depth */
   --bg-inverse: #f8fafc; /* Slate 50 */
   
   --text-primary: #f8fafc; /* Slate 50 */
@@ -130,9 +130,9 @@
   --text-inverse: #0f172a; /* Slate 900 */
 
   /* Subtle, sophisticated borders */
-  --border-primary: rgba(148, 163, 184, 0.15); /* Slate 400 at 15% */
-  --border-secondary: rgba(148, 163, 184, 0.08); /* Slate 400 at 8% */
-  --border-strong: rgba(148, 163, 184, 0.4); /* Stronger border for modals/popups */
+  --border-primary: rgba(148, 163, 184, 0.25); /* Slate 400 at 25% - Increased for better visibility */
+  --border-secondary: rgba(148, 163, 184, 0.15); /* Slate 400 at 15% */
+  --border-strong: rgba(148, 163, 184, 0.5); /* Stronger border for modals/popups */
 
   /* Status - Vibrant yet contained */
   --bg-success: rgba(16, 185, 129, 0.15);

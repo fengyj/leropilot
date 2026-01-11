@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Loader2, Circle, XCircle } from 'lucide-react';
-import { StatusBadge } from '../../../components/ui/status-badge';
 import { cn } from '../../../utils/cn';
 import { InstallStep } from '../types';
 

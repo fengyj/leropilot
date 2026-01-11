@@ -24,7 +24,7 @@ export const CameraCard: React.FC<{
         : t('common.unknown');
 
     return (
-        <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 max-w-[480px] w-full ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
+        <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 max-w-xl w-full ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
             {isRefreshing && (
                 <LoadingOverlay
                     message={t('hardware.robotCard.refreshing')}

@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 import { light, oneDark } from './terminal-themes';
 import { useTheme } from '../contexts/theme-context';
 import { ShellIntegration, ShellEvent } from './shell-integration';
+import { StatusBadge } from './ui/status-badge';
 
 export type TerminalStatus = 'Idle' | 'Running' | 'Error' | 'Success';
 
@@ -242,26 +243,14 @@ const WebTerminal: React.FC<TerminalProps> = ({
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {/* Simple Status Indicator */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 5,
-          right: 15,
-          zIndex: 10,
-          color:
-            status === 'Running'
-              ? 'yellow'
-              : status === 'Success'
-                ? 'lightgreen'
-                : status === 'Error'
-                  ? 'red'
-                  : '#aaa',
-          fontWeight: 'bold',
-          fontSize: '12px',
-          pointerEvents: 'none',
-        }}
-      >
-        ● {status}
+      <div className="absolute top-1 right-4 z-10 pointer-events-none">
+        <StatusBadge variant={
+          status === 'Running' ? 'warning' :
+          status === 'Success' ? 'success' :
+          status === 'Error' ? 'error' : 'neutral'
+        }>
+          {status}
+        </StatusBadge>
       </div>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>
