@@ -370,11 +370,11 @@ class RobotMotorDefinition(BaseModel):
 
     - `name`: logical motor name (joint name) used as dict key in MotorBusDefinition. When loading from
       list-based specs, `name` will be derived from the motor's `id` if not provided.
-    - `id`: input alias for the motor id. Internally we store the raw form (int or
-      `(send, recv)` tuple) on `raw_id` for unambiguous access.
+    - `id`: input alias for the motor id. Internally `id` may be an `int` or a `(send, recv)` tuple.
 
-    Convenience properties exposed:
-      - `id` (int): primary send id (always an int)
+    Convenience helpers exposed:
+      - `motor_id()` -> int: returns the raw id when it is stored as an `int` (raises otherwise)
+      - `send_id()` -> int: returns the send id when `id` is a `(send, recv)` tuple (raises otherwise)
       - `recv_id` (int): receive id (equal to `id` when not distinct)
       - `key` (int | tuple): raw key used by drivers and verification (int or (send, recv)).
 
@@ -383,15 +383,15 @@ class RobotMotorDefinition(BaseModel):
     """
 
     name: str | None = None
-    raw_id: int | tuple[int, int] = Field(..., alias="id")
+    id: int | tuple[int, int] = Field(..., description="Raw id (int) or (send, recv) tuple")
     brand: str
     model: str
     variant: str | None = None
     need_calibration: bool = Field(True, description="Whether the motor needs calibration")
 
-    @field_validator("raw_id", mode="before")
-    def _normalize_raw_id(cls, v):
-        """Normalize list-style ids into int or tuple forms for `raw_id`.
+    @field_validator("id", mode="before")
+    def _normalize_id(cls, v):
+        """Normalize list-style ids into int or tuple forms for `id`.
 
         Accepts lists from JSON (e.g., `[1]` or `[1, 2]`) and converts them to an
         `int` or `tuple[int, int]` respectively. Rejects lists with length != 1 or 2.
@@ -404,22 +404,30 @@ class RobotMotorDefinition(BaseModel):
             raise ValueError("id list must have length 1 or 2")
         return v
 
-    @property
-    def id(self) -> int:
-        """Primary send id (int)."""
-        raw = object.__getattribute__(self, "raw_id")
-        return int(raw[0]) if isinstance(raw, tuple) else int(raw)
+    def motor_id(self) -> int:
+        """Return the motor id when `id` is stored as an int. Raises TypeError otherwise."""
+        v = object.__getattribute__(self, "id")
+        if isinstance(v, int):
+            return int(v)
+        raise TypeError("motor_id is only available when 'id' is an int")
+
+    def send_id(self) -> int:
+        """Return the send id when `id` is a (send, recv) tuple. Raises TypeError otherwise."""
+        v = object.__getattribute__(self, "id")
+        if isinstance(v, tuple):
+            return int(v[0])
+        raise TypeError("send_id is only available when 'id' is a tuple (send, recv)")
 
     @property
     def recv_id(self) -> int:
         """Receive id (int). Equal to `id` when not provided separately."""
-        raw = object.__getattribute__(self, "raw_id")
-        return int(raw[1]) if isinstance(raw, tuple) else int(raw)
+        v = object.__getattribute__(self, "id")
+        return int(v[1]) if isinstance(v, tuple) else int(v)
 
     @property
     def key(self) -> int | tuple[int, int]:
         """Return the raw key form used for matching against drivers (int or tuple)."""
-        return object.__getattribute__(self, "raw_id")
+        return object.__getattribute__(self, "id")
 
 
 

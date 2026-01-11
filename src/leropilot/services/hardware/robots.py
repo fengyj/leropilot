@@ -337,8 +337,8 @@ class RobotManager:
                 raise ResourceConflictError("hardware.robot_device.conflict_id", id=robot.id)
 
             self.verify_robot(robot)
-            self._save_robots()
             self._robots[robot.id] = robot
+            self._save_robots()
             logger.info(f"Added robot {robot.id}: {robot.name}")
             return robot
 
@@ -393,6 +393,7 @@ class RobotManager:
             try:
                 list_path = get_robot_list_path()
                 data: dict[str, object] = {"version": "1.0", "robots": []}
+                robots_list = cast(list, data["robots"])
                 # Exclude transient robots from save
                 for robot in self._robots.values():
                     if robot.is_transient:
@@ -403,25 +404,16 @@ class RobotManager:
 
                     spec = RobotSpecService()
                     def_val = robot.definition
-                    if isinstance(def_val, dict):
-                        # already a dict representation
-                        robot_dict["definition"] = def_val
-                    elif isinstance(def_val, RobotDefinition):
+                    if isinstance(def_val, RobotDefinition):
                         # If this definition matches a known spec, store its id for compactness
                         try:
                             if spec.get_robot_definition(def_val.id):
                                 robot_dict["definition"] = def_val.id
-                            else:
-                                robot_dict["definition"] = def_val
                         except Exception:
                             robot_dict["definition"] = def_val
-                    elif isinstance(def_val, str):
-                        # Already an id string; keep it (spec lookup optional)
-                        robot_dict["definition"] = def_val
                     else:
                         robot_dict["definition"] = def_val
 
-                        robots_list = cast(list, data["robots"])
                 robots_list.append(robot_dict)
 
                 with open(list_path, "w", encoding="utf-8") as f:

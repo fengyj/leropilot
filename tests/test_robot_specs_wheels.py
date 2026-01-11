@@ -16,7 +16,7 @@ def test_lekiwi_wheel_motors_not_need_calibration():
         # find motor entry by id
         found = None
         for m in motors:
-            if getattr(m, "key", None) == wid or getattr(m, "raw_id", None) == wid:
+            if getattr(m, "key", None) == wid or getattr(m, "id", None) == wid:
                 found = m
                 break
         assert found is not None, f"Wheel motor {wid} not found in definition"
