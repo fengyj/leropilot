@@ -508,7 +508,8 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         }
       });
     } else {
-      name = `${category}-${shortId}`;
+      // Use localized "Robot" prefix (don't rely on `category`), e.g., "Robot-xxxx" in user language
+      name = `${t('hardware.addRobotModal.custom_robot_name')}-${shortId}`;
       const mergedDescription = selectedDevices.map(d => d.definition && typeof d.definition !== 'string' ? d.definition.description : '').filter(Boolean).join(', ') || t('hardware.addRobotModal.customRobotName');
 
       const mergedMotorBuses: Record<string, any> = {};
@@ -943,6 +944,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                 <Button variant="secondary" onClick={onClose} className="border-border-default">
                   {t('common.cancel')}
                 </Button>
+                {/* TODO: 等机器人编辑 modal 做好后，创建成功并关闭此添加窗口后，应自动打开编辑窗口（传入新创建的 robot id） */}
                 <Button
                   onClick={() => handleCreate()}
                   disabled={loading || refreshingDevices}

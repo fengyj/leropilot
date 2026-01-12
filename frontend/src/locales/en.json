@@ -401,6 +401,7 @@
       "noMotorsFound": "No motors found",
       "category": "Category",
       "categoryRobot": "Robot",
+      "custom_robot_name": "Robot",
       "categoryController": "Controller",
       "error": "An error occurred during operation",
       "addFailed": "Add failed: {{error}}",
