@@ -20,14 +20,15 @@ import {
 } from '../../../components/ui/card';
 import { DropdownMenu } from '../../../components/ui/dropdown-menu';
 import { Robot, DeviceStatus } from '../../../types/hardware';
-import { StatusIcon } from './StatusIcon';
+import { StatusIcon } from './status-icon';
 
 export const RobotCard: React.FC<{
     robot: Robot;
     isRefreshing?: boolean;
     onRefresh: (id: string) => void;
     onDelete: (id: string, name: string) => void;
-}> = ({ robot, isRefreshing, onRefresh, onDelete }) => {
+    onEdit?: (id: string) => void;
+}> = ({ robot, isRefreshing, onRefresh, onDelete, onEdit }) => {
     const navigate = useNavigate();
     const { t } = useTranslation();
     const interfaces = robot.motor_bus_connections
@@ -118,7 +119,10 @@ export const RobotCard: React.FC<{
                         {
                             id: 'edit',
                             label: t('hardware.robotCard.editConfig'),
-                            onClick: () => navigate(`/hardware/${robot.id}/settings`),
+                            onClick: () => {
+                                if (onEdit) onEdit(robot.id);
+                                else navigate(`/hardware/${robot.id}/settings`);
+                            },
                             icon: <Edit className="h-4 w-4" />,
                         },
                         {

@@ -408,6 +408,7 @@
       "networkError": "网络错误，请稍后再试",
       "duplicateDeviceError": "设备不能在多个组件中重复使用。",
       "assigned": "已分配",
+      "snLabel": "SN",
       "motors": "{{count}} 个电机",
       "sendId": "Send ID",
       "recvId": "Recv ID",
@@ -429,6 +430,12 @@
         "modelMismatch": "电机 ID {{id}} 型号不匹配：预期 {{expected}}，实际发现 {{actual}}。",
         "mustSelectDevice": "请先选择一个硬件设备。",
         "duplicateNameError": "电机名称在此组件范围内必须唯一。"
+      },
+      "editRobotModal": {
+        "title": "编辑机器人",
+        "loading": "加载机器人中...",
+        "loadedInfo": "已获取机器人数据。（编辑表单尚未实现）",
+        "noData": "暂无机器人的数据"
       }
     }
   }

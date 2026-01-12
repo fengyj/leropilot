@@ -385,6 +385,7 @@
       "customAssembly": "Custom Assembly",
       "customRobotName": "Custom Assembled Robot",
       "customRobotDescription": "This mode allows you to freely combine discovered motor buses. You can customize the logic name for each component and bind it to a specific hardware interface. Suitable for non-standard or prototype robot development.",
+      "custom_robot_name": "Robot",
       "noDescription": "No description available",
       "addComponent": "Add Component",
       "componentNamePlaceholder": "Component name (e.g., arm_left)",
@@ -401,15 +402,16 @@
       "noMotorsFound": "No motors found",
       "category": "Category",
       "categoryRobot": "Robot",
-      "custom_robot_name": "Robot",
       "categoryController": "Controller",
       "error": "An error occurred during operation",
       "addFailed": "Add failed: {{error}}",
       "invalidComponentName": "Invalid component name \"{{name}}\" (letters, numbers, underscores only)",
+
       "duplicateComponentName": "Component names must be unique",
       "networkError": "Network error, please try again later",
       "duplicateDeviceError": "A device cannot be reused across multiple components.",
       "assigned": "Assigned",
+      "snLabel": "SN",
       "motors": "{{count}} motors",
       "sendId": "Send ID",
       "recvId": "Recv ID",
@@ -431,6 +433,12 @@
         "modelMismatch": "Motor ID {{id}} model mismatch: Expected {{expected}}, found {{actual}}.",
         "mustSelectDevice": "Please select a hardware device first.",
         "duplicateNameError": "Motor names must be unique within this component."
+      },
+      "editRobotModal": {
+        "title": "Edit Robot",
+        "loading": "Loading robot...",
+        "loadedInfo": "Robot data loaded. (Edit form not implemented yet)",
+        "noData": "No robot data available"
       }
     }
   }

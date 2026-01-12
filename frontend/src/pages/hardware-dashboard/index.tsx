@@ -9,15 +9,16 @@ import {
 import { Button } from '../../components/ui/button';
 import { Modal } from '../../components/ui/modal';
 import { AddRobotModal } from './components/add-robot-modal';
+import { EditRobotModal } from './components/edit-robot-modal';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { EmptyState } from '../../components/ui/empty-state';
 import { PageContainer } from '../../components/ui/page-container';
 import { Robot, CameraSummary } from '../../types/hardware';
 import { LoadingOverlay } from '../../components/ui/loading-overlay';
 
-import { RobotCard } from './components/RobotCard';
-import { CameraCard } from './components/CameraCard';
-import { CameraPreview } from './components/CameraPreview';
+import { RobotCard } from './components/robot-card';
+import { CameraCard } from './components/camera-card';
+import { CameraPreview } from './components/camera-preview';
 
 export function HardwareDashboard() {
     const { t } = useTranslation();
@@ -29,6 +30,8 @@ export function HardwareDashboard() {
     const [refreshingCameras, setRefreshingCameras] = useState(false);
     const [previewCamera, setPreviewCamera] = useState<CameraSummary | null>(null);
     const [isAddRobotOpen, setIsAddRobotOpen] = useState(false);
+    const [isEditRobotOpen, setIsEditRobotOpen] = useState(false);
+    const [editingRobotId, setEditingRobotId] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{
         isOpen: boolean;
         robotId: string | null;
@@ -214,6 +217,10 @@ export function HardwareDashboard() {
                                     isRefreshing={refreshing === robot.id}
                                     onRefresh={handleRefreshRobot}
                                     onDelete={handleDeleteRobot}
+                                    onEdit={(id: string) => {
+                                        setEditingRobotId(id);
+                                        setIsEditRobotOpen(true);
+                                    }}
                                 />
                             ))}
                         </div>
@@ -332,10 +339,25 @@ export function HardwareDashboard() {
             <AddRobotModal
                 isOpen={isAddRobotOpen}
                 onClose={() => setIsAddRobotOpen(false)}
-                onSuccess={() => {
+                onSuccess={(id: string) => {
+                    // close add modal and refresh list
                     setIsAddRobotOpen(false);
                     fetchRobots(true);
+                    // open edit modal shortly after to avoid UI/focus clashes
+                    setTimeout(() => {
+                        setEditingRobotId(id);
+                        setIsEditRobotOpen(true);
+                    }, 160);
                 }}
+            />
+
+            <EditRobotModal
+                isOpen={isEditRobotOpen}
+                onClose={() => {
+                    setIsEditRobotOpen(false);
+                    setEditingRobotId(null);
+                }}
+                robotId={editingRobotId}
             />
         </PageContainer>
     );

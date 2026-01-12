@@ -909,6 +909,11 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                             <span className="text-[10px] text-content-secondary font-medium">
                               {t('hardware.addRobotModal.motors', { count: motors.length })}
                             </span>
+                            {connection?.serial_number && (
+                              <span className="ml-3 px-2 py-0.5 rounded-full text-[10px] bg-surface-tertiary/60 text-content-secondary border border-border-subtle">
+                                {t('hardware.addRobotModal.snLabel')}: {connection.serial_number}
+                              </span>
+                            )}
                           </div>
                         </div>
 
