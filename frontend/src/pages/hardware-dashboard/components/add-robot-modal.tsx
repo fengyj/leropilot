@@ -8,14 +8,267 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Layers,
+  Settings,
 } from 'lucide-react';
+import { cn } from '../../../utils/cn';
 import { Modal } from '../../../components/ui/modal';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Select } from '../../../components/ui/select';
 import { LoadingOverlay } from '../../../components/ui/loading-overlay';
-import { Robot, RobotDefinition, RobotMotorBusConnection } from '../../../types/hardware';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
+import { Robot, RobotDefinition, RobotMotorBusConnection, RobotMotorDefinition } from '../../../types/hardware';
+
+/**
+ * Validates if the hardware motors match the specification.
+ * Returns a string error message if mismatch, null otherwise.
+ */
+const validateMotorCompliance = (
+  hwMotors: Record<string, RobotMotorDefinition>,
+  specMotors: Record<string, RobotMotorDefinition>,
+  t: any
+): string | null => {
+  const hwList = Object.values(hwMotors);
+  const specList = Object.values(specMotors);
+
+  if (hwList.length !== specList.length) {
+    return t('hardware.addRobotModal.motorSettings.countMismatch', {
+      expected: specList.length,
+      actual: hwList.length
+    });
+  }
+
+  // Compare by ID
+  for (const specMotor of specList) {
+    const hwMatch = hwList.find(m => JSON.stringify(m.id) === JSON.stringify(specMotor.id));
+    if (!hwMatch) {
+      const idStr = Array.isArray(specMotor.id) ? specMotor.id.join('/') : specMotor.id;
+      return t('hardware.addRobotModal.motorSettings.modelMismatch', {
+        id: idStr,
+        expected: specMotor.model,
+        actual: t('hardware.addRobotModal.motorSettings.missing')
+      });
+    }
+    if (hwMatch.model !== specMotor.model) {
+      const idStr = Array.isArray(specMotor.id) ? specMotor.id.join('/') : specMotor.id;
+      return t('hardware.addRobotModal.motorSettings.modelMismatch', {
+        id: idStr,
+        expected: specMotor.model,
+        actual: hwMatch.model
+      });
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Common formatter for motor IDs (Int or Tuple)
+ */
+const renderMotorId = (id: number | [number, number], t: any) => {
+  if (Array.isArray(id)) {
+    return `${t('hardware.addRobotModal.sendId')} ${id[0]} / ${t('hardware.addRobotModal.recvId')} ${id[1]}`;
+  }
+  return `${t('hardware.addRobotModal.motorId')} ${id}`;
+};
+
+interface MotorSettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (motors: Record<string, RobotMotorDefinition>) => void;
+  initialMotors: Record<string, RobotMotorDefinition>;
+  specMotors?: Record<string, RobotMotorDefinition>;
+  isReadOnly: boolean;
+}
+
+const MotorSettingsModal: React.FC<MotorSettingsModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialMotors,
+  specMotors,
+  isReadOnly
+}) => {
+  const { t } = useTranslation();
+  const [editingMotors, setEditingMotors] = useState<Record<string, RobotMotorDefinition>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Clone motors
+      const cloned = JSON.parse(JSON.stringify(initialMotors)) as Record<string, RobotMotorDefinition>;
+      
+      // If spec is provided, use spec names for matching hardware motors
+      if (specMotors) {
+        Object.values(specMotors).forEach((specMotor) => {
+          const hwKey = Object.keys(cloned).find(k => JSON.stringify(cloned[k].id) === JSON.stringify(specMotor.id));
+          if (hwKey) {
+            cloned[hwKey].name = specMotor.name;
+          }
+        });
+      }
+      
+      setEditingMotors(cloned);
+      setError(null);
+    }
+  }, [isOpen, initialMotors, specMotors]);
+
+  const complianceError = specMotors ? validateMotorCompliance(initialMotors, specMotors, t) : null;
+
+  const handleSave = () => {
+    // Validate unique names
+    const names = Object.values(editingMotors).map(m => m.name);
+    if (new Set(names).size !== names.length) {
+      setError(t('hardware.addRobotModal.motorSettings.duplicateNameError'));
+      return;
+    }
+    onSave(editingMotors);
+    onClose();
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isReadOnly ? t('hardware.addRobotModal.motorSettings.viewTitle') : t('hardware.addRobotModal.motorSettings.editTitle')}
+      className="max-w-2xl"
+    >
+      <div className="space-y-6">
+        {complianceError && (
+          <div className="p-4 bg-warning-surface border border-warning-border rounded-xl flex items-start gap-3 text-warning-content text-sm shadow-sm ring-1 ring-warning-border/50">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-base mb-1">{t('hardware.addRobotModal.motorSettings.checkMismatch')}</p>
+              <p className="opacity-90 leading-relaxed">{complianceError}</p>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-error-secondary/10 border border-error-default rounded-md flex items-center gap-2 text-error-default text-sm">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {(specMotors ? Object.entries(specMotors) : Object.entries(editingMotors)).map(([key, baseMotor]) => {
+            // Find corresponding hardware motor if we're using spec as base
+            const hwMotor = specMotors 
+              ? Object.values(editingMotors).find(m => JSON.stringify(m.id) === JSON.stringify(baseMotor.id))
+              : baseMotor;
+            
+            const isMissing = specMotors && !hwMotor;
+            const isModelMismatch = specMotors && hwMotor && hwMotor.model !== baseMotor.model;
+            // Use hardware info if exists, otherwise spec info
+            const currentMotor = hwMotor || baseMotor;
+
+            return (
+              <Card key={key} className={cn(
+                "overflow-hidden transition-all duration-200 shadow-md",
+                (isModelMismatch || isMissing)
+                  ? "bg-error-surface/[0.02] border-error-border/40" 
+                  : "hover:border-border-default"
+              )}>
+                <CardHeader className={cn(
+                  "px-4 py-2 border-b flex flex-row items-center justify-between space-y-0",
+                  (isModelMismatch || isMissing)
+                    ? "bg-error-surface/10 border-error-border/10"
+                    : "bg-surface-tertiary/30 border-border-subtle/30"
+                )}>
+                  <CardTitle className="flex items-center gap-4">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-surface-tertiary text-content-tertiary border border-border-default/50">
+                      {renderMotorId(baseMotor.id, t)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-content-tertiary opacity-80">
+                        {t('hardware.addRobotModal.motorSettings.model')}:
+                      </span>
+                      <span className="text-xs font-bold text-content-primary">
+                        {baseMotor.model}
+                      </span>
+                    </div>
+                  </CardTitle>
+                  {(isModelMismatch || isMissing) && specMotors && (
+                    <div className="flex items-center gap-2 text-error-content">
+                       <AlertCircle className="w-3.5 h-3.5" />
+                       <span className="text-[10px] font-bold uppercase opacity-80">{t('hardware.addRobotModal.motorSettings.discoveredMotorLabel')}:</span>
+                       <span className="text-[10px] font-bold px-2 py-0.5 bg-error-surface rounded border border-error-border shadow-sm">
+                        {isMissing ? t('hardware.addRobotModal.motorSettings.missing') : (hwMotor.variant || hwMotor.model)}
+                      </span>
+                    </div>
+                  )}
+                </CardHeader>
+
+                <CardContent className="p-4 grid grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-content-tertiary ml-1">
+                      {t('hardware.addRobotModal.motorSettings.name')}
+                    </label>
+                    <Input
+                      value={currentMotor.name || ''}
+                      placeholder={baseMotor.name || `motor_${currentMotor.id}`}
+                      onChange={e => {
+                        if (isReadOnly || isMissing) return;
+                        setEditingMotors(prev => {
+                          const hwKey = Object.keys(prev).find(k => JSON.stringify(prev[k].id) === JSON.stringify(currentMotor.id));
+                          if (!hwKey) return prev;
+                          return {
+                            ...prev,
+                            [hwKey]: { ...prev[hwKey], name: e.target.value }
+                          };
+                        });
+                      }}
+                      disabled={isReadOnly || isMissing}
+                      className="h-9 text-sm bg-surface-primary/50 border-border-subtle focus:border-primary transition-colors pr-8 font-medium"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-content-tertiary ml-1">
+                      {t('hardware.addRobotModal.motorSettings.driveMode')}
+                    </label>
+                    <div className="flex items-center h-9 pl-1">
+                      <input
+                        type="checkbox"
+                        checked={currentMotor.drive_mode === 1}
+                        onChange={() => {
+                          if (isReadOnly || isMissing) return;
+                          setEditingMotors(prev => {
+                            const hwKey = Object.keys(prev).find(k => JSON.stringify(prev[k].id) === JSON.stringify(currentMotor.id));
+                            if (!hwKey) return prev;
+                            return {
+                              ...prev,
+                              [hwKey]: { ...prev[hwKey], drive_mode: prev[hwKey].drive_mode === 1 ? 0 : 1 }
+                            };
+                          });
+                        }}
+                        disabled={isReadOnly || isMissing}
+                        className="transition-all hover:scale-105 shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-border-default">
+          {isReadOnly ? (
+            <Button onClick={onClose}>{t('common.close')}</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+              <Button onClick={handleSave}>{t('common.confirm')}</Button>
+            </>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+};
 
 interface AddRobotModalProps {
   isOpen: boolean;
@@ -41,9 +294,17 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
   const [refreshingDevices, setRefreshingDevices] = useState(false);
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<string>("");
+  const [category, setCategory] = useState<'robot'|'controller'>('robot');
   const [busConfigs, setBusConfigs] = useState<Record<string, string>>({}); // busName -> deviceId
   const [customBuses, setCustomBuses] = useState<CustomBusEntry[]>([{ name: 'component_1', deviceId: '' }]);
   const [expandedDevices, setExpandedDevices] = useState<Set<string>>(new Set());
+  const [motorModalData, setMotorModalData] = useState<{
+    componentName: string;
+    deviceId: string;
+    isReadOnly: boolean;
+    specMotors?: Record<string, RobotMotorDefinition>;
+  } | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       // Only load data if we haven't loaded it yet
@@ -53,11 +314,25 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
 
       // Reset form state on open
       setSelectedDefinitionId("");
+      setCategory('robot');
       setCustomBuses([{ name: 'component_1', deviceId: '' }]);
       setBusConfigs({});
       setErrorMsg(null);
+      setMotorModalData(null);
     }
   }, [isOpen]); // Only run when modal opens/closes
+
+  // Keep category in sync with selected definition
+  useEffect(() => {
+    if (selectedDefinitionId === 'custom') {
+      setCategory('robot');
+    } else if (selectedDefinitionId) {
+      const def = definitions.find(d => d.id === selectedDefinitionId);
+      if (def) {
+        setCategory((def as any).device_category || 'robot');
+      }
+    }
+  }, [selectedDefinitionId, definitions]);
 
   const loadData = async () => {
     setLoading(true);
@@ -101,6 +376,39 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
     setExpandedDevices(next);
   };
 
+  const handleOpenMotorSettings = (componentName: string, deviceId: string, isReadOnly: boolean, specMotors?: Record<string, RobotMotorDefinition>) => {
+    // Clear previous errors first
+    setErrorMsg(null);
+    if (!deviceId) {
+      setErrorMsg(t('hardware.addRobotModal.motorSettings.mustSelectDevice'));
+      return;
+    }
+    setMotorModalData({ componentName, deviceId, isReadOnly, specMotors });
+  };
+
+  const handleSaveMotors = (newMotors: Record<string, RobotMotorDefinition>) => {
+    if (!motorModalData) return;
+
+    // Find device and update its definition
+    setAvailableDevices(prev => prev.map(d => {
+      if (d.id === motorModalData.deviceId) {
+        // Deep clone and update
+        const updated = JSON.parse(JSON.stringify(d));
+        if (updated.definition && typeof updated.definition !== 'string') {
+          // Update "motorbus" if exists (for custom), else first bus
+          if (updated.definition.motor_buses["motorbus"]) {
+            updated.definition.motor_buses["motorbus"].motors = newMotors;
+          } else {
+            const firstKey = Object.keys(updated.definition.motor_buses)[0];
+            if (firstKey) updated.definition.motor_buses[firstKey].motors = newMotors;
+          }
+        }
+        return updated;
+      }
+      return d;
+    }));
+  };
+
   const handleAddBus = () => {
     setCustomBuses([...customBuses, { name: `component_${customBuses.length + 1}`, deviceId: '' }]);
   };
@@ -131,6 +439,18 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         if (!devId) return t('hardware.addRobotModal.selectDeviceFor', { component: name });
         if (usedDeviceIds.has(devId)) return t('hardware.addRobotModal.duplicateDeviceError');
         usedDeviceIds.add(devId);
+
+        // Check motor compliance
+        const dev = availableDevices.find(d => d.id === devId);
+        const specMotors = selectedDef?.motor_buses?.[name]?.motors;
+        if (dev && specMotors && dev.definition && typeof dev.definition === 'object') {
+          const hwBuses = dev.definition.motor_buses;
+          const hwMotors = (hwBuses['motorbus'] || Object.values(hwBuses)[0])?.motors || {};
+          const complianceErr = validateMotorCompliance(hwMotors, specMotors, t);
+          if (complianceErr) {
+            return `${name}: ${complianceErr}`;
+          }
+        }
       }
     } else if (selectedDefinitionId === "custom") {
       for (let i = 0; i < customBuses.length; i++) {
@@ -188,7 +508,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         }
       });
     } else {
-      name = `robot-${shortId}`;
+      name = `${category}-${shortId}`;
       const mergedDescription = selectedDevices.map(d => d.definition && typeof d.definition !== 'string' ? d.definition.description : '').filter(Boolean).join(', ') || t('hardware.addRobotModal.customRobotName');
 
       const mergedMotorBuses: Record<string, any> = {};
@@ -212,7 +532,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         display_name: t('common.custom'),
         description: mergedDescription,
         motor_buses: mergedMotorBuses,
-        urdf: null
+        device_category: category
       };
     }
 
@@ -325,7 +645,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-content-tertiary border-t border-border-default/50 pt-8">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-30">Waiting for Selection</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-30">{t('hardware.addRobotModal.waitingForSelection')}</p>
               </div>
             )}
           </div>
@@ -370,6 +690,28 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                     />
                   </div>
                 </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                      <label htmlFor="device-category-select" className="text-sm font-semibold text-content-primary flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-primary" />
+                        {t('hardware.addRobotModal.category')}
+                      </label>
+                      <Select
+                        id="device-category-select"
+                        name="device-category-select"
+                        options={[
+                          { label: t('hardware.addRobotModal.categoryRobot'), value: 'robot' },
+                          { label: t('hardware.addRobotModal.categoryController'), value: 'controller' }
+                        ]}
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value as 'robot' | 'controller')}
+                        // disable unless user selected custom assembly
+                        disabled={selectedDefinitionId !== 'custom'}
+                      />
+
+                  </div>
+                </div>
 
                 {selectedDefinitionId && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -406,6 +748,14 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                                   value={busConfigs[busName] || ''}
                                   onChange={(e) => setBusConfigs({ ...busConfigs, [busName]: e.target.value })}
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenMotorSettings(busName, busConfigs[busName], true, selectedDef.motor_buses[busName].motors)}
+                                  className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1 opacity-80 hover:opacity-100 transition-opacity"
+                                >
+                                  <Settings className="h-3 w-3" />
+                                  {t('hardware.addRobotModal.motorSettings.viewLink')}
+                                </button>
                               </div>
                             ));
                           })()
@@ -439,7 +789,6 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                               id={`custom-bus-device-${index}`}
                               name={`custom-bus-device-${index}`}
                               aria-label={t('hardware.addRobotModal.selectDevicePlaceholder')}
-                              className="h-8 bg-surface-secondary/50"
                               options={getDeviceOptions(bus.deviceId)}
                               value={bus.deviceId}
                               onChange={(e) => {
@@ -448,6 +797,14 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                                 setCustomBuses(next);
                               }}
                             />
+                            <button
+                              type="button"
+                              onClick={() => handleOpenMotorSettings(bus.name, bus.deviceId, false)}
+                              className="text-[10px] text-primary hover:underline flex items-center gap-1 mt-1 opacity-80 hover:opacity-100 transition-opacity"
+                            >
+                              <Settings className="h-3 w-3" />
+                              {t('hardware.addRobotModal.motorSettings.editLink')}
+                            </button>
                           </div>
                         ))
                       )}
@@ -474,7 +831,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                   </Button>
                 </div>
 
-                <div className="max-h-none overflow-visible pr-2 flex-1 min-h-[300px] relative">
+                  <div className="max-h-none overflow-visible pr-2 flex-1 min-h-[300px] relative">
                   {refreshingDevices && (
                     <LoadingOverlay
                       message={t('hardware.addRobotModal.scanningPorts')}
@@ -563,31 +920,12 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                                 <div key={idx} className="flex items-center gap-4 text-[10px] py-1.5 pl-7 border-b border-border-subtle last:border-0 hover:bg-surface-tertiary transition-colors">
                                   <div className="flex-none text-content-secondary flex items-center gap-1.5">
                                     <span className="h-1 w-1 rounded-full bg-content-tertiary" />
-                                    <span className="text-content-primary font-mono flex items-center gap-3">
-                                      {Array.isArray(m.id) ? (
-                                        <>
-                                          <span className="flex items-center gap-1">
-                                            <span className="text-[9px] text-content-tertiary uppercase tracking-tighter">Send ID:</span>
-                                            <span className="text-primary font-bold">{m.id[0]}</span>
-                                          </span>
-                                          <span className="flex items-center gap-1">
-                                            <span className="text-[9px] text-content-tertiary uppercase tracking-tighter">Recv ID:</span>
-                                            <span className="text-primary font-bold">{m.id[1]}</span>
-                                          </span>
-                                        </>
-                                      ) : (
-                                        <span className="flex items-center gap-1">
-                                          <span className="text-[9px] text-content-tertiary uppercase tracking-tighter">Motor ID:</span>
-                                          <span className="text-primary font-bold">{m.id}</span>
-                                        </span>
-                                      )}
+                                    <span className="text-content-primary font-bold">
+                                      {renderMotorId(m.id, t)}
                                     </span>
                                   </div>
                                   <div className="flex-1 flex items-center justify-between min-w-0">
-                                    <span className="text-content-primary font-medium truncate">{m.brand} {m.model}</span>
-                                    <span className="shrink-0 text-[10px] text-content-secondary bg-surface-tertiary px-1.5 py-0.5 rounded border border-border-default ml-2">
-                                      {m.variant || 'Standard'}
-                                    </span>
+                                    <span className="text-content-primary font-medium truncate">{m.model}</span>
                                   </div>
                                 </div>
                               ))
@@ -628,18 +966,37 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         className="max-w-md"
       >
         <div className="p-6 flex flex-col items-center text-center">
-          <div className="h-12 w-12 rounded-full bg-error-surface flex items-center justify-center mb-4">
-            <AlertCircle className="h-6 w-6 text-error-icon" />
+          <div className="h-12 w-12 rounded-full bg-surface-secondary flex items-center justify-center mb-4">
+            <AlertCircle className="h-6 w-6 text-content-tertiary" />
           </div>
           <h3 className="text-lg font-bold text-content-primary mb-2">{t('hardware.addRobotModal.error')}</h3>
           <p className="text-sm text-content-secondary mb-6">
             {errorMsg}
           </p>
-          <Button onClick={() => setErrorMsg(null)} variant="danger" className="w-full">
+          <Button onClick={() => setErrorMsg(null)} variant="secondary" className="w-full">
             {t('common.confirm')}
           </Button>
         </div>
       </Modal>
+
+      {/* Motor Settings Modal */}
+      {motorModalData && (
+        <MotorSettingsModal
+          isOpen={!!motorModalData}
+          onClose={() => setMotorModalData(null)}
+          onSave={handleSaveMotors}
+          isReadOnly={motorModalData.isReadOnly}
+          specMotors={motorModalData.specMotors}
+          initialMotors={(() => {
+            const dev = availableDevices.find((d: Robot) => d.id === (motorModalData as any).deviceId);
+            if (dev?.definition && typeof dev.definition === 'object') {
+              const def = dev.definition as RobotDefinition;
+              return def.motor_buses["motorbus"]?.motors || Object.values(def.motor_buses)[0]?.motors || {};
+            }
+            return {};
+          })()}
+        />
+      )}
     </Modal>
   );
 };

@@ -366,3 +366,53 @@ input[type='number'] {
 input[type='number']:focus {
   outline: none;
 }
+
+/* Custom checkbox styling to match system primary color and input style */
+input[type='checkbox'] {
+  appearance: none;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  display: inline-grid;
+  place-content: center;
+}
+
+input[type='checkbox']:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+input[type='checkbox']:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+input[type='checkbox']:checked::before {
+  content: "";
+  width: 0.65rem;
+  height: 0.65rem;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em white;
+  background-color: CanvasText;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform-origin: bottom left;
+}
+
+input[type='checkbox']:checked::before {
+  transform: scale(1);
+}
+
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

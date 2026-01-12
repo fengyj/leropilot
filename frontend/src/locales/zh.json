@@ -391,12 +391,16 @@
       "selectDeviceFor": "请为组件 {{component}} 选择一个设备",
       "selectDevicePlaceholder": "-- 请选择硬件 --",
       "discoveryDetails": "硬件探测详情",
+      "waitingForSelection": "等待选择",
       "refreshDiscovery": "重新探测",
       "scanningPorts": "正在扫描硬件端口...",
       "noRequirements": "该定义暂无特殊的硬件组件需求。",
       "noHardwareFound": "未发现可用硬件",
       "noHardwareHelp": "请确保 USB 串口线、CAN 适配器或电机电源已正确连接，然后点击上方“重新探测”。",
       "noMotorsFound": "未发现电机",
+      "category": "设备分类",
+      "categoryRobot": "机器人",
+      "categoryController": "控制器",
       "error": "操作发生错误",
       "addFailed": "添加失败: {{error}}",
       "invalidComponentName": "组件名称 \"{{name}}\" 无效 (仅限字母、数字、下划线)",
@@ -405,9 +409,27 @@
       "duplicateDeviceError": "设备不能在多个组件中重复使用。",
       "assigned": "已分配",
       "motors": "{{count}} 个电机",
-      "sendId": "Send ID:",
-      "recvId": "Recv ID:",
-      "motorId": "Motor ID:"
+      "sendId": "Send ID",
+      "recvId": "Recv ID",
+      "motorId": "Motor ID",
+      "motorSettings": {
+        "title": "电机设置",
+        "viewTitle": "查看电机配置",
+        "editTitle": "编辑电机配置",
+        "viewLink": "查看电机设置",
+        "editLink": "设置电机",
+        "name": "名称",
+        "model": "型号",
+        "driveMode": "反转旋转方向",
+        "driveModeHint": "默认正向旋转",
+        "discoveredMotorLabel": "发现的电机",
+        "missing": "缺失",
+        "checkMismatch": "检测到硬件配置不匹配！",
+        "countMismatch": "预期需要 {{expected}} 个电机，但选择的硬件上发现 {{actual}} 个。",
+        "modelMismatch": "电机 ID {{id}} 型号不匹配：预期 {{expected}}，实际发现 {{actual}}。",
+        "mustSelectDevice": "请先选择一个硬件设备。",
+        "duplicateNameError": "电机名称在此组件范围内必须唯一。"
+      }
     }
   }
 }

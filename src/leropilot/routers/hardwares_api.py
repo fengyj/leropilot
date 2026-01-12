@@ -136,7 +136,7 @@ async def discover_robots(lang: str = Query("en", description="Language code")) 
     Perform fresh robot hardware discovery.
     """
     manager = get_robot_manager()
-    robots = manager.get_pending_devices()
+    robots = manager.get_pending_devices(lang=lang)
     return [resolve_robot(r, lang) for r in robots]
 
 

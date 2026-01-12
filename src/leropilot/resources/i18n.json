@@ -493,6 +493,48 @@
         "zh": "图像未找到"
       }
     },
+    "addRobotModal": {
+      "category": {
+        "en": "Category",
+        "zh": "设备分类"
+      },
+      "categoryRobot": {
+        "en": "Robot",
+        "zh": "机器人"
+      },
+      "categoryController": {
+        "en": "Controller",
+        "zh": "控制器"
+      },
+      "unknownDeviceOn": {
+        "en": "Unknown device on {port}",
+        "zh": "{port} 上的未知设备"
+      },
+      "customRobotDevice": {
+        "en": "Custom Robot Device",
+        "zh": "自定义机器人设备"
+      },
+      "unknown": {
+        "en": "Unknown",
+        "zh": "未知"
+      },
+      "motorSettings": {
+        "title": { "en": "Motor Settings", "zh": "电机设置" },
+        "viewTitle": { "en": "View Motor Configuration", "zh": "查看电机配置" },
+        "editTitle": { "en": "Edit Motor Configuration", "zh": "编辑电机配置" },
+        "viewLink": { "en": "View Motor Settings", "zh": "查看电机设置" },
+        "editLink": { "en": "Setup Motors", "zh": "设置电机" },
+        "name": { "en": "Name", "zh": "名称" },
+        "model": { "en": "Model", "zh": "型号" },
+        "driveMode": { "en": "Invert Direction", "zh": "反转旋转方向" },
+        "driveModeHint": { "en": "Direction", "zh": "旋转方向" },
+        "checkMismatch": { "en": "Hardware Mismatch Detected!", "zh": "检测到硬件配置不匹配！" },
+        "countMismatch": { "en": "Expected {expected} motors, but hardware reported {actual}.", "zh": "预期需要 {expected} 个电机，但选择的硬件上发现 {actual} 个。" },
+        "modelMismatch": { "en": "Motor ID {id} model mismatch: Expected {expected}, found {actual}.", "zh": "电机 ID {id} 型号不匹配：预期 {expected}，实际发现 {actual}。" },
+        "mustSelectDevice": { "en": "Please select a hardware device first.", "zh": "请先选择一个硬件设备。" },
+        "duplicateNameError": { "en": "Motor names must be unique within this component.", "zh": "电机名称在此组件范围内必须唯一。" }
+      }
+    },
     "motor_device": {
       "ambiguous_model": {
         "en": "Model ID {model_id} is ambiguous for brand {brand}: {matches}",

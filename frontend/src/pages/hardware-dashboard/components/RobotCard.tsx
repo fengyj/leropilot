@@ -56,6 +56,11 @@ export const RobotCard: React.FC<{
                                 <CardTitle className="text-lg leading-tight break-words" title={robot.name}>
                                     {robot.name}
                                 </CardTitle>
+                                <div className="text-content-secondary text-xs">
+                                    {typeof robot.definition === 'object' && robot.definition?.device_category === 'controller'
+                                        ? t('hardware.addRobotModal.categoryController')
+                                        : t('hardware.addRobotModal.categoryRobot')}
+                                </div>
                                 {robot.is_transient && (
                                     <div>
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-tertiary text-content-secondary border border-border-default">

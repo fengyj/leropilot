@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -12,32 +12,41 @@ interface ModalProps {
   contentClassName?: string;
 }
 
+// Global stack to track open modals and manage scroll lock
+const activeModals: object[] = [];
+
 export function Modal({ isOpen, onClose, title, children, className, contentClassName }: ModalProps) {
-  // Handle escape key
+  const modalId = useMemo(() => ({}), []);
+
+  // Handle escape key and body scroll lock
   useEffect(() => {
     if (!isOpen) return;
 
+    activeModals.push(modalId);
+    if (activeModals.length === 1) {
+      document.body.style.overflow = 'hidden';
+    }
+
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      // Only the last modal in the stack (the topmost one) handles the Escape key
+      if (e.key === 'Escape' && activeModals[activeModals.length - 1] === modalId) {
         onClose();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+    window.addEventListener('keydown', handleEscape);
 
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
     return () => {
-      document.body.style.overflow = 'unset';
+      const index = activeModals.indexOf(modalId);
+      if (index > -1) {
+        activeModals.splice(index, 1);
+      }
+      if (activeModals.length === 0) {
+        document.body.style.overflow = 'unset';
+      }
+      window.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose, modalId]);
 
   if (!isOpen) return null;
 

@@ -37,6 +37,7 @@ from leropilot.models.hardware import (
     RobotMotorDefinition,
 )
 from leropilot.services.hardware.platform_adapter import PlatformAdapter
+from leropilot.services.i18n import get_i18n_service
 
 logger = logging.getLogger(__name__)
 
@@ -613,13 +614,13 @@ class RobotManager:
 
         return results
 
-    def get_pending_devices(self) -> list[Robot]:
+    def get_pending_devices(self, lang: str = "en") -> list[Robot]:
         """Return a list of `Robot` objects representing motorbuses with motors attached.
 
         Converts each motorbus tuple returned by `_discover_motor_buses()` into a
         `Robot` object following the rules provided by the caller:
         - `id`: a generated UUID (persisted id) — serial number is stored on the connection
-        - `name`: f"Unknown device on {motorbus.interface}"
+        - `name`: f"Unknown device on {motorbus.interface}" (localized)
         - `status`: DeviceStatus.AVAILABLE
         - `manufacturer`: None
         - `labels`: empty dict
@@ -635,13 +636,21 @@ class RobotManager:
 
         pending: list[Robot] = []
         results = self._discover_motor_buses()
+        i18n = get_i18n_service()
 
         for bus, serial_number, _manufacturer in results:
             # Use a random UUID as the persisted robot id; serial is captured on the connection
             from uuid import uuid4
 
             robot_id = uuid4().hex
-            name = f"Unknown device on {bus.interface}"
+            
+            # Localized device name
+            name = i18n.translate(
+                "hardware.addRobotModal.unknownDeviceOn", 
+                lang=lang, 
+                port=bus.interface
+            ) or f"Unknown device on {bus.interface}"
+
             status = DeviceStatus.AVAILABLE
             labels: dict = {}
             created_at = datetime.now()
@@ -686,7 +695,7 @@ class RobotManager:
                 )
                 motor_defs[name_idx] = motor_def
 
-                type_key = variant or model or "Unknown"
+                type_key = variant or model or i18n.translate("hardware.addRobotModal.unknown", lang=lang) or "Unknown"
                 type_counts[type_key] = type_counts.get(type_key, 0) + 1
 
             # Build description string like "4 STS3215-C001, 2 STS3215-C046"
@@ -703,7 +712,7 @@ class RobotManager:
             rdef = RobotDefinition(
                 id="",
                 lerobot_name=None,
-                display_name="Custom Robot Device",
+                display_name=i18n.translate("hardware.addRobotModal.customRobotDevice", lang=lang) or "Custom Robot Device",
                 description=description,
                 support_version_from=None,
                 support_version_end=None,

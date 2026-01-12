@@ -9,7 +9,7 @@ export interface RobotMotorBusConnection {
 }
 
 export interface RobotMotorDefinition {
-  id: number;
+  id: number | [number, number];
   name: string;
   variant: string | null;
   model: string;
@@ -32,7 +32,7 @@ export interface RobotDefinition {
   description: string;
   support_version_from: string | null;
   support_version_end: string | null;
-  urdf: string | null;
+  device_category?: DeviceCategory;
   motor_buses: Record<string, MotorBusDefinition>;
 }
 
