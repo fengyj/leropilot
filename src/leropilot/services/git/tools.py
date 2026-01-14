@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 
-from leropilot.exceptions import OperationalError, ValidationError
+from leropilot.exceptions import OperationalError, ResourceNotFoundError, ValidationError
 from leropilot.logger import get_logger
 from leropilot.services.config import get_config
 from leropilot.services.i18n import get_i18n_service

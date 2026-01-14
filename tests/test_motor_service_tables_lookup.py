@@ -1,8 +1,10 @@
-from leropilot.services.hardware.motors import MotorService
+import pytest
+
 from leropilot.models.hardware import MotorProtectionParams
+from leropilot.services.hardware.motors import MotorService
 
 
-def test_get_model_info_by_model_id_feetech():
+def test_get_model_info_by_model_id_feetech() -> None:
     svc = MotorService()
     info = svc.get_model_info_by_model_id("feetech", 3215)
     assert info is not None
@@ -10,7 +12,7 @@ def test_get_model_info_by_model_id_feetech():
     assert info.model == "STS3215"
 
 
-def test_get_spec_by_model_id_uses_tables(monkeypatch):
+def test_get_spec_by_model_id_uses_tables(monkeypatch: pytest.MonkeyPatch) -> None:
     svc = MotorService()
     res = svc.get_spec_by_model_id("feetech", 3215)
     assert res is not None

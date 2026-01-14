@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 
 from leropilot.main import app
 from leropilot.services.hardware.robots import get_robot_manager
-from leropilot.models.hardware import Robot
 
 client = TestClient(app)
 
@@ -40,7 +39,8 @@ def test_discovery_then_add_device(monkeypatch, tmp_path):
             self.motors = motors
 
     from unittest.mock import Mock
-    from leropilot.models.hardware import MotorModelInfo, MotorBrand
+
+    from leropilot.models.hardware import MotorBrand, MotorModelInfo
 
     mi = MotorModelInfo(model="STS3215", model_ids=[1], limits={}, variant="STS3215-C001", brand=MotorBrand.FEETECH)
     bus = FakeBus("COM3", {1: (Mock(), mi)})

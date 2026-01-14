@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from leropilot.exceptions import ResourceNotFoundError
 from leropilot.logger import get_logger
 from leropilot.models.api.repository import (
     RepositoryInfo,

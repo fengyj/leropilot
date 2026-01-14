@@ -1,6 +1,5 @@
 """Configuration data models for LeRoPilot."""
 
-import sys
 from pathlib import Path
 from typing import Literal
 

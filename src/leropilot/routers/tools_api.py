@@ -7,13 +7,12 @@ from typing import Any
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
+from leropilot.exceptions import ValidationError
 from leropilot.logger import get_logger
+from leropilot.services.git import GitToolManager
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/tools", tags=["tools"])
-
-from leropilot.exceptions import ResourceNotFoundError, ValidationError
-from leropilot.services.git import GitToolManager
 
 
 @router.post("/git/validate")
@@ -69,9 +68,6 @@ async def download_bundled_git(lang: str = Query("en", description="Language cod
     Download and install bundled Git.
     """
     from leropilot.services.config import get_config
-
-    config = get_config()
-
     from leropilot.services.git import GitToolManager
 
     git_manager = GitToolManager()

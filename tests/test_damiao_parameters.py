@@ -1,7 +1,8 @@
 """Test Damiao parameter read/write functionality"""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
 from leropilot.services.hardware.motor_drivers.damiao.tables import DamiaoConstants

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { MessageBox } from '../../components/ui/message-box';
 import { EmptyState } from '../../components/ui/empty-state';
 import { PageContainer } from '../../components/ui/page-container';
 import { LoadingOverlay } from '../../components/ui/loading-overlay';
@@ -130,15 +130,25 @@ export function EnvironmentListPage() {
 
     return (
         <PageContainer>
-            <ConfirmDialog
+            <MessageBox
                 isOpen={deleteConfirm.isOpen}
+                onClose={handleDeleteCancel}
+                type="warning"
                 title={t('environments.deleteConfirmTitle')}
                 message={t('environments.deleteConfirmMessage')}
                 confirmText={t('common.delete')}
-                cancelText={t('common.cancel')}
-                variant="danger"
+                buttonType="ok-cancel"
                 onConfirm={handleDeleteConfirm}
                 onCancel={handleDeleteCancel}
+            />
+
+            <MessageBox
+                isOpen={errorDialog.isOpen}
+                onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+                type="error"
+                title={t('common.error')}
+                message={errorDialog.message}
+                buttonType="ok"
             />
 
             <div className="flex items-center justify-between">
@@ -180,13 +190,13 @@ export function EnvironmentListPage() {
             )}
 
             {/* Error dialog for terminal open failures */}
-            <ConfirmDialog
+            <MessageBox
                 isOpen={errorDialog.isOpen}
+                onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+                type="error"
                 title={t('environments.terminalOpenError')}
                 message={errorDialog.message}
-                confirmText={t('common.ok')}
-                onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
-                onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
+                buttonType="ok"
             />
         </PageContainer>
     );

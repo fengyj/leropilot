@@ -91,13 +91,16 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
             logger.debug(f"Connecting to CAN bus: {channel} (type: {bustype})")
 
             # For PCAN FD adapters on Windows, we try to be compatible.
-            # python-can't pcan backend handles bitrate but we ensure it's not blocked by 
+            # python-can't pcan backend handles bitrate but we ensure it's not blocked by
             # leftover FD configurations.
             try:
                 self.bus = can.interface.Bus(channel=channel, bustype=bustype, bitrate=self.baud_rate)
             except Exception as e:
                 if "current configuration" in str(e).lower():
-                    logger.error(f"PCAN Access Denied: Please ensure PCAN-View or other CAN tools are CLOSED. Error: {e}")
+                    logger.error(
+                        "PCAN Access Denied: Please ensure PCAN-View or other CAN tools "
+                        f"are CLOSED. Error: {e}"
+                    )
                 raise e
 
             self.connected = True
@@ -125,7 +128,15 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
             return False
 
     def _encode_mit_cmd(
-        self, pos: float, vel: float, torq: float, kp: float, kd: float, pmax: float = 12.5, vmax: float = 45.0, tmax: float = 18.0
+        self,
+        pos: float,
+        vel: float,
+        torq: float,
+        kp: float,
+        kd: float,
+        pmax: float = 12.5,
+        vmax: float = 45.0,
+        tmax: float = 18.0,
     ) -> bytes:
         """Encode MIT control command into 8-byte CAN frame using provided limits"""
         pos_u = float_to_uint(pos, -pmax, pmax, 16)
@@ -299,7 +310,10 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
                         self.motors[motor_id]["model_info"] = model_info
                         return model_info
                     else:
-                        logger.warning(f"Motor {motor_id} returned unknown model number: {model_num} (hex: {hex(model_num)}) at address {hex(param_addr)}")
+                        logger.warning(
+                            f"Motor {motor_id} returned unknown model number: {model_num} "
+                            f"(hex: {hex(model_num)}) at address {hex(param_addr)}"
+                        )
 
             # Fallback to provided model_number if available
             if model_number is not None:
@@ -309,7 +323,10 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
                 return mi
 
             # Could not determine model -> raise
-            raise ValueError(f"Unable to identify Damiao motor model for {motor_id} (read failed or model mapping missing)")
+            raise ValueError(
+                f"Unable to identify Damiao motor model for {motor_id} "
+                "(read failed or model mapping missing)"
+            )
 
         except Exception as e:
             if raise_on_ambiguous:
@@ -347,7 +364,10 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
                 if hasattr(self.bus, "state") and self.bus.state in (can.BusState.PASSIVE, can.BusState.OFF):
                     # If we haven't found anything yet, passive state strongly suggests wrong bitrate
                     if not discovered and i >= batch_size:
-                        logger.warning(f"Aborting Damiao scan: Bus is in {self.bus.state.name} state (likely incorrect bitrate)")
+                        logger.warning(
+                            f"Aborting Damiao scan: Bus is in {self.bus.state.name} "
+                            "state (likely incorrect bitrate)"
+                        )
                         break
             except Exception:
                 pass
@@ -474,7 +494,7 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
 
             if motor_id not in self.motors:
                 self.motors[motor_id] = {}
-            
+
             self.motors[motor_id].update({
                 "last_seen": time.time(),
                 "state": (position, velocity, torque, temp_mos, temp_rotor),

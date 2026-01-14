@@ -9,10 +9,10 @@ import threading
 import uuid
 from pathlib import Path
 
+from leropilot.exceptions import OperationalError
+
 # OS Detection
 IS_WINDOWS = platform.system() == "Windows"
-
-from leropilot.exceptions import OperationalError, ValidationError
 
 if IS_WINDOWS:
     from winpty import PtyProcess

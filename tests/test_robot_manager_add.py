@@ -1,9 +1,12 @@
-# ruff: noqa: ANN201, ANN001, ANN204
+from typing import NoReturn
+
+import pytest
+
+from leropilot.models.hardware import DeviceStatus, Robot, RobotMotorBusConnection
 from leropilot.services.hardware.robots import RobotManager
-from leropilot.models.hardware import RobotVerificationError, Robot, DeviceStatus, RobotMotorBusConnection
 
 
-def test_add_robot_uses_pending_connection_and_calls_verify(monkeypatch):
+def test_add_robot_uses_pending_connection_and_calls_verify(monkeypatch: pytest.MonkeyPatch) -> None:
     manager = RobotManager()
     # isolate
     manager._robots.clear()
@@ -14,7 +17,12 @@ def test_add_robot_uses_pending_connection_and_calls_verify(monkeypatch):
         name="Pending",
         status=DeviceStatus.AVAILABLE,
         motor_bus_connections={
-            "motorbus": RobotMotorBusConnection(motor_bus_type="MockBus", interface="COM1", baudrate=115200, serial_number="SNX")
+            "motorbus": RobotMotorBusConnection(
+                motor_bus_type="MockBus",
+                interface="COM1",
+                baudrate=115200,
+                serial_number="SNX",
+            )
         },
         definition=None,
     )
@@ -33,23 +41,23 @@ def test_add_robot_uses_pending_connection_and_calls_verify(monkeypatch):
     monkeypatch.setattr(manager, "verify_robot", fake_verify)
 
     new = Robot(id="SNX", name="NewRobot", status=DeviceStatus.AVAILABLE)
-    added = manager.add_robot(new)
+    manager.add_robot(new)
 
     assert called["verify"] is True
     assert manager.get_robot("SNX") is not None
 
 
-def test_add_robot_without_connections_skips_verify(monkeypatch):
+def test_add_robot_without_connections_skips_verify(monkeypatch: pytest.MonkeyPatch) -> None:
     manager = RobotManager()
     manager._robots.clear()
 
     # Ensure verify_robot is NOT called
-    def bad_verify(_):
+    def bad_verify(_: object) -> NoReturn:
         raise AssertionError("verify_robot should not be called when no connection available")
 
     monkeypatch.setattr(manager, "verify_robot", bad_verify)
 
     r = Robot(id="NOSERIAL", name="NoConn", status=DeviceStatus.AVAILABLE)
-    added = manager.add_robot(r)
+    manager.add_robot(r)
 
     assert manager.get_robot("NOSERIAL") is not None

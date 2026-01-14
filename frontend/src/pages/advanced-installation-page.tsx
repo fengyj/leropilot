@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Loader2, Trash2, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
-import { ConfirmDialog } from '../components/ui/confirm-dialog';
+import { MessageBox } from '../components/ui/message-box';
 import { CodeEditor } from '../components/code-editor';
 import { useWizardStore } from '../stores/environment-wizard-store';
 import { cn } from '../utils/cn';
@@ -366,13 +366,13 @@ export function AdvancedInstallationPage() {
         </div>
       </div>
 
-      <ConfirmDialog
+      <MessageBox
         isOpen={errorDialog.isOpen}
+        onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+        type="error"
         title={t('common.error')}
         message={errorDialog.message}
-        confirmText={t('common.ok')}
-        onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
-        onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
+        buttonType="ok"
       />
     </div>
   );

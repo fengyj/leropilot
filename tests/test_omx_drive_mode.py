@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-def test_omx_follower_all_drive_modes_zero():
+def test_omx_follower_all_drive_modes_zero() -> None:
     path = Path("src/leropilot/resources/robot_specs.json")
     data = json.loads(path.read_text(encoding='utf-8'))
     robots = data.get("robots", [])
@@ -13,7 +13,7 @@ def test_omx_follower_all_drive_modes_zero():
         assert "drive_mode" not in m, f"OMX follower motor {m.get('name')} should not include drive_mode when default 0"
 
 
-def test_omx_leader_gripper_inverted():
+def test_omx_leader_gripper_inverted() -> None:
     path = Path("src/leropilot/resources/robot_specs.json")
     data = json.loads(path.read_text(encoding='utf-8'))
     robots = data.get("robots", [])

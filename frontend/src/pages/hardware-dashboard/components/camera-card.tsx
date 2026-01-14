@@ -11,7 +11,7 @@ import {
     CardTitle,
 } from '../../../components/ui/card';
 import { CameraSummary, DeviceStatus } from '../../../types/hardware';
-import { StatusIcon } from './StatusIcon';
+import { StatusIcon } from './status-icon';
 
 export const CameraCard: React.FC<{
     camera: CameraSummary;
@@ -27,8 +27,8 @@ export const CameraCard: React.FC<{
         <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 max-w-xl w-full ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
             {isRefreshing && (
                 <LoadingOverlay
-                    message={t('hardware.robotCard.refreshing')}
-                    subtitle={t('hardware.robotCard.updatingStatus')}
+                    message={t('hardware.common.refreshing')}
+                    subtitle={t('hardware.common.updatingStatus')}
                     size="md"
                     fancy
                     className="rounded-xl"

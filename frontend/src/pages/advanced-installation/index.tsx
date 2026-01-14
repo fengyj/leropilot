@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { MessageBox } from '../../components/ui/message-box';
 import { useWizardStore } from '../../stores/environment-wizard-store';
 import { AdvancedStepCard } from './components/AdvancedStepCard';
 
@@ -295,13 +295,13 @@ export function AdvancedInstallationPage() {
         </div>
       </div>
 
-      <ConfirmDialog
+      <MessageBox
         isOpen={errorDialog.isOpen}
+        onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+        type="error"
         title={t('common.error')}
         message={errorDialog.message}
-        confirmText={t('common.ok')}
-        onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
-        onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
+        buttonType="ok"
       />
     </div>
   );

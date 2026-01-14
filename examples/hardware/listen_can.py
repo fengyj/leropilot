@@ -7,9 +7,9 @@ Example:
     python -m examples.hardware.listen_can PCAN_USBBUS2 1000000 8
 """
 
+import logging
 import sys
 import time
-import logging
 
 import can
 

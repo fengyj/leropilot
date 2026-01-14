@@ -1,5 +1,6 @@
 import pytest
-from leropilot.models.hardware import MotorModelInfo, MotorBrand
+
+from leropilot.models.hardware import MotorBrand, MotorModelInfo
 from leropilot.services.hardware.motors import MotorService
 
 
@@ -16,7 +17,15 @@ def test_probe_serial_permission_triggers_udev_install(monkeypatch: "pytest.Monk
             return self._connect_calls > 1
 
         def scan_motors(self, scan_range: list[int] | None = None) -> dict[int, MotorModelInfo]:
-            return {1: MotorModelInfo(model="XL", model_ids=[1190], limits={}, variant=None, brand=MotorBrand.DYNAMIXEL)}
+            return {
+                1: MotorModelInfo(
+                    model="XL",
+                    model_ids=[1190],
+                    limits={},
+                    variant=None,
+                    brand=MotorBrand.DYNAMIXEL,
+                )
+            }
 
         def disconnect(self) -> None:
             pass

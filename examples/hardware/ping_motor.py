@@ -7,9 +7,8 @@ Example:
     python -m examples.hardware.ping_motor PCAN_USBBUS1 3
 """
 
-import sys
 import logging
-from typing import Optional
+import sys
 
 from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
 

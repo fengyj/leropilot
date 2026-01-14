@@ -18,8 +18,6 @@ import json
 import logging
 
 from leropilot.exceptions import (
-    OperationalError,
-    ResourceNotFoundError,
     ValidationError,
 )
 from leropilot.models.hardware import (

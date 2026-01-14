@@ -216,12 +216,22 @@ def _validate_structure(parsed_joints: list[dict], parsed_links: list[dict], res
     joint_names = [j.get("name") for j in parsed_joints]
     dup_joints = {n for n in joint_names if joint_names.count(n) > 1 and n is not None}
     if dup_joints:
-        _add_error(result, "URDF_DUPLICATE_JOINT_NAME", f"Duplicate joint names: {sorted([n for n in dup_joints if n is not None])}")
+        dup_list = sorted([n for n in dup_joints if n is not None])
+        _add_error(
+            result,
+            "URDF_DUPLICATE_JOINT_NAME",
+            f"Duplicate joint names: {dup_list}",
+        )
 
     link_names = [link.get("name") for link in parsed_links]
     dup_links = {n for n in link_names if link_names.count(n) > 1 and n is not None}
     if dup_links:
-        _add_error(result, "URDF_DUPLICATE_LINK_NAME", f"Duplicate link names: {sorted([n for n in dup_links if n is not None])}")
+        dup_list = sorted([n for n in dup_links if n is not None])
+        _add_error(
+            result,
+            "URDF_DUPLICATE_LINK_NAME",
+            f"Duplicate link names: {dup_list}",
+        )
 
     # Root link checks
     root_links: set[str] = {str(link.get("name")) for link in parsed_links if link.get("name") is not None}
@@ -355,7 +365,7 @@ def get_joint_chain(urdf_path: str, from_link: str, to_link: str) -> list[str] |
         # BFS/DFS
         from collections import deque
 
-        q: "deque[tuple[str, list[str]]]" = deque([(from_link, [])])
+        q: deque[tuple[str, list[str]]] = deque([(from_link, [])])
         seen: set[str] = set()
         while q:
             cur, path = q.popleft()

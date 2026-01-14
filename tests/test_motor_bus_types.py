@@ -1,10 +1,10 @@
-from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
-from leropilot.services.hardware.motor_buses.feetech_motor_bus import FeetechMotorBus
-from leropilot.services.hardware.motor_buses.dynamixel_motor_bus import DynamixelMotorBus
 from leropilot.services.hardware.motor_buses.damiao_motor_bus import DamiaoMotorBus
+from leropilot.services.hardware.motor_buses.dynamixel_motor_bus import DynamixelMotorBus
+from leropilot.services.hardware.motor_buses.feetech_motor_bus import FeetechMotorBus
+from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
 
-def test_motorbus_type_lists():
+def test_motorbus_type_lists() -> None:
     serial = set(MotorBus.serial_types())
     can = set(MotorBus.can_types())
 
@@ -17,7 +17,7 @@ def test_motorbus_type_lists():
     assert serial.isdisjoint(can)
 
 
-def test_supported_baudrates_lookup():
+def test_supported_baudrates_lookup() -> None:
     # Each subclass exposes a class-level supported_baudrates
     assert FeetechMotorBus.supported_baudrates()
     assert DynamixelMotorBus.supported_baudrates()
@@ -29,7 +29,7 @@ def test_supported_baudrates_lookup():
     assert MotorBus.supported_baudrates_for("damiao") == DamiaoMotorBus.supported_baudrates()
 
 
-def test_resolve_bus_class():
+def test_resolve_bus_class() -> None:
     # Accepts class objects
     assert MotorBus.resolve_bus_class(FeetechMotorBus) is FeetechMotorBus
     # Accepts canonical string names

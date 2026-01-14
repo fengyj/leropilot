@@ -4,7 +4,7 @@ import { Plus, Trash2, Globe, Star } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
-import { ConfirmDialog } from '../../../components/ui/confirm-dialog';
+import { MessageBox } from '../../../components/ui/message-box';
 import { RepositoryStatusButton } from '../../../components/repository-status-button';
 import { cn } from '../../../utils/cn';
 import type { AppConfig, RepositorySource } from '../types';
@@ -232,13 +232,13 @@ export function RepositoriesSection({
         </div>
       </CardContent>
 
-      <ConfirmDialog
+      <MessageBox
         isOpen={deleteConfirm.isOpen}
+        onClose={cancelDeleteRepository}
+        type="warning"
         title={t('settings.repositories.delete')}
         message={t('settings.repositories.deleteConfirm', { name: deleteConfirm.name || '' })}
-        confirmText={t('common.confirm')}
-        cancelText={t('common.cancel')}
-        variant="danger"
+        buttonType="ok-cancel"
         onConfirm={confirmDeleteRepository}
         onCancel={cancelDeleteRepository}
       />

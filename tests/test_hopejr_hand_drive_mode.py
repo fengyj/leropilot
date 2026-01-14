@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-def test_hopejr_hand_drive_modes():
+def test_hopejr_hand_drive_modes() -> None:
     path = Path("src/leropilot/resources/robot_specs.json")
     assert path.exists(), "robot_specs.json not found"
 

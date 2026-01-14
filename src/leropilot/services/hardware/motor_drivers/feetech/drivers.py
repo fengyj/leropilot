@@ -205,9 +205,7 @@ class FeetechDriver(BaseMotorDriver[int]):
 
         # Ambiguous: either raise or return base-like fallback
         if raise_on_ambiguous:
-            from leropilot.models.hardware import AmbiguousModelError
-
-            raise AmbiguousModelError(f"Model id {model_number} is ambiguous: {[c.model for c in candidates]}")
+            raise ValueError(f"Model id {model_number} is ambiguous: {[c.model for c in candidates]}")
 
         result = candidates[0].model_copy()
         result.variant = None

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Save, RotateCcw } from 'lucide-react';
 import { StatusBadge } from '../../components/ui/status-badge';
-import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { MessageBox } from '../../components/ui/message-box';
 import { Button } from '../../components/ui/button';
 import { PageContainer } from '../../components/ui/page-container';
 import { cn } from '../../utils/cn';
@@ -156,13 +156,13 @@ export function SettingsPage() {
         </Button>
       </div>
 
-      <ConfirmDialog
+      <MessageBox
         isOpen={showResetDialog}
+        onClose={() => setShowResetDialog(false)}
+        type="warning"
         title={t('settings.buttons.reset')}
         message={t('settings.messages.resetConfirm')}
-        confirmText={t('common.confirm')}
-        cancelText={t('common.cancel')}
-        variant="danger"
+        buttonType="ok-cancel"
         onConfirm={async () => {
           setShowResetDialog(false);
           await resetConfig();

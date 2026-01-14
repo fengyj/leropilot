@@ -1,12 +1,14 @@
 """Tests for MotorBus implementation."""
-import pytest
 from unittest.mock import Mock, patch
-from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
-from leropilot.services.hardware.motor_buses.feetech_motor_bus import FeetechMotorBus
+
+import pytest
+
+from leropilot.models.hardware import MotorBrand, MotorModelInfo
 from leropilot.services.hardware.motor_buses.damiao_motor_bus import DamiaoMotorBus
+from leropilot.services.hardware.motor_buses.feetech_motor_bus import FeetechMotorBus
+from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 from leropilot.services.hardware.motor_drivers.base import BaseMotorDriver
 from leropilot.services.hardware.motor_drivers.feetech.drivers import FeetechDriver
-from leropilot.models.hardware import MotorModelInfo, MotorBrand
 
 
 class MockDriver(BaseMotorDriver):
@@ -45,13 +47,13 @@ class MockDriver(BaseMotorDriver):
         return self.connected
 
 
-def test_abstract_motor_bus():
+def test_abstract_motor_bus() -> None:
     """Test that MotorBus is abstract and cannot be instantiated directly."""
     with pytest.raises(TypeError):
         MotorBus("test", 1000000)
 
 
-def test_feetech_motor_bus_initialization():
+def test_feetech_motor_bus_initialization() -> None:
     """Test FeetechMotorBus can be initialized."""
     bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
 
@@ -61,7 +63,7 @@ def test_feetech_motor_bus_initialization():
     assert not bus.is_connected()
 
 
-def test_damiao_motor_bus_initialization():
+def test_damiao_motor_bus_initialization() -> None:
     """Test DamiaoMotorBus can be initialized."""
     bus = DamiaoMotorBus("can0", 1000000)
 
@@ -70,7 +72,7 @@ def test_damiao_motor_bus_initialization():
     assert not bus.is_connected()
 
 
-def test_feetech_motor_bus_connect_disconnect():
+def test_feetech_motor_bus_connect_disconnect() -> None:
     """Test FeetechMotorBus connect/disconnect lifecycle."""
     bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
 
@@ -88,7 +90,7 @@ def test_feetech_motor_bus_connect_disconnect():
     assert not bus.is_connected()
 
 
-def test_motor_bus_context_manager():
+def test_motor_bus_context_manager() -> None:
     """Test MotorBus context manager."""
     mock_driver = Mock()
     mock_driver.connect.return_value = True
@@ -102,7 +104,7 @@ def test_motor_bus_context_manager():
         assert not bus.is_connected()
 
 
-def test_motor_bus_motor_registration():
+def test_motor_bus_motor_registration() -> None:
     """Test motor registration with MotorBus."""
     bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
 
@@ -117,15 +119,15 @@ def test_motor_bus_motor_registration():
     assert bus.get_motor(2) is None
 
 
-def test_feetech_motor_bus_scan():
+def test_feetech_motor_bus_scan() -> None:
     """Test FeetechMotorBus scanning functionality."""
     bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
-    
+
     # Test that scan returns empty when not connected
     assert not bus.is_connected()
     results = bus.scan_motors([1])
     assert len(results) == 0
-    
+
     # Test that scan returns empty when connected but no driver class functionality
     bus.connect()
     assert bus.is_connected()
@@ -133,7 +135,7 @@ def test_feetech_motor_bus_scan():
     assert len(results) == 0
 
 
-def test_batch_operations():
+def test_batch_operations() -> None:
     """Test batch operations on MotorBus."""
     mock_driver1 = Mock()
     mock_driver1.motor_id = 1

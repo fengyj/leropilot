@@ -69,7 +69,10 @@ class Robot(BaseModel):
     # Persisted fields
     is_transient: bool = Field(False, description="If true, robot should not be persisted to disk")
     definition: "RobotDefinition | str | None" = Field(None, description="Robot definition or definition id")
-    calibration_settings: dict[str, list["MotorCalibration"]] = Field(default_factory=dict, description="Per-motor-bus calibration lists; key=bus name")
+    calibration_settings: dict[str, list["MotorCalibration"]] = Field(
+        default_factory=dict,
+        description="Per-motor-bus calibration lists; key=bus name",
+    )
     custom_protection_settings: dict[tuple[str, str, str | None], list["MotorLimit"]] = Field(
         default_factory=dict,
         description=(
@@ -81,13 +84,16 @@ class Robot(BaseModel):
 
     # Connection info for motor buses (persisted as part of the Robot entry).
     # `interface` may be present at runtime but is not required to be persisted.
-    motor_bus_connections: dict[str, RobotMotorBusConnection] | None = Field(None, description="Motor bus connection info; persisted with robot entry")
+    motor_bus_connections: dict[str, RobotMotorBusConnection] | None = Field(
+        None,
+        description="Motor bus connection info; persisted with robot entry",
+    )
 
     class Config:
         use_enum_values = True
 
     @model_validator(mode="after")
-    def _normalize_custom_protection_settings(self):
+    def _normalize_custom_protection_settings(self) -> "Robot":
         """Normalize keys in `custom_protection_settings` to canonical tuples
 
         Accepts keys as:
@@ -109,7 +115,10 @@ class Robot(BaseModel):
                     model = parts[1]
                     variant = parts[2] if len(parts) >= 3 else None
                 else:
-                    raise ValueError("custom_protection_settings keys must be 'brand:model' or 'brand:model:variant' when provided as strings")
+                    raise ValueError(
+                        "custom_protection_settings keys must be 'brand:model' or "
+                        "'brand:model:variant' when provided as strings"
+                    )
             elif isinstance(k, (list, tuple)):
                 if len(k) == 2:
                     brand, model = str(k[0]), str(k[1])
@@ -117,7 +126,10 @@ class Robot(BaseModel):
                 elif len(k) >= 3:
                     brand, model, variant = str(k[0]), str(k[1]), str(k[2])
                 else:
-                    raise ValueError("custom_protection_settings keys must be (brand, model) or (brand, model, variant)")
+                    raise ValueError(
+                        "custom_protection_settings keys must be (brand, model) "
+                        "or (brand, model, variant)"
+                    )
             elif isinstance(k, tuple) and len(k) in (2, 3):
                 brand, model = str(k[0]), str(k[1])
                 variant = str(k[2]) if len(k) == 3 else None
@@ -129,6 +141,8 @@ class Robot(BaseModel):
 
         object.__setattr__(self, "custom_protection_settings", new)
         return self
+
+
 
 
 
@@ -336,7 +350,6 @@ class MotorLimitTypes:
 
 class MotorProtectionOverride(BaseModel):
     """User custom motor protection overrides"""
-
     source: str = Field("builtin", description="'builtin' or 'custom'")
     overrides: dict[str, float] | None = None  # e.g., {"temp_warning": 55}
 
@@ -391,7 +404,7 @@ class RobotMotorDefinition(BaseModel):
     drive_mode: int = Field(0, description="0 = normal, 1 = inverted direction")  # default to 0 when missing from JSON
 
     @field_validator("id", mode="before")
-    def _normalize_id(cls, v):
+    def _normalize_id(cls, v: object) -> int | tuple[int, int] | object:
         """Normalize list-style ids into int or tuple forms for `id`.
 
         Accepts lists from JSON (e.g., `[1]` or `[1, 2]`) and converts them to an
@@ -447,7 +460,7 @@ class MotorBusDefinition(BaseModel):
     interface_type: str | None = None  # serial, can, slcan, etc.
 
     @model_validator(mode="before")
-    def _normalize_motors(cls, values: dict):
+    def _normalize_motors(cls, values: dict) -> dict:
         """Normalize list-style `motors` into a dict keyed by motor name.
 
         Accepts raw dicts or list entries from JSON and ensures resulting value

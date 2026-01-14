@@ -15,10 +15,9 @@ import logging
 import sys
 from pathlib import Path
 
-from leropilot.services.hardware.camera import CameraService
-
 # Import OpenCV for saving images
 import cv2
+from leropilot.services.hardware.camera import CameraService
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)

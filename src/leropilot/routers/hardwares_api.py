@@ -1,5 +1,4 @@
 import asyncio
-import importlib.resources
 import logging
 import threading
 from collections.abc import AsyncGenerator
@@ -10,12 +9,18 @@ from fastapi import APIRouter, Body, File, Query, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from leropilot.exceptions import OperationalError, ResourceNotFoundError, ValidationError
-from leropilot.models.hardware import CameraSummary, Robot, DeviceCategory, DeviceStatus, RobotDefinition, MotorModelInfo
+from leropilot.models.api.hardware import UpdateRobotBody
+from leropilot.models.hardware import (
+    CameraSummary,
+    MotorModelInfo,
+    Robot,
+    RobotDefinition,
+)
 from leropilot.services.hardware.cameras import CameraService
-from leropilot.services.hardware.robots import get_robot_manager, get_robot_urdf_manager, RobotSpecService
 from leropilot.services.hardware.motors import MotorService
+from leropilot.services.hardware.robots import RobotSpecService, get_robot_manager, get_robot_urdf_manager
 from leropilot.services.i18n import get_i18n_service
-from leropilot.utils.urdf import get_robot_resource, get_urdf_resource, validate_file as validate_urdf_file
+from leropilot.utils.urdf import validate_file as validate_urdf_file
 
 logger = logging.getLogger(__name__)
 
@@ -67,10 +72,10 @@ def resolve_robot_definition(definition: RobotDefinition, lang: str) -> RobotDef
     """Resolve localized fields in a RobotDefinition for a specific language."""
     resolved = definition.model_copy()
 
-    def _resolve(val: str | dict[str, str], l: str) -> str:
+    def _resolve(val: str | dict[str, str], lang_code: str) -> str:
         if isinstance(val, str):
             return val
-        return val.get(l) or val.get("en") or (list(val.values())[0] if val else "")
+        return val.get(lang_code) or val.get("en") or (list(val.values())[0] if val else "")
 
     resolved.display_name = _resolve(definition.display_name, lang)
     resolved.description = _resolve(definition.description, lang)
@@ -107,8 +112,14 @@ async def list_robot_definitions(lang: str = Query("en", description="Language c
     return [resolve_robot_definition(d, lang) for d in definitions]
 
 
-@router.get("/robots/definitions/{definition_id}/image", operation_id="hardware_get_robot_definition_image")
-async def get_robot_definition_image(definition_id: str, lang: str = Query("en", description="Language code")) -> FileResponse:
+@router.get(
+    "/robots/definitions/{definition_id}/image",
+    operation_id="hardware_get_robot_definition_image",
+)
+async def get_robot_definition_image(
+    definition_id: str,
+    lang: str = Query("en", description="Language code"),
+) -> FileResponse:
     """Get the image for a specific robot definition."""
     svc = get_robot_spec_service()
     definition = svc.get_robot_definition(definition_id)
@@ -169,7 +180,11 @@ async def get_robot(
     return resolve_robot(robot, lang)
 
 
-@router.get("/robots/{robot_id}/motor_models_info", response_model=list[MotorModelInfo], operation_id="hardware_get_robot_motor_models_info")
+@router.get(
+    "/robots/{robot_id}/motor_models_info",
+    response_model=list[MotorModelInfo],
+    operation_id="hardware_get_robot_motor_models_info",
+)
 async def get_robot_motor_models_info(robot_id: str) -> list[MotorModelInfo]:
     """Return a deduplicated list of motor model metadata for the robot's definition."""
     manager = get_robot_manager()
@@ -186,28 +201,22 @@ async def add_robot(robot: Robot, lang: str = Query("en", description="Language 
     return resolve_robot(added, lang)
 
 
+
+
 @router.patch("/robots/{robot_id}", response_model=Robot, operation_id="hardware_update_robot")
 async def update_robot(
     robot_id: str,
-    name: str | None = BODY_UNSET,
-    labels: dict[str, str] | None = BODY_UNSET,
-    motor_bus_connections: dict[str, dict] | None = BODY_UNSET,
-    custom_protection_settings: dict[str, list[dict]] | None = BODY_UNSET_WITH_DESC,
+    body: UpdateRobotBody = BODY_UNSET_WITH_DESC,
     verify: bool = Query(True, description="Verify robot connectivity after applying updates"),
     lang: str = Query("en", description="Language code"),
 ) -> Robot:
     """Update robot details."""
     manager = get_robot_manager()
-    # Build updates dict only from provided parameters (not the sentinel)
+    # Build updates dict only from provided parameters (exclude unset fields)
     updates: dict[str, object] = {}
-    if name is not _UNSET:
-        updates["name"] = name
-    if labels is not _UNSET:
-        updates["labels"] = labels
-    if motor_bus_connections is not _UNSET:
-        updates["motor_bus_connections"] = motor_bus_connections
-    if custom_protection_settings is not _UNSET:
-        updates["custom_protection_settings"] = custom_protection_settings
+    provided = body.model_dump(exclude_unset=True)
+    for k, v in provided.items():
+        updates[k] = v
 
     # Delegate verification and update semantics to the service layer
     # updated raises ResourceNotFoundError or RobotVerificationError on failure
@@ -270,13 +279,23 @@ async def upload_robot_urdf(
     robot = manager.get_robot(robot_id)
     if not robot:
         raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
-    
+
     contents = await file.read()
     urdf_mgr = get_robot_urdf_manager()
     saved_path = urdf_mgr.upload_custom_urdf(robot_id, contents)
 
-    # Return standardized response
+    # Validate URDF; if invalid, remove the saved file and raise
     result = validate_urdf_file(str(saved_path))
+    if not result.get("valid", False):
+        try:
+            saved_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        # Provide a user-facing validation error (message includes 'URDF')
+        raise ValidationError("failed_process_urdf") from None
+
+    # Return standardized response
+    return {"message": "URDF uploaded successfully", "path": str(saved_path), "validation": result}
 
 
 
@@ -293,7 +312,7 @@ async def delete_robot_urdf(robot_id: str) -> Response:
     try:
         urdf_mgr.delete_custom_urdf(robot_id)
     except FileNotFoundError:
-        raise ResourceNotFoundError("hardware.robot_device.custom_urdf_not_found")
+        raise ResourceNotFoundError("hardware.robot_device.custom_urdf_not_found") from None
     return Response(status_code=204)
 
 
@@ -318,7 +337,7 @@ async def camera_snapshot(
     try:
         index = int(camera_id.split("_")[-1]) if camera_id.startswith("cam_") else int(camera_id)
     except Exception:
-        raise ValidationError("hardware.camera_device.invalid_camera_id")
+        raise ValidationError("hardware.camera_device.invalid_camera_id") from None
 
     svc = get_camera_service()
     frame = svc.capture_snapshot(index, camera_type="USB", width=width, height=height)
@@ -344,7 +363,7 @@ async def camera_mjpeg(
     try:
         index = int(camera_id.split("_")[-1]) if camera_id.startswith("cam_") else int(camera_id)
     except Exception:
-        raise ValidationError("hardware.camera_device.invalid_camera_id")
+        raise ValidationError("hardware.camera_device.invalid_camera_id") from None
 
     svc = get_camera_service()
     frames = svc.stream_encoded_frames(

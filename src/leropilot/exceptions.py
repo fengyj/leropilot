@@ -3,7 +3,6 @@
 Supports i18n keys for user-facing messages and English for internal logging.
 """
 
-from typing import Any
 
 
 class AppBaseError(Exception):
@@ -14,7 +13,7 @@ class AppBaseError(Exception):
         i18n_key: str,
         status_code: int = 500,
         retriable: bool = False,
-        **params: Any,
+        **params: object,
     ) -> None:
         """
         Initialize the error.
@@ -38,7 +37,7 @@ class AppBaseError(Exception):
             from leropilot.services.i18n import get_i18n_service
 
             i18n = get_i18n_service()
-            
+
             # Use dot-path as default if translation fails
             translated = i18n.translate(self.i18n_key, lang="en", **self.params)
             return str(translated) if translated else self.i18n_key
@@ -51,28 +50,28 @@ class AppBaseError(Exception):
 class ResourceNotFoundError(AppBaseError):
     """Raised when a requested resource (robot, environment, etc.) is not found."""
 
-    def __init__(self, i18n_key: str, **params: Any) -> None:
+    def __init__(self, i18n_key: str, **params: object) -> None:
         super().__init__(i18n_key, status_code=404, **params)
 
 
 class ResourceConflictError(AppBaseError):
     """Raised when an operation conflicts with the current state (e.g., duplicate ID)."""
 
-    def __init__(self, i18n_key: str, **params: Any) -> None:
+    def __init__(self, i18n_key: str, **params: object) -> None:
         super().__init__(i18n_key, status_code=409, **params)
 
 
 class ValidationError(AppBaseError):
     """Raised when input validation fails."""
 
-    def __init__(self, i18n_key: str, **params: Any) -> None:
+    def __init__(self, i18n_key: str, **params: object) -> None:
         super().__init__(i18n_key, status_code=400, **params)
 
 
 class OperationalError(AppBaseError):
     """Raised when an operational failure occurs (hardware connection, git command, etc.)."""
 
-    def __init__(self, i18n_key: str, retriable: bool = False, **params: Any) -> None:
+    def __init__(self, i18n_key: str, retriable: bool = False, **params: object) -> None:
         super().__init__(i18n_key, status_code=500, retriable=retriable, **params)
 
 

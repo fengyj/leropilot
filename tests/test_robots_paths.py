@@ -1,14 +1,16 @@
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from leropilot.services.hardware.robots import (
-    get_robots_base_dir,
     get_robot_list_path,
     get_robot_urdf_dir,
+    get_robots_base_dir,
 )
 
 
-def test_robot_paths_helpers_create_dirs(tmp_path, monkeypatch):
+def test_robot_paths_helpers_create_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Arrange: point config to temporary data dir
     data_dir = tmp_path / "data"
     cfg = SimpleNamespace(paths=SimpleNamespace(data_dir=str(data_dir)))

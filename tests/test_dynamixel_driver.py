@@ -1,7 +1,6 @@
-import types
 
-from leropilot.services.hardware.motor_drivers.dynamixel.drivers import DynamixelDriver
 from leropilot.models.hardware import MotorModelInfo
+from leropilot.services.hardware.motor_drivers.dynamixel.drivers import DynamixelDriver
 
 
 def test_identify_model_dynamixel(monkeypatch):
@@ -18,7 +17,6 @@ def test_identify_model_dynamixel(monkeypatch):
     drv.packet_handler = fake_ph
 
     # Ensure COMM_SUCCESS constant is available and equals 0 for test purposes
-    from dynamixel_sdk import COMM_SUCCESS
 
     info = drv.identify_model(1)
     assert isinstance(info, MotorModelInfo)

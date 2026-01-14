@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronRight, Check } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardFooter } from '../../components/ui/card';
-import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { MessageBox } from '../../components/ui/message-box';
 import { useWizardStore } from '../../stores/environment-wizard-store';
 import { cn } from '../../utils/cn';
 
@@ -261,26 +261,28 @@ export function EnvironmentWizard() {
         </CardFooter>
       </Card>
 
-      {/* Cancel Confirmation Dialog */}
-      <ConfirmDialog
+      {/* Cancel Confirmation MessageBox */}
+      <MessageBox
         isOpen={showCancelDialog}
+        onClose={handleCancelDialog}
+        type="warning"
         title={t('wizard.cancelDialog.title')}
         message={t('wizard.cancelDialog.message')}
         confirmText={t('wizard.cancelDialog.confirm')}
         cancelText={t('wizard.cancelDialog.stay')}
+        buttonType="ok-cancel"
         onConfirm={handleConfirmCancel}
         onCancel={handleCancelDialog}
-        variant="danger"
       />
 
-      {/* Error Dialog (use instead of browser alert) */}
-      <ConfirmDialog
+      {/* Error MessageBox (use instead of browser alert) */}
+      <MessageBox
         isOpen={errorDialog.isOpen}
+        onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+        type="error"
         title={t('common.error')}
         message={errorDialog.message}
-        confirmText={t('common.ok')}
-        onConfirm={() => setErrorDialog({ isOpen: false, message: '' })}
-        onCancel={() => setErrorDialog({ isOpen: false, message: '' })}
+        buttonType="ok"
       />
     </div>
   );

@@ -1,10 +1,11 @@
+import pytest
+
 from leropilot.models.hardware import (
+    LIMIT_CURRENT_MAX_MA,
+    LIMIT_VOLTAGE_MIN,
+    MotorBrand,
     MotorLimit,
     MotorModelInfo,
-    AmbiguousModelError,
-    LIMIT_VOLTAGE_MIN,
-    LIMIT_CURRENT_MAX_MA,
-    MotorBrand,
 )
 
 
@@ -36,19 +37,19 @@ def test_motor_model_info_limits():
     assert "position" in model.operating_modes
 
 
-def test_constants_and_exception():
+def test_constants_and_exception() -> None:
     assert LIMIT_VOLTAGE_MIN
     assert LIMIT_CURRENT_MAX_MA
-    # AmbiguousModelError exists and is an Exception
+    # Basic ValueError sanity check (used for ambiguity in drivers)
     try:
-        raise AmbiguousModelError("ambiguous")
-    except AmbiguousModelError as e:
+        raise ValueError("ambiguous")
+    except ValueError as e:
         assert str(e) == "ambiguous"
 
 
-def test_motor_model_info_requires_brand():
-    import pytest
+def test_motor_model_info_requires_brand() -> None:
+    from pydantic import ValidationError
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         # brand is required
         MotorModelInfo(model="X", model_ids=[0], limits={})

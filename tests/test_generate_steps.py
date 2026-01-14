@@ -1,7 +1,7 @@
-from leropilot.services.environment.installation import EnvironmentInstallationPlanGenerator
-from leropilot.services.config.installation import EnvironmentInstallationConfigService
-from leropilot.services.i18n import get_i18n_service
 from leropilot.models.environment import EnvironmentConfig
+from leropilot.services.config.installation import EnvironmentInstallationConfigService
+from leropilot.services.environment.installation import EnvironmentInstallationPlanGenerator
+from leropilot.services.i18n import get_i18n_service
 from leropilot.utils import get_resources_dir
 
 

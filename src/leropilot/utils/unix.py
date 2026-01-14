@@ -15,11 +15,11 @@ Notes on `pkexec` message support:
 """
 from __future__ import annotations
 
-import shutil
-import shlex
 import logging
 import os
 import platform
+import shlex
+import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -202,10 +202,13 @@ class UdevManager:
         if use_pkexec:
             # Move the temp file to destination using pkexec (atomic using mv)
             dest = str(path)
-            cmd = ["mv", shlex.quote(str(tmp_path)), shlex.quote(dest)]
             # We use a shell wrapper so we can run a compound command (mv && udevadm reload/trigger)
-            shell_cmd = f"mv {shlex.quote(str(tmp_path))} {shlex.quote(dest)} && udevadm control --reload && udevadm trigger"
-            PrivilegeHelper.run_with_privilege(shell_cmd, message="leropilot needs to install udev rules to access devices")
+            mv_cmd = f"mv {shlex.quote(str(tmp_path))} {shlex.quote(dest)}"
+            shell_cmd = f"{mv_cmd} && udevadm control --reload && udevadm trigger"
+            PrivilegeHelper.run_with_privilege(
+                shell_cmd,
+                message="leropilot needs to install udev rules to access devices",
+            )
         else:
             raise PermissionError("Target udev rules file not writable and pkexec not allowed")
 
@@ -268,7 +271,13 @@ class UdevManager:
         # so tests and local operations can proceed without requiring `udevadm`.
         is_system_dir = os.name == "posix" and str(self.rules_dir).startswith("/etc/udev")
         if is_system_dir and not shutil.which("udevadm"):
-            ok = self.ensure_package_installed("udev", message="leropilot requires udev to manage camera/serial devices")
+            ok = self.ensure_package_installed(
+                "udev",
+                message=(
+                    "leropilot requires udev to manage camera/"
+                    "serial devices"
+                ),
+            )
             if not ok:
                 return {"installed": False, "skipped": False, "rule": rule, "path": str(path)}
 

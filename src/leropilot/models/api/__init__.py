@@ -8,6 +8,9 @@ from leropilot.models.api.environment import (
     GenerateStepsResponse,
     HardwareInfo,
 )
+from leropilot.models.api.hardware import (
+    UpdateRobotBody,
+)
 from leropilot.models.api.repository import (
     RepositoryInfo,
     RepositoryStatus,
@@ -26,4 +29,5 @@ __all__ = [
     "RepositoryStatus",
     "VersionCompatibilityEntry",
     "VersionInfo",
+    "UpdateRobotBody",
 ]

@@ -3,13 +3,12 @@
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Any, Literal, cast
 
 import yaml
 
-from leropilot.exceptions import OperationalError, ResourceConflictError, ValidationError
+from leropilot.exceptions import OperationalError, ResourceConflictError
 from leropilot.models.app_config import AppConfig, PyPIMirror, RepositorySource
 from leropilot.utils.paths import get_resources_dir
 

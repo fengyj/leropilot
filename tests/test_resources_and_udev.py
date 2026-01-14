@@ -1,4 +1,3 @@
-import platform
 
 from fastapi.testclient import TestClient
 

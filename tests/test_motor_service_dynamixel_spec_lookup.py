@@ -1,8 +1,8 @@
-from leropilot.services.hardware.motors import MotorService
 from leropilot.models.hardware import MotorProtectionParams
+from leropilot.services.hardware.motors import MotorService
 
 
-def test_get_spec_by_model_id_dynamixel():
+def test_get_spec_by_model_id_dynamixel() -> None:
     svc = MotorService()
     res = svc.get_spec_by_model_id("dynamixel", 1190)
     assert res is not None

@@ -4,7 +4,7 @@ from leropilot.services.hardware.motor_drivers.feetech.tables import (
 )
 
 
-def test_feetech_tables_populated():
+def test_feetech_tables_populated() -> None:
     assert isinstance(SCS_STS_Registers.ADDR_PRESENT_POSITION, int)
     assert SCS_STS_MODELS_LIST
     # Check a known model id maps to an entry (base model should include 3215)
@@ -16,7 +16,7 @@ def test_feetech_tables_populated():
     assert getattr(base_model, "brand", None) == MotorBrand.FEETECH
 
 
-def test_variants_present():
+def test_variants_present() -> None:
     # Ensure variant entry exists and includes expected id
     variant_model = next((m for m in SCS_STS_MODELS_LIST if (m.variant or "").endswith("C001")), None)
     assert variant_model is not None
@@ -25,7 +25,7 @@ def test_variants_present():
     assert (variant_model.variant or "").endswith("C001")
 
 
-def test_model_ids_are_distinct():
+def test_model_ids_are_distinct() -> None:
     # Make sure variants are separate entries (model_ids can overlap since variants are determined by firmware)
     variants_found = set()
     for m in SCS_STS_MODELS_LIST:

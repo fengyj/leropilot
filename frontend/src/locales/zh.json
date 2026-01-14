@@ -8,8 +8,12 @@
     "unknown": "未知",
     "unknownError": "未知错误",
     "error": "错误",
+    "warning": "警告",
+    "info": "提示",
+    "success": "成功",
     "create": "创建",
-    "close": "关闭"
+    "close": "关闭",
+    "save": "保存"
   },
   "nav": {
     "dashboard": "仪表板",
@@ -331,6 +335,29 @@
     "connectionLost": "连接中断"
   },
   "hardware": {
+    "common": {
+      "sn": "SN",
+      "motorId": "Motor ID",
+      "sendId": "Send ID",
+      "recvId": "Recv ID",
+      "motors": "{{count}} 个电机",
+      "interfaces": "接口",
+      "baudrate": "波特率",
+      "baudrateUnit": "波特",
+      "baudrateAuto": "自动",
+      "categoryRobot": "机器人",
+      "categoryController": "控制器",
+      "motorName": "名称",
+      "motorModel": "型号",
+      "driveMode": "驱动反转",
+      "transient": "临时设备",
+      "selectDevicePlaceholder": "-- 请选择硬件 --",
+      "noMotorsFound": "未发现电机",
+      "refreshing": "正在刷新...",
+      "updatingStatus": "正在更新状态"
+    },
+    "deleteConfirmTitle": "删除设备",
+    "deleteConfirmMessage": "您确定要删除此设备吗？此操作无法撤销。",
     "dashboard": {
       "title": "机器人与机械臂",
       "subtitle": "管理您连接的机器人、手臂、相机及其他辅助硬件。",
@@ -356,14 +383,10 @@
       "offline": "离线"
     },
     "robotCard": {
-      "transient": "临时设备",
-      "interfaces": "接口",
       "control": "控制",
       "calibrate": "标定",
       "editConfig": "编辑配置",
       "refreshStatus": "刷新状态",
-      "refreshing": "正在刷新...",
-      "updatingStatus": "正在更新状态",
       "delete": "删除"
     },
     "cameraCard": {
@@ -389,7 +412,6 @@
       "componentNamePlaceholder": "组件名称 (如: arm_left)",
       "componentConnections": "硬件连接",
       "selectDeviceFor": "请为组件 {{component}} 选择一个设备",
-      "selectDevicePlaceholder": "-- 请选择硬件 --",
       "discoveryDetails": "硬件探测详情",
       "waitingForSelection": "等待选择",
       "refreshDiscovery": "重新探测",
@@ -397,10 +419,7 @@
       "noRequirements": "该定义暂无特殊的硬件组件需求。",
       "noHardwareFound": "未发现可用硬件",
       "noHardwareHelp": "请确保 USB 串口线、CAN 适配器或电机电源已正确连接，然后点击上方“重新探测”。",
-      "noMotorsFound": "未发现电机",
       "category": "设备分类",
-      "categoryRobot": "机器人",
-      "categoryController": "控制器",
       "error": "操作发生错误",
       "addFailed": "添加失败: {{error}}",
       "invalidComponentName": "组件名称 \"{{name}}\" 无效 (仅限字母、数字、下划线)",
@@ -408,20 +427,12 @@
       "networkError": "网络错误，请稍后再试",
       "duplicateDeviceError": "设备不能在多个组件中重复使用。",
       "assigned": "已分配",
-      "snLabel": "SN",
-      "motors": "{{count}} 个电机",
-      "sendId": "Send ID",
-      "recvId": "Recv ID",
-      "motorId": "Motor ID",
       "motorSettings": {
         "title": "电机设置",
         "viewTitle": "查看电机配置",
         "editTitle": "编辑电机配置",
         "viewLink": "查看电机设置",
         "editLink": "设置电机",
-        "name": "名称",
-        "model": "型号",
-        "driveMode": "反转旋转方向",
         "driveModeHint": "默认正向旋转",
         "discoveredMotorLabel": "发现的电机",
         "missing": "缺失",
@@ -431,11 +442,46 @@
         "mustSelectDevice": "请先选择一个硬件设备。",
         "duplicateNameError": "电机名称在此组件范围内必须唯一。"
       },
-      "editRobotModal": {
-        "title": "编辑机器人",
-        "loading": "加载机器人中...",
-        "loadedInfo": "已获取机器人数据。（编辑表单尚未实现）",
-        "noData": "暂无机器人的数据"
+      "possibleDuplicateTitle": "可能已存在相同设备",
+      "possibleDuplicateFound": "发现可能重复的设备",
+      "possibleDuplicateFoundMessage": "检测到与已存在设备 \"{{name}}\" 的序列号一致。是否仍要继续添加？"
+    },
+    "editRobotModal": {
+      "title": "编辑机器人",
+      "loading": "加载机器人中...",
+      "loadedInfo": "已获取机器人数据。",
+      "noData": "暂无机器人的数据",
+      "nameTaken": "已有同名机器人存在。",
+      "nameRequired": "名称为必填项。",
+      "nameConflict": "名称冲突",
+      "saveFailed": "保存失败，请重试。",
+      "namePlaceholder": "机器人名称",
+      "saving": "正在保存...",
+      "protectionTitle": "保护设置",
+      "calibrationTitle": "校准数据",
+      "motorbusGroupsTitle": "硬件",
+      "components": "组件",
+      "componentLabel": "组件",
+      "homingOffset": "归零偏移",
+      "rangeMin": "最小限位",
+      "rangeMax": "最大限位",
+      "normal": "正常",
+      "inverted": "反转",
+      "protectionAria": "保护数据设置",
+      "restoreDefaults": "恢复默认值",
+      "restoreConfirm": "这将根据电机型号的默认推荐值覆盖当前的保护设置，是否继续？",
+      "restoreConfirmAction": "恢复",
+      "restoreFailed": "恢复默认值失败",
+      "protectionInvalid": "部分保护数据格式不正确",
+      "resetHint": "修改后将实时预览，点击保存生效。",
+      "usedBy": "被 \"{{name}}\" 使用",
+      "unknownType": "机器人",
+      "motorTable": {
+        "name": "名称",
+        "id": "ID",
+        "model": "型号",
+        "driveReversed": "驱动反转",
+        "needCalibration": "需要标定"
       }
     }
   }

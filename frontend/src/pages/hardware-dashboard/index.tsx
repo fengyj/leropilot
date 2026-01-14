@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/button';
 import { Modal } from '../../components/ui/modal';
 import { AddRobotModal } from './components/add-robot-modal';
 import { EditRobotModal } from './components/edit-robot-modal';
-import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { MessageBox } from '../../components/ui/message-box';
 import { EmptyState } from '../../components/ui/empty-state';
 import { PageContainer } from '../../components/ui/page-container';
 import { Robot, CameraSummary } from '../../types/hardware';
@@ -148,13 +148,14 @@ export function HardwareDashboard() {
 
     return (
         <PageContainer>
-            <ConfirmDialog
+            <MessageBox
                 isOpen={deleteConfirm.isOpen}
+                onClose={handleDeleteCancel}
+                type="warning"
                 title={t('hardware.deleteConfirmTitle')}
                 message={t('hardware.deleteConfirmMessage')}
                 confirmText={t('common.delete')}
-                cancelText={t('common.cancel')}
-                variant="danger"
+                buttonType="ok-cancel"
                 onConfirm={handleDeleteConfirm}
                 onCancel={handleDeleteCancel}
             />
@@ -207,7 +208,7 @@ export function HardwareDashboard() {
                     </div>
                 </div>
 
-                <div className="min-h-[200px] relative">
+                <div className="min-h-[200px] relative flex flex-col">
                     {robots.length > 0 ? (
                         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                             {robots.map((robot) => (
@@ -227,13 +228,9 @@ export function HardwareDashboard() {
                     ) : !loadingRobots ? (
                         <EmptyState
                             icon={<Bot className="h-8 w-8" />}
-                            message={t('hardware.noRobots')}
+                            message={t('hardware.dashboard.noRobots')}
                             size="md"
-                            action={{
-                                label: t('hardware.dashboard.addRobot'),
-                                icon: <Plus className="mr-2 h-4 w-4" />,
-                                onClick: () => setIsAddRobotOpen(true),
-                            }}
+                            className="flex-1"
                         />
                     ) : null}
 
@@ -356,6 +353,8 @@ export function HardwareDashboard() {
                 onClose={() => {
                     setIsEditRobotOpen(false);
                     setEditingRobotId(null);
+                    // Refresh robot list without refreshing per-robot status
+                    fetchRobots(false);
                 }}
                 robotId={editingRobotId}
             />

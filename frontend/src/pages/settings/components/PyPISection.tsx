@@ -4,7 +4,7 @@ import { Plus, Trash2, Server } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { ConfirmDialog } from '../../../components/ui/confirm-dialog';
+import { MessageBox } from '../../../components/ui/message-box';
 import { cn } from '../../../utils/cn';
 import type { AppConfig, PyPIMirror } from '../types';
 
@@ -255,13 +255,13 @@ export function PyPISection({ config, setConfig }: PyPISectionProps) {
         </div>
       </CardContent>
 
-      <ConfirmDialog
+      <MessageBox
         isOpen={deleteMirrorConfirm.isOpen}
+        onClose={cancelDeleteMirror}
+        type="warning"
         title={t('settings.pypi.delete')}
         message={t('settings.pypi.deleteConfirm', { name: deleteMirrorConfirm.name || '' })}
-        confirmText={t('common.confirm')}
-        cancelText={t('common.cancel')}
-        variant="danger"
+        buttonType="ok-cancel"
         onConfirm={confirmDeleteMirror}
         onCancel={cancelDeleteMirror}
       />

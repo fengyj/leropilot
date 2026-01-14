@@ -8,6 +8,14 @@ export interface RobotMotorBusConnection {
   serial_number: string | null;
 }
 
+export interface MotorCalibration {
+  name: string;
+  drive_mode: number;
+  homing_offset: number;
+  range_min: number;
+  range_max: number;
+}
+
 export interface RobotMotorDefinition {
   id: number | [number, number];
   name: string;
@@ -46,6 +54,8 @@ export interface Robot {
   is_transient: boolean;
   definition: RobotDefinition | string | null;
   motor_bus_connections: Record<string, RobotMotorBusConnection> | null;
+  custom_protection_settings?: Record<string, { type: string; value: number }[]>;
+  calibration_settings?: Record<string, MotorCalibration[]>;
 }
 
 export interface CameraSummary {

@@ -2,8 +2,8 @@
 from fastapi.testclient import TestClient
 
 from leropilot.main import app
+from leropilot.models.hardware import DeviceStatus, Robot
 from leropilot.services.hardware.robots import get_robot_manager
-from leropilot.models.hardware import Robot, DeviceStatus
 
 client = TestClient(app)
 
@@ -38,16 +38,17 @@ def test_discovery_filters_added_and_marks_missing_serial(monkeypatch, tmp_path)
             self.motors = motors
 
     from unittest.mock import Mock
-    from leropilot.models.hardware import MotorModelInfo, MotorBrand
+
+    from leropilot.models.hardware import MotorBrand, MotorModelInfo
 
     mi = MotorModelInfo(model="DM4310", model_ids=[17168], limits={}, variant=None, brand=MotorBrand.DAMIAO)
     bus_with_serial = FakeBus("COM3", {1: (Mock(), mi)})
     bus_no_serial = FakeBus("COM4", {1: (Mock(), mi)})
 
-    monkeypatch.setattr(manager, "_discover_motor_buses", lambda filters=None: [(bus_with_serial, "SN123", "FTDI"), (bus_no_serial, None, "CH340")])
+    monkeypatch.setattr(manager._discovery_service, "discover_motor_buses", lambda filters=None: [(bus_with_serial, "SN123", "FTDI"), (bus_no_serial, None, "CH340")])
 
     # Add robot with serial SN123; monkeypatch verification to avoid hardware probing
-    monkeypatch.setattr(manager, "verify_robot", lambda self: True)
+    monkeypatch.setattr(manager, "verify_robot", lambda robot: True)
     manager.add_robot(Robot(id="SN123", name="Existing Robot", status=DeviceStatus.AVAILABLE))
 
     # Call discovery endpoint

@@ -1,12 +1,14 @@
 import os
-from pathlib import Path
 import shutil
+from pathlib import Path
 
-from leropilot.utils.unix import UdevManager, PrivilegeHelper
+import pytest
+
 from leropilot.utils.subprocess_executor import SubprocessExecutor
+from leropilot.utils.unix import PrivilegeHelper, UdevManager
 
 
-def test_generate_and_install_rule_atomic(tmp_path, monkeypatch):
+def test_generate_and_install_rule_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     rules_dir = tmp_path / "rules"
     rules_dir.mkdir()
     um = UdevManager(rules_dir=rules_dir)
@@ -24,21 +26,20 @@ def test_generate_and_install_rule_atomic(tmp_path, monkeypatch):
     assert um.rule_exists(rule, filename=fname)
 
 
-def test_install_rule_atomic_privileged(monkeypatch, tmp_path):
+def test_install_rule_atomic_privileged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     rules_dir = tmp_path / "rules"
     rules_dir.mkdir()
     um = UdevManager(rules_dir=rules_dir)
 
     rule = um.generate_rule(subsystem="tty", group="dialout", mode="0666")
     fname = "99-leropilot.rules"
-    path = rules_dir / fname
 
     # Simulate that direct write is not allowed by forcing os.access to return False
     monkeypatch.setattr(os, "access", lambda p, m: False)
 
     called = {}
 
-    def fake_run(cmd, *args, **kwargs):
+    def fake_run(cmd: str | list[str], *args: object, **kwargs: object) -> object:
         called["cmd"] = cmd
         class R:
             returncode = 0
@@ -54,13 +55,20 @@ def test_install_rule_atomic_privileged(monkeypatch, tmp_path):
     assert called.get("cmd") is not None
 
 
-def test_privilege_helper_message_usage(monkeypatch):
+def test_privilege_helper_message_usage(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate pkexec and zenity present
-    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/zenity" if name == "zenity" else ("/usr/bin/pkexec" if name == "pkexec" else None))
+    def which_mock(name: str) -> str | None:
+        if name == "zenity":
+            return "/usr/bin/zenity"
+        if name == "pkexec":
+            return "/usr/bin/pkexec"
+        return None
+
+    monkeypatch.setattr(shutil, "which", which_mock)
 
     recorded = {}
 
-    def fake_run_sync(*args, **kwargs):
+    def fake_run_sync(*args: object, **kwargs: object) -> object:
         recorded["args"] = args
         class R:
             returncode = 0

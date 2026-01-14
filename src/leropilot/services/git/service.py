@@ -5,10 +5,9 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from leropilot.exceptions import OperationalError, ResourceNotFoundError
+from leropilot.exceptions import AppBaseError, OperationalError, ResourceNotFoundError
 from leropilot.logger import get_logger
 from leropilot.models.app_config import AppConfig
-from leropilot.services.i18n import get_i18n_service
 from leropilot.utils.subprocess_executor import SubprocessExecutor
 
 from .tools import GitToolManager

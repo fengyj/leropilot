@@ -1,5 +1,6 @@
 # ruff: noqa: ANN201
 import pytest
+import pytest
 from fastapi.testclient import TestClient
 
 from leropilot.main import app

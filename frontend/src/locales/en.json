@@ -8,8 +8,12 @@
     "unknown": "Unknown",
     "unknownError": "Unknown Error",
     "error": "Error",
+    "warning": "Warning",
+    "info": "Information",
+    "success": "Success",
     "create": "Create",
-    "close": "Close"
+    "close": "Close",
+    "save": "Save"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -332,6 +336,29 @@
     "connectionLost": "Connection lost"
   },
   "hardware": {
+    "common": {
+      "sn": "SN",
+      "motorId": "Motor ID",
+      "sendId": "Send ID",
+      "recvId": "Recv ID",
+      "motors": "{{count}} motors",
+      "interfaces": "Interfaces",
+      "baudrate": "Baudrate",
+      "baudrateUnit": "bps",
+      "baudrateAuto": "Auto",
+      "categoryRobot": "Robot",
+      "categoryController": "Controller",
+      "motorName": "Name",
+      "motorModel": "Model",
+      "driveMode": "Drive Reversed",
+      "transient": "Transient Device",
+      "selectDevicePlaceholder": "-- Please select hardware --",
+      "noMotorsFound": "No motors found",
+      "refreshing": "Refreshing...",
+      "updatingStatus": "Updating status"
+    },
+    "deleteConfirmTitle": "Delete Device",
+    "deleteConfirmMessage": "Are you sure you want to delete this device? This action cannot be undone.",
     "dashboard": {
       "title": "Robots & Arms",
       "subtitle": "Manage your connected robots, arms, cameras and other auxiliary hardware.",
@@ -357,14 +384,10 @@
       "offline": "Offline"
     },
     "robotCard": {
-      "transient": "Transient Device",
-      "interfaces": "Interfaces",
       "control": "Control",
       "calibrate": "Calibrate",
       "editConfig": "Edit Configuration",
       "refreshStatus": "Refresh Status",
-      "refreshing": "Refreshing...",
-      "updatingStatus": "Updating status",
       "delete": "Delete"
     },
     "cameraCard": {
@@ -391,7 +414,6 @@
       "componentNamePlaceholder": "Component name (e.g., arm_left)",
       "componentConnections": "Component Connections",
       "selectDeviceFor": "Please select a device for {{component}}",
-      "selectDevicePlaceholder": "-- Please select hardware --",
       "discoveryDetails": "Hardware Discovery",
       "waitingForSelection": "Waiting for Selection",
       "refreshDiscovery": "Refresh",
@@ -399,10 +421,7 @@
       "noRequirements": "This definition has no specific hardware component requirements.",
       "noHardwareFound": "No available hardware found",
       "noHardwareHelp": "Please ensure USB serial cables, CAN adapters, or motor power are correctly connected, then click 'Refresh' above.",
-      "noMotorsFound": "No motors found",
       "category": "Category",
-      "categoryRobot": "Robot",
-      "categoryController": "Controller",
       "error": "An error occurred during operation",
       "addFailed": "Add failed: {{error}}",
       "invalidComponentName": "Invalid component name \"{{name}}\" (letters, numbers, underscores only)",
@@ -411,20 +430,12 @@
       "networkError": "Network error, please try again later",
       "duplicateDeviceError": "A device cannot be reused across multiple components.",
       "assigned": "Assigned",
-      "snLabel": "SN",
-      "motors": "{{count}} motors",
-      "sendId": "Send ID",
-      "recvId": "Recv ID",
-      "motorId": "Motor ID",
       "motorSettings": {
         "title": "Motor Settings",
         "viewTitle": "View Motor Configuration",
         "editTitle": "Edit Motor Configuration",
         "viewLink": "View Motor Settings",
         "editLink": "Setup Motors",
-        "name": "Name",
-        "model": "Model ID",
-        "driveMode": "Invert Direction",
         "driveModeHint": "Default: Forward",
         "discoveredMotorLabel": "Discovered",
         "missing": "Missing",
@@ -432,13 +443,48 @@
         "countMismatch": "Expected {{expected}} motors, but hardware reported {{actual}}.",
         "modelMismatch": "Motor ID {{id}} model mismatch: Expected {{expected}}, found {{actual}}.",
         "mustSelectDevice": "Please select a hardware device first.",
-        "duplicateNameError": "Motor names must be unique within this component."
-      },
-      "editRobotModal": {
-        "title": "Edit Robot",
-        "loading": "Loading robot...",
-        "loadedInfo": "Robot data loaded. (Edit form not implemented yet)",
-        "noData": "No robot data available"
+        "duplicateNameError": "Motor names must be unique within this component.",
+        "possibleDuplicateTitle": "Possible Duplicate",
+        "possibleDuplicateFound": "Possible duplicate device found",
+        "possibleDuplicateFoundMessage": "A device with the same serial numbers appears to already exist: \"{{name}}\". Do you still want to continue adding?"
+      }
+    },
+    "editRobotModal": {
+      "title": "Edit Robot",
+      "loading": "Loading robot...",
+      "loadedInfo": "Robot data loaded.",
+      "noData": "No robot data available",
+      "nameTaken": "A robot with that name already exists.",
+      "nameRequired": "Name is required.",
+      "nameConflict": "Name conflict",
+      "saveFailed": "Save failed, please try again.",
+      "namePlaceholder": "Robot name",
+      "saving": "Saving...",
+      "protectionTitle": "Protection Settings",
+      "calibrationTitle": "Calibration Data",
+      "motorbusGroupsTitle": "Hardware",
+      "components": "Components",
+      "componentLabel": "Component",
+      "homingOffset": "Homing Offset",
+      "rangeMin": "Range Min",
+      "rangeMax": "Range Max",
+      "normal": "Normal",
+      "inverted": "Inverted",
+      "protectionAria": "Protection settings",
+      "restoreDefaults": "Restore Defaults",
+      "restoreConfirm": "This will overwrite current protection settings with defaults based on motor models. Continue?",
+      "restoreConfirmAction": "Restore",
+      "restoreFailed": "Failed to restore defaults",
+      "protectionInvalid": "Some protection values are invalid",
+      "resetHint": "Changes are previewed instantly. Click Save to apply.",
+      "usedBy": "Used by \"{{name}}\"",
+      "unknownType": "Robot",
+      "motorTable": {
+        "name": "Name",
+        "id": "ID",
+        "model": "Model",
+        "driveReversed": "Drive Reversed",
+        "needCalibration": "Need Calibration"
       }
     }
   }

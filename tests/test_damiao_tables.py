@@ -1,5 +1,9 @@
-from leropilot.services.hardware.motor_drivers.damiao.tables import DAMAIO_MODELS_LIST, models_for_id, select_model_for_number
 from leropilot.models.hardware import MotorBrand
+from leropilot.services.hardware.motor_drivers.damiao.tables import (
+    DAMAIO_MODELS_LIST,
+    models_for_id,
+    select_model_for_number,
+)
 
 
 def test_damiao_tables_populated():

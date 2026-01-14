@@ -7,9 +7,9 @@ Example:
     python -m examples.hardware.raw_ping PCAN_USBBUS1 1000000
 """
 
+import logging
 import sys
 import time
-import logging
 
 import can
 

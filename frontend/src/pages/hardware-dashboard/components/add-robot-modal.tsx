@@ -17,6 +17,7 @@ import { Modal } from '../../../components/ui/modal';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Select } from '../../../components/ui/select';
+import { MessageBox } from '../../../components/ui/message-box';
 import { LoadingOverlay } from '../../../components/ui/loading-overlay';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
 import { Robot, RobotDefinition, RobotMotorBusConnection, RobotMotorDefinition } from '../../../types/hardware';
@@ -69,9 +70,9 @@ const validateMotorCompliance = (
  */
 const renderMotorId = (id: number | [number, number], t: any) => {
   if (Array.isArray(id)) {
-    return `${t('hardware.addRobotModal.sendId')} ${id[0]} / ${t('hardware.addRobotModal.recvId')} ${id[1]}`;
+    return `${t('hardware.common.sendId')} ${id[0]} / ${t('hardware.common.recvId')} ${id[1]}`;
   }
-  return `${t('hardware.addRobotModal.motorId')} ${id}`;
+  return `${t('hardware.common.motorId')} ${id}`;
 };
 
 interface MotorSettingsModalProps {
@@ -184,7 +185,7 @@ const MotorSettingsModal: React.FC<MotorSettingsModalProps> = ({
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-content-tertiary opacity-80">
-                        {t('hardware.addRobotModal.motorSettings.model')}:
+                        {t('hardware.common.motorModel')}:
                       </span>
                       <span className="text-xs font-bold text-content-primary">
                         {baseMotor.model}
@@ -196,7 +197,7 @@ const MotorSettingsModal: React.FC<MotorSettingsModalProps> = ({
                        <AlertCircle className="w-3.5 h-3.5" />
                        <span className="text-[10px] font-bold uppercase opacity-80">{t('hardware.addRobotModal.motorSettings.discoveredMotorLabel')}:</span>
                        <span className="text-[10px] font-bold px-2 py-0.5 bg-error-surface rounded border border-error-border shadow-sm">
-                        {isMissing ? t('hardware.addRobotModal.motorSettings.missing') : (hwMotor.variant || hwMotor.model)}
+                        {isMissing ? t('hardware.addRobotModal.motorSettings.missing') : (hwMotor ? (hwMotor.variant || hwMotor.model) : '')}
                       </span>
                     </div>
                   )}
@@ -205,7 +206,7 @@ const MotorSettingsModal: React.FC<MotorSettingsModalProps> = ({
                 <CardContent className="p-4 grid grid-cols-2 gap-6">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-content-tertiary ml-1">
-                      {t('hardware.addRobotModal.motorSettings.name')}
+                      {t('hardware.common.motorName')}
                     </label>
                     <Input
                       value={currentMotor.name || ''}
@@ -227,11 +228,13 @@ const MotorSettingsModal: React.FC<MotorSettingsModalProps> = ({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-content-tertiary ml-1">
-                      {t('hardware.addRobotModal.motorSettings.driveMode')}
+                      {t('hardware.common.driveMode')}
                     </label>
                     <div className="flex items-center h-9 pl-1">
                       <input
                         type="checkbox"
+                        aria-label={t('hardware.common.driveMode')}
+                        title={t('hardware.common.driveMode')}
                         checked={currentMotor.drive_mode === 1}
                         onChange={() => {
                           if (isReadOnly || isMissing) return;
@@ -291,6 +294,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
   const [loadingMessage, setLoadingMessage] = useState(t('hardware.addRobotModal.syncing'));
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [_showTransientConfirm, setShowTransientConfirm] = useState(false);
+  const [duplicateCandidate, setDuplicateCandidate] = useState<{ id: string; name: string } | null>(null);
   const [refreshingDevices, setRefreshingDevices] = useState(false);
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<string>("");
@@ -429,6 +433,41 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
     return ids;
   };
 
+  // Build a map from assembly motor-bus key -> serial number for the current selection.
+  // Returns null if any mapped device lacks a serial_number on its first motor bus (skip check in that case).
+  const getMotorbusSerialsForSelection = (): Record<string, string> | null => {
+    const map: Record<string, string> = {};
+
+    if (selectedDefinitionId && selectedDefinitionId !== 'custom') {
+      const busNames = Object.keys(selectedDef?.motor_buses || {});
+      for (const busName of busNames) {
+        const devId = busConfigs[busName];
+        if (!devId) return null;
+        const dev = availableDevices.find(d => d.id === devId);
+        if (!dev) return null;
+        const conn = dev.motor_bus_connections ? Object.values(dev.motor_bus_connections)[0] : null;
+        if (!conn || !conn.serial_number) return null;
+        map[busName] = String(conn.serial_number);
+      }
+      return map;
+    }
+
+    // custom assembly: use effective name (motorbus when single) for each custom bus
+    for (let i = 0; i < customBuses.length; i++) {
+      const bus = customBuses[i];
+      const effectiveName = customBuses.length === 1 ? 'motorbus' : bus.name;
+      if (!effectiveName) return null;
+      if (!bus.deviceId) return null;
+      const dev = availableDevices.find(d => d.id === bus.deviceId);
+      if (!dev) return null;
+      const conn = dev.motor_bus_connections ? Object.values(dev.motor_bus_connections)[0] : null;
+      if (!conn || !conn.serial_number) return null;
+      map[effectiveName] = String(conn.serial_number);
+    }
+
+    return map;
+  };
+
   const validate = () => {
     const usedDeviceIds = new Set<string>();
 
@@ -472,7 +511,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
     return null;
   };
 
-  const handleCreate = async (ignoreTransient = false) => {
+  const handleCreate = async (ignoreTransient = false, ignoreDuplicate = false) => {
     const error = validate();
     if (error) {
       setErrorMsg(error);
@@ -486,6 +525,42 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
     if (hasTransient && !ignoreTransient) {
       setShowTransientConfirm(true);
       return;
+    }
+
+    // Additional duplicate check based on motor-bus keys and serial numbers:
+    // - Build a map: busName -> serial_number for the candidate selection.
+    // - Skip check if any selected bus lacks serial_number.
+    // - For each existing robot, compare the set of motor-bus keys and the serial_number for each key.
+    if (!ignoreDuplicate) {
+      const candidateMap = getMotorbusSerialsForSelection();
+      if (candidateMap) {
+        try {
+          const res = await fetch('/api/hardware/robots');
+          if (res.ok) {
+            const robots: Robot[] = await res.json();
+            const candidateKeys = Object.keys(candidateMap);
+            for (const r of robots) {
+              const robotConns = r.motor_bus_connections || {};
+              const robotKeys = Object.keys(robotConns);
+              // Count must match
+              if (robotKeys.length !== candidateKeys.length) continue;
+              // Check each key exists and serial matches
+              let match = true;
+              for (const key of candidateKeys) {
+                const rc = (robotConns as Record<string, RobotMotorBusConnection | undefined>)[key];
+                if (!rc || !rc.serial_number) { match = false; break; }
+                if (String(rc.serial_number) !== candidateMap[key]) { match = false; break; }
+              }
+              if (match) {
+                setDuplicateCandidate({ id: r.id, name: r.name || (r.definition && typeof r.definition !== 'string' ? (r.definition as any).display_name : r.name) || t('common.unknown') });
+                return;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch robot list for duplicate check', e);
+        }
+      }
     }
 
     setLoading(true);
@@ -528,9 +603,20 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         }
       });
 
+      // Use id and display_name from the first selected device's definition when available
+      let customId = `custom-${uuid}`;
+      let customDisplay: string | Record<string, string> = t('common.custom');
+      if (selectedDevices.length > 0) {
+        const srcDef = selectedDevices[0].definition;
+        if (srcDef && typeof srcDef !== 'string') {
+          if (srcDef.id) customId = srcDef.id;
+          if (srcDef.display_name) customDisplay = srcDef.display_name;
+        }
+      }
+
       finalDefinition = {
-        id: `custom-${uuid}`,
-        display_name: t('common.custom'),
+        id: customId,
+        display_name: customDisplay,
         description: mergedDescription,
         motor_buses: mergedMotorBuses,
         device_category: category
@@ -576,11 +662,10 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
   const getDeviceOptions = (currentDeviceId: string) => {
     const usedIds = getUsedDeviceIds();
     return [
-      { label: t('hardware.addRobotModal.selectDevicePlaceholder'), value: '' },
+      { label: t('hardware.common.selectDevicePlaceholder'), value: '' },
       ...availableDevices.map(d => {
-        const iface = d.motor_bus_connections ? Object.values(d.motor_bus_connections)[0]?.interface : t('common.unknown');
         return {
-          label: `${iface} (${d.name}${d.is_transient ? ` - ${t('hardware.robotCard.transient')}` : ''})`,
+          label: `${d.name}${d.is_transient ? ` - ${t('hardware.common.transient')}` : ''}`,
           value: d.id,
           disabled: usedIds.has(d.id) && d.id !== currentDeviceId
         };
@@ -669,7 +754,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
 
           <div className="flex-1 overflow-y-auto custom-scrollbar z-10">
             <div className="flex flex-col min-h-full p-8 space-y-8">
-              <div className="space-y-8">
+              <div className="flex-1 space-y-8">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label htmlFor="robot-type-select" className="text-sm font-semibold text-content-primary flex items-center gap-2">
@@ -702,8 +787,8 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                         id="device-category-select"
                         name="device-category-select"
                         options={[
-                          { label: t('hardware.addRobotModal.categoryRobot'), value: 'robot' },
-                          { label: t('hardware.addRobotModal.categoryController'), value: 'controller' }
+                          { label: t('hardware.common.categoryRobot'), value: 'robot' },
+                          { label: t('hardware.common.categoryController'), value: 'controller' }
                         ]}
                         value={category}
                         onChange={(e) => setCategory(e.target.value as 'robot' | 'controller')}
@@ -722,7 +807,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                         {t('hardware.addRobotModal.componentConnections')}
                       </label>
                       {selectedDefinitionId === 'custom' && (
-                        <Button variant="secondary" size="sm" onClick={handleAddBus} className="h-7 text-[10px] px-2 shadow-sm border-border-default">
+                        <Button variant="secondary" size="sm" onClick={handleAddBus}>
                           <Plus className="h-3 w-3 mr-1" /> {t('hardware.addRobotModal.addComponent')}
                         </Button>
                       )}
@@ -789,7 +874,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                             <Select
                               id={`custom-bus-device-${index}`}
                               name={`custom-bus-device-${index}`}
-                              aria-label={t('hardware.addRobotModal.selectDevicePlaceholder')}
+                              aria-label={t('hardware.common.selectDevicePlaceholder')}
                               options={getDeviceOptions(bus.deviceId)}
                               value={bus.deviceId}
                               onChange={(e) => {
@@ -813,142 +898,136 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
                   </div>
                 )}
 
-              </div>
+                <div className="space-y-4 pt-4">
+                  <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                    <label id="discovery-details-label" className="text-sm font-semibold text-content-primary flex items-center gap-2">
+                      {t('hardware.addRobotModal.discoveryDetails')}
+                    </label>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={refreshDiscovery}
+                      disabled={refreshingDevices}
+                      className="h-7 text-[10px] border-border-default"
+                    >
+                      <RefreshCw className={`h-3 w-3 mr-1 ${refreshingDevices ? 'animate-spin' : ''}`} />
+                      {t('hardware.addRobotModal.refreshDiscovery')}
+                    </Button>
+                  </div>
 
-              <div className="space-y-4 pt-4 flex-1 flex flex-col">
-                <div className="flex items-center justify-between border-b border-border-subtle pb-2">
-                  <label id="discovery-details-label" className="text-sm font-semibold text-content-primary flex items-center gap-2">
-                    {t('hardware.addRobotModal.discoveryDetails')}
-                  </label>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={refreshDiscovery}
-                    disabled={refreshingDevices}
-                    className="h-7 text-[10px] border-border-default"
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1 ${refreshingDevices ? 'animate-spin' : ''}`} />
-                    {t('hardware.addRobotModal.refreshDiscovery')}
-                  </Button>
-                </div>
+                  <div className="max-h-none overflow-visible pr-2 relative">
+                    {refreshingDevices && (
+                      <LoadingOverlay
+                        message={t('hardware.addRobotModal.scanningPorts')}
+                        size="md"
+                        fancy
+                        className="rounded-xl"
+                      />
+                    )}
 
-                  <div className="max-h-none overflow-visible pr-2 flex-1 min-h-[300px] relative">
-                  {refreshingDevices && (
-                    <LoadingOverlay
-                      message={t('hardware.addRobotModal.scanningPorts')}
-                      size="md"
-                      fancy
-                      className="rounded-xl"
-                    />
-                  )}
-
-                  {!refreshingDevices && availableDevices.length === 0 && (
-                    <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle/50 rounded-xl bg-surface-secondary/10 text-center px-6">
-                      <div className="h-12 w-12 rounded-full bg-surface-tertiary flex items-center justify-center mb-4">
-                        <AlertCircle className="h-6 w-6 text-content-tertiary" />
-                      </div>
-                      <h4 className="text-sm font-bold text-content-secondary mb-1">{t('hardware.addRobotModal.noHardwareFound')}</h4>
-                      <p className="text-[11px] text-content-tertiary max-w-[240px]">
-                        {t('hardware.addRobotModal.noHardwareHelp')}
-                      </p>
-                    </div>
-                  )}
-
-                  {!refreshingDevices && availableDevices.map((device) => {
-                    const isExpanded = expandedDevices.has(device.id);
-                    const usedIds = getUsedDeviceIds();
-                    const isAssigned = usedIds.has(device.id);
-
-                    // Extract motors from definition
-                    let motors: any[] = [];
-                    if (device.definition && typeof device.definition !== 'string') {
-                      // Follow user instruction: check "motorbus" key first, otherwise take first bus
-                      const busDef = device.definition.motor_buses["motorbus"] || Object.values(device.definition.motor_buses)[0];
-                      if (busDef) {
-                        motors = Object.values(busDef.motors);
-                      }
-                    }
-
-                    const connection = device.motor_bus_connections ? Object.values(device.motor_bus_connections)[0] : null;
-
-                    return (
-                      <div key={device.id} className={`mb-2 border rounded-lg overflow-hidden transition-all duration-200 shadow-sm ${isAssigned
-                        ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
-                        : 'border-border-subtle bg-surface-secondary/20 hover:border-content-tertiary'
-                        }`}>
-                        <div
-                          className="p-3 flex items-center justify-between cursor-pointer group"
-                          onClick={() => toggleDeviceExpand(device.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : 'text-content-tertiary'}`}>
-                              <ChevronRight className="h-4 w-4" />
-                            </div>
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-content-primary">
-                                  {device.name}
-                                </span>
-                                {device.is_transient && (
-                                  <span className="px-1 py-0.5 rounded text-[8px] bg-surface-tertiary text-content-secondary font-bold uppercase tracking-tighter border border-border-default">
-                                    {t('hardware.robotCard.transient')}
-                                  </span>
-                                )}
-                                {isAssigned && (
-                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-primary text-primary-content font-bold">
-                                    {t('hardware.addRobotModal.assigned')}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-content-tertiary">
-                                {t('hardware.robotCard.interfaces')}: {connection?.interface || t('common.unknown')} • {connection?.baudrate || 'Auto'} bps
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-content-secondary font-medium">
-                              {t('hardware.addRobotModal.motors', { count: motors.length })}
-                            </span>
-                            {connection?.serial_number && (
-                              <span className="ml-3 px-2 py-0.5 rounded-full text-[10px] bg-surface-tertiary/60 text-content-secondary border border-border-subtle">
-                                {t('hardware.addRobotModal.snLabel')}: {connection.serial_number}
-                              </span>
-                            )}
-                          </div>
+                    {!refreshingDevices && availableDevices.length === 0 && (
+                      <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-border-subtle/50 rounded-xl bg-surface-secondary/10 text-center px-6">
+                        <div className="h-12 w-12 rounded-full bg-surface-tertiary flex items-center justify-center mb-4">
+                          <AlertCircle className="h-6 w-6 text-content-tertiary" />
                         </div>
-
-                        {isExpanded && (
-                          <div className="bg-surface-secondary/50 border-t border-border-subtle/30 px-3 py-2 space-y-1">
-                            {motors.length === 0 ? (
-                              <div className="text-[10px] text-content-tertiary italic py-2 pl-7">{t('hardware.addRobotModal.noMotorsFound')}</div>
-                            ) : (
-                              motors.map((m, idx) => (
-                                <div key={idx} className="flex items-center gap-4 text-[10px] py-1.5 pl-7 border-b border-border-subtle last:border-0 hover:bg-surface-tertiary transition-colors">
-                                  <div className="flex-none text-content-secondary flex items-center gap-1.5">
-                                    <span className="h-1 w-1 rounded-full bg-content-tertiary" />
-                                    <span className="text-content-primary font-bold">
-                                      {renderMotorId(m.id, t)}
-                                    </span>
-                                  </div>
-                                  <div className="flex-1 flex items-center justify-between min-w-0">
-                                    <span className="text-content-primary font-medium truncate">{m.model}</span>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
+                        <h4 className="text-sm font-bold text-content-secondary mb-1">{t('hardware.addRobotModal.noHardwareFound')}</h4>
+                        <p className="text-[11px] text-content-tertiary max-w-[240px]">
+                          {t('hardware.addRobotModal.noHardwareHelp')}
+                        </p>
                       </div>
-                    );
-                  })}
+                    )}
+
+                    {!refreshingDevices && availableDevices.map((device) => {
+                      const isExpanded = expandedDevices.has(device.id);
+                      const usedIds = getUsedDeviceIds();
+                      const isAssigned = usedIds.has(device.id);
+
+                      // Extract motors from definition
+                      let motors: any[] = [];
+                      if (device.definition && typeof device.definition !== 'string') {
+                        // Follow user instruction: check "motorbus" key first, otherwise take first bus
+                        const busDef = device.definition.motor_buses["motorbus"] || Object.values(device.definition.motor_buses)[0];
+                        if (busDef) {
+                          motors = Object.values(busDef.motors);
+                        }
+                      }
+
+                      const connection = device.motor_bus_connections ? Object.values(device.motor_bus_connections)[0] : null;
+
+                      return (
+                        <div key={device.id} className={`mb-2 border rounded-lg overflow-hidden transition-all duration-200 shadow-sm ${isAssigned
+                          ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20'
+                          : 'border-border-subtle bg-surface-secondary/20 hover:border-content-tertiary'
+                          }`}>
+                          <div
+                            className="p-3 flex items-center justify-between cursor-pointer group"
+                            onClick={() => toggleDeviceExpand(device.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : 'text-content-tertiary'}`}>
+                                <ChevronRight className="h-4 w-4" />
+                              </div>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-content-primary">
+                                    {device.name}
+                                  </span>
+                                  {device.is_transient && (
+                                    <span className="px-1 py-0.5 rounded text-[8px] bg-surface-tertiary text-content-secondary font-bold uppercase tracking-tighter border border-border-default">
+                                      {t('hardware.common.transient')}
+                                    </span>
+                                  )}
+                                  {isAssigned && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-primary text-primary-content font-bold">
+                                      {t('hardware.addRobotModal.assigned')}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-content-tertiary">
+                                  {t('hardware.common.interfaces')}: {connection?.interface || t('common.unknown')} • {connection?.baudrate ? `${connection.baudrate} ${t('hardware.common.baudrateUnit')}` : t('hardware.common.baudrateAuto')}{connection?.serial_number && (
+                                    <span className="ml-3 text-[10px] text-content-tertiary">• {t('hardware.common.sn')}: {connection.serial_number}</span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-content-secondary font-medium">
+                                {t('hardware.common.motors', { count: motors.length })}
+                              </span>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="bg-surface-secondary/50 border-t border-border-subtle/30 px-3 py-2 space-y-1">
+                              {motors.length === 0 ? (
+                                <div className="text-[10px] text-content-tertiary italic py-2 pl-7">{t('hardware.common.noMotorsFound')}</div>
+                              ) : (
+                                motors.map((m, idx) => (
+                                  <div key={idx} className="flex items-center gap-4 text-[10px] py-1.5 pl-7 border-b border-border-subtle last:border-0 hover:bg-surface-tertiary transition-colors">
+                                    <div className="flex-none text-content-secondary flex items-center gap-1.5">
+                                      <span className="h-1 w-1 rounded-full bg-content-tertiary" />
+                                      <span className="text-content-primary font-bold">
+                                        {renderMotorId(m.id, t)}
+                                      </span>
+                                    </div>
+                                    <div className="flex-1 flex items-center justify-between min-w-0">
+                                      <span className="text-content-primary font-medium truncate">{m.model}</span>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              {/* Bottom Actions: Part of scroll flow */}
+              {/* Bottom Actions: Pins to bottom when content is short, follows content when scrolls */}
               <div className="pt-6 border-t border-border-default flex justify-end items-center gap-3 mt-auto">
-                <Button variant="secondary" onClick={onClose} className="border-border-default">
-                  {t('common.cancel')}
-                </Button>
+                <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
                 {/* TODO: 等机器人编辑 modal 做好后，创建成功并关闭此添加窗口后，应自动打开编辑窗口（传入新创建的 robot id） */}
                 <Button
                   onClick={() => handleCreate()}
@@ -965,26 +1044,28 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
         </div>
       </div>
 
-      {/* Error Modal */}
-      <Modal
+      {/* Duplicate-check Confirm MessageBox */}
+      <MessageBox
+        isOpen={!!duplicateCandidate}
+        onClose={() => setDuplicateCandidate(null)}
+        type="warning"
+        title={t('hardware.addRobotModal.possibleDuplicateTitle') || t('common.confirm')}
+        message={t('hardware.addRobotModal.possibleDuplicateFound')}
+        description={t('hardware.addRobotModal.possibleDuplicateFoundMessage', { name: duplicateCandidate?.name })}
+        buttonType="ok-cancel"
+        onConfirm={() => { setDuplicateCandidate(null); handleCreate(false, true); }}
+      />
+
+      {/* Error MessageBox */}
+      <MessageBox
         isOpen={!!errorMsg}
         onClose={() => setErrorMsg(null)}
+        type="error"
         title={t('common.error')}
-        className="max-w-md"
-      >
-        <div className="p-6 flex flex-col items-center text-center">
-          <div className="h-12 w-12 rounded-full bg-surface-secondary flex items-center justify-center mb-4">
-            <AlertCircle className="h-6 w-6 text-content-tertiary" />
-          </div>
-          <h3 className="text-lg font-bold text-content-primary mb-2">{t('hardware.addRobotModal.error')}</h3>
-          <p className="text-sm text-content-secondary mb-6">
-            {errorMsg}
-          </p>
-          <Button onClick={() => setErrorMsg(null)} variant="secondary" className="w-full">
-            {t('common.confirm')}
-          </Button>
-        </div>
-      </Modal>
+        message={t('hardware.addRobotModal.error')}
+        description={errorMsg || ""}
+        buttonType="ok"
+      />
 
       {/* Motor Settings Modal */}
       {motorModalData && (

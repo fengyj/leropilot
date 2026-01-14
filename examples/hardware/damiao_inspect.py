@@ -8,12 +8,12 @@ Example:
     python -m examples.hardware.damiao_inspect pcan:PCAN_USBBUS2 3 19
 """
 
-import sys
 import logging
+import sys
 
-from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
+from leropilot.models.hardware import MotorBrand
 from leropilot.services.hardware.motor_buses.damiao_motor_bus import DamiaoMotorBus
-from leropilot.models.hardware import MotorModelInfo, MotorBrand
+from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)

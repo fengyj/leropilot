@@ -5,8 +5,8 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from leropilot.logger import get_logger
 from leropilot.models.hardware import DeviceStatus
-from leropilot.services.hardware.robots import get_robot_manager
 from leropilot.services.hardware.motors import MotorService
+from leropilot.services.hardware.robots import get_robot_manager
 from leropilot.services.pty import get_pty_session
 
 logger = get_logger(__name__)

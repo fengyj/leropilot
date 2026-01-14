@@ -1,12 +1,13 @@
 # ruff: noqa: ANN201, ANN001
 from unittest.mock import Mock
 
-from leropilot.services.hardware.robots import get_robot_manager
-from leropilot.models.hardware import MotorModelInfo, MotorBrand, MotorBusDefinition, RobotMotorDefinition
+from leropilot.models.hardware import MotorBrand, MotorBusDefinition, MotorModelInfo, RobotMotorDefinition
+from leropilot.services.hardware.robots.verification import RobotVerificationService
 
 
 def test_motor_bus_verify_matches_exact():
     manager = get_robot_manager()
+    verifier = RobotVerificationService()
 
     class FakeBus:
         def __init__(self):
@@ -24,7 +25,7 @@ def test_motor_bus_verify_matches_exact():
         "2": RobotMotorDefinition(name="2", id=2, brand="feetech", model="STS3215", variant="STS3215-C001"),
     }, baud_rate=115200)
 
-    assert manager._motor_bus_verify(bus, mb_def) is True
+    assert verifier.verify_motor_bus(bus, mb_def) is True
 
 
 def test_motor_bus_verify_tuple_key_and_variant_optional():

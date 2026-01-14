@@ -42,8 +42,8 @@ export const RobotCard: React.FC<{
         <Card className={`flex flex-col h-full relative overflow-hidden transition-all duration-300 max-w-xl w-full ${isRefreshing ? 'scale-[0.98] opacity-60' : 'hover:shadow-md'}`}>
             {isRefreshing && (
                 <LoadingOverlay
-                    message={t('hardware.robotCard.refreshing')}
-                    subtitle={t('hardware.robotCard.updatingStatus')}
+                    message={t('hardware.common.refreshing')}
+                    subtitle={t('hardware.common.updatingStatus')}
                     size="md"
                     fancy
                     className="rounded-xl"
@@ -59,13 +59,13 @@ export const RobotCard: React.FC<{
                                 </CardTitle>
                                 <div className="text-content-secondary text-xs">
                                     {typeof robot.definition === 'object' && robot.definition?.device_category === 'controller'
-                                        ? t('hardware.addRobotModal.categoryController')
-                                        : t('hardware.addRobotModal.categoryRobot')}
+                                        ? t('hardware.common.categoryController')
+                                        : t('hardware.common.categoryRobot')}
                                 </div>
                                 {robot.is_transient && (
                                     <div>
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-tertiary text-content-secondary border border-border-default">
-                                            {t('hardware.robotCard.transient')}
+                                            {t('hardware.common.transient')}
                                         </span>
                                     </div>
                                 )}
@@ -79,7 +79,7 @@ export const RobotCard: React.FC<{
             </CardHeader>
             <CardContent className="flex-1 space-y-4">
                 <div className="space-y-1">
-                    <p className="text-content-tertiary text-xs">{t('hardware.robotCard.interfaces')}</p>
+                    <p className="text-content-tertiary text-xs">{t('hardware.common.interfaces')}</p>
                     <p className="text-content-primary text-sm font-medium break-all" title={interfaces}>
                         {robot.status !== 'offline' && interfaces ? interfaces : '—'}
                     </p>

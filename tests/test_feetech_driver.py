@@ -1,9 +1,7 @@
 import math
 
-import pytest
-
+from leropilot.models.hardware import MotorBrand, MotorModelInfo
 from leropilot.services.hardware.motor_drivers.feetech.drivers import FeetechDriver
-from leropilot.models.hardware import MotorModelInfo, MotorBrand
 
 
 class DummySerial:

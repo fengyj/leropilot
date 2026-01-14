@@ -1,19 +1,20 @@
-# ruff: noqa: ANN201, ANN001
 import pytest
+
+# ruff: noqa: ANN201, ANN001
 from unittest.mock import Mock
 
+from leropilot.models.hardware import MotorBrand, MotorModelInfo, RobotMotorDefinition
 from leropilot.services.hardware.robots import get_robot_manager
-from leropilot.models.hardware import MotorModelInfo, MotorBrand, RobotMotorDefinition
 
 
-def test_get_pending_devices_with_serial_number(monkeypatch):
+def test_get_pending_devices_with_serial_number(monkeypatch: pytest.MonkeyPatch) -> None:
     manager = get_robot_manager()
     # Ensure isolation
     manager._robots.clear()
 
     # Fake serial motor bus with two motors of same variant
     class FakeSerialBus:
-        def __init__(self):
+        def __init__(self) -> None:
             self.interface = "COM3"
             self.baud_rate = 115200
             self.motors = {}
@@ -27,7 +28,10 @@ def test_get_pending_devices_with_serial_number(monkeypatch):
         2: (Mock(), mi2),
     }
 
-    monkeypatch.setattr(manager, "_discover_motor_buses", lambda filters=None: [(bus, "SN123", "Feetech")])
+    def fake_discover_one(filters=None):
+        return [(bus, "SN123", "Feetech")]
+
+    monkeypatch.setattr(manager._discovery_service, "discover_motor_buses", fake_discover_one)
 
     pending = manager.get_pending_devices()
     assert len(pending) == 1
@@ -63,12 +67,12 @@ def test_get_pending_devices_with_serial_number(monkeypatch):
     assert m0.need_calibration is True
 
 
-def test_get_pending_devices_without_serial_number(monkeypatch):
+def test_get_pending_devices_without_serial_number(monkeypatch: pytest.MonkeyPatch) -> None:
     manager = get_robot_manager()
     manager._robots.clear()
 
     class FakeCanBus:
-        def __init__(self):
+        def __init__(self) -> None:
             self.interface = "can0"
             self.baud_rate = 1000000
             self.motors = {}
@@ -80,7 +84,10 @@ def test_get_pending_devices_without_serial_number(monkeypatch):
         (3, 0x13): (Mock(), mi),
     }
 
-    monkeypatch.setattr(manager, "_discover_motor_buses", lambda filters=None: [(bus, None, "Native")])
+    def fake_discover_none(filters=None):
+        return [(bus, None, "Native")]
+
+    monkeypatch.setattr(manager._discovery_service, "discover_motor_buses", fake_discover_none)
 
     pending = manager.get_pending_devices()
     assert len(pending) == 1

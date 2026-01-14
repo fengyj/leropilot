@@ -23,13 +23,16 @@ import { DropdownMenu } from '../../components/ui/dropdown-menu';
 import { LoadingOverlay } from '../../components/ui/loading-overlay';
 import { PageContainer } from '../../components/ui/page-container';
 import { Modal } from '../../components/ui/modal';
-import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { MessageBox } from '../../components/ui/message-box';
 import { StatusBadge } from '../../components/ui/status-badge';
 
 export function DesignSystemPreview() {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [showDangerConfirm, setShowDangerConfirm] = useState(false);
+    const [showSuccessMsg, setShowSuccessMsg] = useState(false);
+    const [showErrorMsg, setShowErrorMsg] = useState(false);
+    const [showInfoMsg, setShowInfoMsg] = useState(false);
 
     return (
         <PageContainer>
@@ -73,7 +76,7 @@ export function DesignSystemPreview() {
                             <h3 className="text-sm font-medium uppercase tracking-wider text-content-tertiary">States</h3>
                             <div className="flex flex-wrap gap-4">
                                 <Button disabled>Disabled State</Button>
-                                <Button className="relative overflow-hidden">
+                                <Button>
                                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                                     Processing...
                                 </Button>
@@ -85,7 +88,7 @@ export function DesignSystemPreview() {
                             <div className="flex flex-wrap gap-4">
                                 <Button><Plus className="mr-2 h-4 w-4" /> Add Robot</Button>
                                 <Button variant="secondary"><Settings className="mr-2 h-4 w-4" /> Config</Button>
-                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0"><RefreshCw className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="sm" className="p-0 h-10 w-10"><RefreshCw className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     </div>
@@ -334,13 +337,22 @@ export function DesignSystemPreview() {
                         </div>
 
                         <div className="space-y-4">
-                            <h3 className="text-sm font-medium uppercase tracking-wider text-content-tertiary">Confirm Dialogs</h3>
+                            <h3 className="text-sm font-medium uppercase tracking-wider text-content-tertiary">Confirm & Message Dialogs</h3>
                             <div className="flex flex-wrap gap-4">
                                 <Button variant="secondary" onClick={() => setShowConfirm(true)}>
                                     Trigger Action
                                 </Button>
                                 <Button variant="danger" onClick={() => setShowDangerConfirm(true)}>
                                     Delete Item
+                                </Button>
+                                <Button variant="secondary" onClick={() => setShowSuccessMsg(true)}>
+                                    Success Message
+                                </Button>
+                                <Button variant="secondary" onClick={() => setShowErrorMsg(true)}>
+                                    Error Message
+                                </Button>
+                                <Button variant="secondary" onClick={() => setShowInfoMsg(true)}>
+                                    Info Message
                                 </Button>
                             </div>
                             <p className="text-sm text-content-secondary">
@@ -374,22 +386,53 @@ export function DesignSystemPreview() {
                 </div>
             </Modal>
 
-            <ConfirmDialog
+            <MessageBox
                 isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
                 title="Confirm Action"
-                message="Are you sure you want to proceed with this action? This is a standard confirmation request."
+                message="Are you sure you want to proceed with this action?"
+                description="This is a standard confirmation request using MessageBox."
+                buttonType="ok-cancel"
                 onConfirm={() => setShowConfirm(false)}
                 onCancel={() => setShowConfirm(false)}
             />
 
-            <ConfirmDialog
+            <MessageBox
                 isOpen={showDangerConfirm}
+                onClose={() => setShowDangerConfirm(false)}
+                type="warning"
                 title="Delete Resource"
-                message="This action cannot be undone. This will permanently delete the selected resource and remove all associated data."
+                message="Are you sure you want to proceed?"
+                description="This action cannot be undone. This will permanently delete the selected resource."
                 confirmText="Delete"
-                variant="danger"
+                buttonType="ok-cancel"
                 onConfirm={() => setShowDangerConfirm(false)}
                 onCancel={() => setShowDangerConfirm(false)}
+            />
+
+            <MessageBox
+                isOpen={showSuccessMsg}
+                onClose={() => setShowSuccessMsg(false)}
+                type="success"
+                message="Operation Successful"
+                description="The task has been completed successfully and all changes were saved."
+            />
+
+            <MessageBox
+                isOpen={showErrorMsg}
+                onClose={() => setShowErrorMsg(false)}
+                type="error"
+                message="Save Failed"
+                description="An unexpected error occurred while trying to save the configuration. Please try again."
+            />
+
+            <MessageBox
+                isOpen={showInfoMsg}
+                onClose={() => setShowInfoMsg(false)}
+                type="info"
+                message="Update Available"
+                description="A new version of the software is available. Would you like to update now?"
+                buttonType="yes-no"
             />
         </PageContainer>
     );

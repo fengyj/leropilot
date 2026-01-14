@@ -1,5 +1,4 @@
 from pathlib import Path
-import pytest
 
 from leropilot.services.i18n.service import I18nService
 

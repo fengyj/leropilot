@@ -30,6 +30,7 @@ from leropilot.models.hardware import (
     DeviceCategory,
     DeviceStatus,
     MotorBusDefinition,
+    MotorLimit,
     MotorModelInfo,
     Robot,
     RobotDefinition,
@@ -227,8 +228,59 @@ class RobotManager:
                     data = json.load(f)
                 for r in data.get("robots", []):
                     try:
-                        robot = Robot(**r)
+                        # Normalize persisted data before constructing Robot objects:
+                        # - Ensure runtime-only fields like `interface` are present (may be null) so
+                        #   pydantic validation does not fail when loading old files that omitted them.
+                        # - Normalize custom protection keys that may have been serialized with commas.
+                        import copy
+                        r_copy = copy.deepcopy(r)
+
+                        # Motor bus connections: ensure `interface` key exists (set to None if missing)
+                        mbc = r_copy.get("motor_bus_connections")
+                        if isinstance(mbc, dict):
+                            for _k, v in mbc.items():
+                                if isinstance(v, dict) and "interface" not in v:
+                                    # Keep explicit null rather than omitting the field
+                                    v["interface"] = None
+
+                        # Custom protection settings: older files may have used comma-separated keys
+                        # and earlier write paths may have left string keys in various formats.
+                        # Convert keys into canonical tuple form so pydantic validation accepts them
+                        cps = r_copy.get("custom_protection_settings")
+                        if isinstance(cps, dict):
+                            new_cps: dict = {}
+                            for k, val in cps.items():
+                                # If the key is a string, split on either ',' or ':' and build a tuple
+                                if isinstance(k, str):
+                                    sep = "," if ("," in k and ":" not in k) else ":"
+                                    parts = [p.strip() for p in k.split(sep) if p.strip()]
+                                    if len(parts) >= 2:
+                                        brand = parts[0]
+                                        model = parts[1]
+                                        variant = parts[2] if len(parts) >= 3 else None
+                                        key_tuple = (brand, model, variant)
+                                    else:
+                                        # Fallback: keep raw string as single-element tuple (will likely raise later)
+                                        key_tuple = (k,)
+                                    new_cps[key_tuple] = val
+                                elif isinstance(k, (list, tuple)):
+                                    # Normalize list/tuple keys to (brand, model, variant|None)
+                                    if len(k) >= 2:
+                                        brand = str(k[0])
+                                        model = str(k[1])
+                                        variant = str(k[2]) if len(k) >= 3 else None
+                                        key_tuple = (brand, model, variant)
+                                    else:
+                                        key_tuple = tuple(k)
+                                    new_cps[key_tuple] = val
+                                else:
+                                    # Keep as-is for unknown key types
+                                    new_cps[k] = val
+                            r_copy["custom_protection_settings"] = new_cps
+
+                        robot = Robot(**r_copy)
                         self._normalize_robot(robot)
+                        self._apply_protection_defaults(robot, prune=False)
 
                         # Loaded robots are offline by default until seen
                         robot.status = DeviceStatus.OFFLINE
@@ -268,12 +320,6 @@ class RobotManager:
         Raises:
             ValueError: if the robot ID does not exist.
         """
-        # Use MotorUtil for table lookups
-        try:
-            from leropilot.services.hardware.motor_drivers.base import MotorUtil
-        except Exception:
-            MotorUtil = None  # type: ignore
-
         with self._lock:
             robot = self._robots.get(robot_id)
             if robot is None:
@@ -283,37 +329,113 @@ class RobotManager:
             # Robot.definition must be a RobotDefinition object; string ids are not supported at runtime
             if isinstance(defn, str):
                 raise ValueError("Robot.definition must be a RobotDefinition, not a string")
-            if not defn or not getattr(defn, "motor_buses", None):
-                return []
 
-            seen: set[tuple[str, str, str | None]] = set()
-            results: list[MotorModelInfo] = []
+            return self._get_robot_motor_models_info_internal(robot)
 
-            for mb_def in defn.motor_buses.values() if isinstance(defn.motor_buses, dict) else defn.motor_buses:
-                for rmd in mb_def.motors.values() if isinstance(mb_def.motors, dict) else mb_def.motors:
-                    brand = getattr(rmd, "brand", None)
-                    model = getattr(rmd, "model", None)
-                    variant = getattr(rmd, "variant", None)
-                    if not model:
-                        continue
-                    mi = None
-                    if MotorUtil is not None:
-                        mi = MotorUtil.find_motor(brand or "", model, variant)
-                    if mi is None:
-                        # not resolved via tables; skip
-                        continue
-                    brand_val = mi.brand.value if mi.brand is not None else ""
-                    key = (
-                        str(brand_val).lower(),
-                        (mi.model or "").lower(),
-                        (mi.variant or None),
-                    )
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    results.append(mi)
+    def _get_robot_motor_models_info_internal(self, robot: Robot) -> list[MotorModelInfo]:
+        """Internal helper to get motor models info for a Robot instance."""
+        # Use MotorUtil for table lookups
+        try:
+            from leropilot.services.hardware.motor_drivers.base import MotorUtil
+        except Exception:
+            MotorUtil = None  # type: ignore
 
-            return results
+        defn = robot.definition
+        if not defn or isinstance(defn, str) or not getattr(defn, "motor_buses", None):
+            return []
+
+        seen: set[tuple[str, str, str | None]] = set()
+        results: list[MotorModelInfo] = []
+
+        for mb_def in defn.motor_buses.values() if isinstance(defn.motor_buses, dict) else defn.motor_buses:
+            for rmd in mb_def.motors.values() if isinstance(mb_def.motors, dict) else mb_def.motors:
+                brand = getattr(rmd, "brand", None)
+                model = getattr(rmd, "model", None)
+                variant = getattr(rmd, "variant", None)
+                if not model:
+                    continue
+                mi = None
+                if MotorUtil is not None:
+                    mi = MotorUtil.find_motor(brand or "", model, variant)
+                if mi is None:
+                    # not resolved via tables; skip
+                    continue
+                brand_val = mi.brand.value if mi.brand is not None else ""
+                key = (
+                    str(brand_val).lower(),
+                    (mi.model or "").lower(),
+                    (mi.variant or None),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                results.append(mi)
+
+        return results
+
+    def _apply_protection_defaults(self, robot: Robot, prune: bool = False) -> None:
+        """Merge or prune default protection settings.
+
+        Args:
+           prune: If True, remove settings that match defaults.
+                  If False (default), add default settings where missing.
+        """
+        # Get defaults
+        models_info = self._get_robot_motor_models_info_internal(robot)
+
+        # Build defaults map: (brand, model, variant) -> {type: value}
+        defaults_map: dict[tuple[str, str, str | None], dict[str, float]] = {}
+        for mi in models_info:
+            brand_val = str(mi.brand.value).lower() if mi.brand else ""
+            model_val = str(mi.model).lower() if mi.model else ""
+            # Note: Robot keys use (brand, model, variant) where brand/model are strings
+            key = (brand_val, model_val, mi.variant)
+            defaults_map[key] = {k: v.value for k, v in mi.limits.items()}
+
+        current_settings = robot.custom_protection_settings
+
+        if prune:
+            # Remove defaults
+            keys_to_remove = []
+            for key, limits in current_settings.items():
+                # Normalize key for lookup (ensure brand/model are strictly strings)
+                lookup_key = (str(key[0]).lower(), str(key[1]).lower(), key[2])
+
+                if lookup_key not in defaults_map:
+                    continue
+
+                default_limits = defaults_map[lookup_key]
+                new_limits = []
+                for limit in limits:
+                    # Check if matches default
+                    if limit.type in default_limits and default_limits[limit.type] == limit.value:
+                        continue  # Prune
+                    new_limits.append(limit)
+
+                if not new_limits:
+                    keys_to_remove.append(key)
+                else:
+                    current_settings[key] = new_limits
+
+            for k in keys_to_remove:
+                del current_settings[k]
+
+        else:
+            # Expand defaults (Add missing)
+            for key, default_limits in defaults_map.items():
+                # Ensure key exists
+                if key not in current_settings:
+                    current_settings[key] = []
+
+                existing_limits = {l.type: l.value for l in current_settings[key]}
+                
+                # Check if we have modified list object, if not, create one to ensure mutation works
+                # (though accessing via dict usually gives reference)
+
+                for type_name, val in default_limits.items():
+                    if type_name not in existing_limits:
+                        # Add default
+                        current_settings[key].append(MotorLimit(type=type_name, value=val))
 
 
     def _normalize_robot(self, robot: Robot) -> None:
@@ -338,8 +460,10 @@ class RobotManager:
                 raise ResourceConflictError("hardware.robot_device.conflict_id", id=robot.id)
 
             self.verify_robot(robot)
+            self._apply_protection_defaults(robot, prune=True)
             self._robots[robot.id] = robot
             self._save_robots()
+            self._apply_protection_defaults(robot, prune=False)
             logger.info(f"Added robot {robot.id}: {robot.name}")
             return robot
 
@@ -359,13 +483,47 @@ class RobotManager:
         with self._lock:
             if robot_id not in self._robots:
                 raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
-            robot = self._robots[robot_id].model_copy()
+            # Merge provided updates into a fresh validated Robot instance so
+            # that incoming dicts (e.g., motor_bus_connections) are validated and
+            # converted into the proper model types (RobotMotorBusConnection, etc.).
+            current = self._robots[robot_id]
+            merged = current.model_dump()
             for k, v in kwargs.items():
-                # Apply provided values (including explicit None) — router is responsible
-                # for distinguishing omitted parameters from explicit nulls.
-                if hasattr(robot, k):
-                    setattr(robot, k, v)
+                merged[k] = v
 
+            # Normalize custom_protection_settings keys from legacy formats if present
+            cps = merged.get("custom_protection_settings")
+            if isinstance(cps, dict):
+                new_cps: dict = {}
+                for k, val in cps.items():
+                    if isinstance(k, str):
+                        # split on either ',' or ':' and build a tuple key (brand, model, variant|None)
+                        sep = "," if ("," in k and ":" not in k) else ":"
+                        parts = [p.strip() for p in k.split(sep) if p.strip()]
+                        if len(parts) >= 2:
+                            brand = parts[0]
+                            model = parts[1]
+                            variant = parts[2] if len(parts) >= 3 else None
+                            key_tuple = (brand, model, variant)
+                        else:
+                            # fallback: keep raw string as single-element tuple
+                            key_tuple = (k,)
+                        new_cps[key_tuple] = val
+                    elif isinstance(k, (list, tuple)):
+                        if len(k) >= 2:
+                            brand = str(k[0])
+                            model = str(k[1])
+                            variant = str(k[2]) if len(k) >= 3 else None
+                            key_tuple = (brand, model, variant)
+                        else:
+                            key_tuple = tuple(k)
+                        new_cps[key_tuple] = val
+                    else:
+                        new_cps[k] = val
+                merged["custom_protection_settings"] = new_cps
+
+            # Construct a new Robot object (runs pydantic validation & normalization)
+            robot = Robot(**merged)
             self._normalize_robot(robot)
 
             # If requested, verify hardware now; verification errors propagate so callers
@@ -375,8 +533,10 @@ class RobotManager:
                 self.verify_robot(robot)
 
             # Persist only when verification (if requested) passed
-            self._save_robots()
+            self._apply_protection_defaults(robot, prune=True)
             self._robots[robot_id] = robot
+            self._save_robots()
+            self._apply_protection_defaults(robot, prune=False)
             logger.info(f"Updated robot {robot_id}")
             return robot
 
@@ -400,6 +560,14 @@ class RobotManager:
                     if robot.is_transient:
                         continue
                     robot_dict = robot.model_dump(mode="json", exclude_none=True)
+
+                    # Remove runtime-only fields from motor_bus_connections (do not persist interface values)
+                    mbc = robot_dict.get("motor_bus_connections")
+                    if isinstance(mbc, dict):
+                        for conn in mbc.values():
+                            if isinstance(conn, dict) and "interface" in conn:
+                                conn.pop("interface", None)
+
                     # Normalize definition: if definition is a RobotDefinition and matches a known spec, store its id
                     from leropilot.services.hardware.robots import RobotSpecService
 
@@ -410,12 +578,34 @@ class RobotManager:
                         try:
                             if spec.get_robot_definition(def_val.id):
                                 robot_dict["definition"] = def_val.id
+                            else:
+                                # Serialize definition to a dict, converting motors maps to lists for file storage
+                                def_dump = def_val.model_dump(mode="json", exclude_none=True)
+                                import copy
+                                def_copy = copy.deepcopy(def_dump)
+                                for mb in def_copy.get("motor_buses", {}).values():
+                                    motors = mb.get("motors")
+                                    if isinstance(motors, dict):
+                                        new_list = []
+                                        for name, m in motors.items():
+                                            if isinstance(m, dict):
+                                                m2 = dict(m)
+                                                m2.setdefault("name", name)
+                                                new_list.append(m2)
+                                            else:
+                                                new_list.append(m)
+                                        mb["motors"] = new_list
+                                robot_dict["definition"] = def_copy
                         except Exception:
-                            robot_dict["definition"] = def_val
+                            # Fallback: attempt to dump model
+                            try:
+                                robot_dict["definition"] = def_val.model_dump(mode="json", exclude_none=True)
+                            except Exception:
+                                robot_dict["definition"] = str(def_val)
                     else:
                         robot_dict["definition"] = def_val
 
-                robots_list.append(robot_dict)
+                    robots_list.append(robot_dict)
 
                 with open(list_path, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
@@ -646,8 +836,8 @@ class RobotManager:
             
             # Localized device name
             name = i18n.translate(
-                "hardware.addRobotModal.unknownDeviceOn", 
-                lang=lang, 
+                "hardware.robot_device.unknown_device_on",
+                lang=lang,
                 port=bus.interface
             ) or f"Unknown device on {bus.interface}"
 
@@ -667,14 +857,14 @@ class RobotManager:
             )
             motor_bus_connections = {"motorbus": conn}
 
-            # Build motor definitions (dict keyed by logical name) and type counts for description
+            # Build motor definitions (dict keyed by logical name) and canonical type counts for description
             motor_defs: dict[str, RobotMotorDefinition] = {}
             type_counts: dict[str, int] = {}
             idx = 1
             for motor_key, entry in bus.motors.items():
                 # entry is (driver, MotorModelInfo|None)
                 # type: ignore[assignment]
-                driver, minfo = entry  # type: ignore[assignment]
+                _, minfo = entry  # type: ignore[assignment]
                 name_idx = str(idx)
                 idx += 1
                 if minfo is not None and minfo.brand is not None:
@@ -692,28 +882,54 @@ class RobotManager:
                     model=str(model),
                     variant=variant,
                     need_calibration=True,
+                    drive_mode=0,
                 )
                 motor_defs[name_idx] = motor_def
 
-                type_key = variant or model or i18n.translate("hardware.addRobotModal.unknown", lang=lang) or "Unknown"
-                type_counts[type_key] = type_counts.get(type_key, 0) + 1
+                # Canonical type key for grouping (variant > model > unknown)
+                typ_key = variant or model or "unknown"
+                type_counts[typ_key] = type_counts.get(typ_key, 0) + 1
 
-            # Build description string like "4 STS3215-C001, 2 STS3215-C046"
-            desc_parts = [f"{cnt} {typ}" for typ, cnt in type_counts.items()]
-            description = ", ".join(desc_parts)
+            # Build localized description strings by applying per-language templates
+            templates = i18n.get_block("hardware.robot_definition.motor_count_templates")
+            descriptions: dict[str, str] = {}
+            # For display_name, prefer what's defined in i18n block for custom_robot_device
+            display_name_block = i18n.get_block("hardware.robot_definition.custom_robot_device")
 
-            # Construct MotorBusDefinition and RobotDefinition
+            if templates:
+                for lang, tmpl in templates.items():
+                    parts = []
+                    for typ_key, cnt in type_counts.items():
+                        if typ_key == "unknown":
+                            loc_type = i18n.translate("hardware.robot_device.unknown", lang=lang)
+                        else:
+                            loc_type = typ_key
+                        try:
+                            parts.append(tmpl.get("item", "{count} {type} motors").format(count=cnt, type=loc_type))
+                        except Exception:
+                            parts.append(f"{cnt} {loc_type}")
+                    sep = tmpl.get("sep", ", ")
+                    descriptions[lang] = sep.join(parts)
+
+            # Construct MotorBusDefinition and RobotDefinition (localized display_name/description)
             mb_def = MotorBusDefinition(
                 type=bus.__class__.__name__,
                 motors=motor_defs,
                 baud_rate=getattr(bus, "baud_rate", None),
                 interface_type=None,
             )
+
+            # Build display_name dict from i18n if available
+            if display_name_block:
+                display_name = {k: v for k, v in display_name_block.items() if isinstance(v, str)}
+            else:
+                display_name = "Custom Robot Device"
+
             rdef = RobotDefinition(
                 id="",
                 lerobot_name=None,
-                display_name=i18n.translate("hardware.addRobotModal.customRobotDevice", lang=lang) or "Custom Robot Device",
-                description=description,
+                display_name=display_name,
+                description=descriptions,
                 support_version_from=None,
                 support_version_end=None,
                 urdf=None,
@@ -846,17 +1062,19 @@ class RobotManager:
                         if conn.serial_number == serial_num:
                             conn_found = True
                             matched_bus = bus
+                            conn.interface = getattr(bus, "interface", None)
                             break
                     else:
                         # Fall back to matching by interface (runtime info)
                         if conn.interface and getattr(bus, "interface", None) == conn.interface:
                             conn_found = True
                             matched_bus = bus
-                            break
+                            conn.interface = getattr(bus, "interface", None)
 
                 if not conn_found:
                     # Could not find required motorbus -> offline
                     all_connections_ok = False
+                    conn.interface = None
                     break
 
                 # If we have a motorbus definition for this connection, verify it
@@ -991,7 +1209,7 @@ class RobotManager:
 
         # Aggregate filters (motorbus type, baudrate) from robots we will inspect
         filters: list[tuple[str, int | None]] = []
-        for _rid, robot in to_process:
+        for _, robot in to_process:
             defn = robot.definition
             if isinstance(defn, str):
                 raise ValueError("Robot.definition must be a RobotDefinition, not a string")

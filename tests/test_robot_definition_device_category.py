@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from leropilot.models.hardware import RobotDefinition, DeviceCategory
+from leropilot.models.hardware import DeviceCategory, RobotDefinition
 
 
-def test_robot_definition_device_category_loads():
+def test_robot_definition_device_category_loads() -> None:
     path = Path("src/leropilot/resources/robot_specs.json")
     assert path.exists(), "robot_specs.json not found"
     data = json.loads(path.read_text(encoding='utf-8'))

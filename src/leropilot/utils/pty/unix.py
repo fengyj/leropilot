@@ -9,16 +9,15 @@ import errno
 import importlib
 import os
 import struct
+from collections.abc import Callable
 from typing import Any
+
+from leropilot.logger import get_logger
 
 # Import Unix-only modules dynamically to avoid static analysis issues on non-Unix platforms
 _fcntl: Any = importlib.import_module("fcntl")
 _pty: Any = importlib.import_module("pty")
 _termios: Any = importlib.import_module("termios")
-from collections.abc import Callable
-from typing import Any
-
-from leropilot.logger import get_logger
 
 logger = get_logger(__name__)
 

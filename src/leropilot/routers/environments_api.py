@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, Query
 
+from leropilot.exceptions import ResourceNotFoundError, ValidationError
 from leropilot.logger import get_logger
 from leropilot.models.api.environment import (
     CancelInstallationResponse,

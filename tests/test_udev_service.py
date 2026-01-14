@@ -3,13 +3,13 @@ from pathlib import Path
 from leropilot.utils.unix import UdevManager
 
 
-def ensure_rule_present(**kwargs):
+def ensure_rule_present(**kwargs: object) -> dict[str, object]:
     """Wrapper for backwards compatibility in tests."""
     manager = UdevManager()
     return manager.ensure_rule_present(**kwargs)
 
 
-def generate_rule(**kwargs):
+def generate_rule(**kwargs: object) -> str:
     """Wrapper for backwards compatibility in tests."""
     manager = UdevManager()
     return manager.generate_rule(**kwargs)

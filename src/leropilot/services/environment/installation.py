@@ -317,7 +317,11 @@ class EnvironmentInstallationPlanGenerator:
             commands = self._resolve_commands(step_tmpl, env_config, config)
 
             # Get localized name and comment (use flat i18n.translate)
-            name = self.i18n.translate(f"environment.install_steps.{step_tmpl.id}.name", lang=lang, default=step_tmpl.id)
+            name = self.i18n.translate(
+                f"environment.install_steps.{step_tmpl.id}.name",
+                lang=lang,
+                default=step_tmpl.id,
+            )
             comment = self.i18n.translate(f"environment.install_steps.{step_tmpl.id}.comment", lang=lang, default="")
 
             # Determine working directory for this step

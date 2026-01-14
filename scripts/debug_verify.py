@@ -1,6 +1,7 @@
 from unittest.mock import Mock
+
+from leropilot.models.hardware import MotorBusDefinition, MotorModelInfo, RobotMotorDefinition
 from leropilot.services.hardware.robots import get_robot_manager
-from leropilot.models.hardware import MotorModelInfo, RobotMotorDefinition, MotorBusDefinition
 
 manager = get_robot_manager()
 
