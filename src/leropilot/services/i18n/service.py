@@ -56,12 +56,6 @@ class I18nService:
             logger.error(f"Failed to load i18n file: {e}")
             self._data = {}
 
-
-
-
-
-
-
     def translate(self, path: str, lang: str = "en", default: str | None = None, **kwargs: object) -> str | None:
         """Translate a dot-separated path into a localized string.
 
@@ -126,8 +120,6 @@ class I18nService:
                 return {}
             node = node.get(part, {})
         return node if isinstance(node, dict) else {}
-
-
 
     def reload(self) -> None:
         """Reload i18n data from file."""

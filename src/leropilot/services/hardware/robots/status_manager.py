@@ -5,14 +5,11 @@ This module handles refreshing robot status based on discovered hardware.
 """
 
 import logging
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-
-    from .discovery import MotorBusDiscovery
-    from .verification import RobotVerificationService
 
 from leropilot.models.hardware import Robot
+
+from .discovery import MotorBusDiscovery
+from .verification import RobotVerificationService
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +19,8 @@ class RobotStatusManager:
 
     def __init__(
         self,
-        discovery_service: "MotorBusDiscovery",
-        verification_service: "RobotVerificationService",
+        discovery_service: MotorBusDiscovery,
+        verification_service: RobotVerificationService,
     ) -> None:
         """
         Initialize status manager.

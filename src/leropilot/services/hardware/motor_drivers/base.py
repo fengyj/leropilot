@@ -4,20 +4,54 @@ Abstract base driver for motor bus communication.
 All motor drivers inherit from this base class and implement protocol-specific logic.
 """
 
+import time
 from abc import ABC, abstractmethod
 from threading import RLock
 from typing import Generic, Literal, TypeVar
 
 from typing_extensions import Self
 
-from leropilot.models.hardware import MotorBrand, MotorModelInfo, MotorTelemetry
+from leropilot.models.hardware import MotorBrand, MotorModelInfo, MotorTelemetry, UnitType
 
 # Generic motor id type for drivers
-MotorID = TypeVar("MotorID")
+MotorIDVar = TypeVar("MotorIDVar")
 
 
-class BaseMotorDriver(ABC, Generic[MotorID]):
-    """Abstract base class for motor bus drivers"""
+class BaseMotorDriver(ABC, Generic[MotorIDVar]):
+    """Abstract base class for motor bus drivers.
+
+    Standard Physical Units:
+        All motor drivers use the following standard units for physical values:
+
+        - Position: radians (rad)
+        - Velocity: radians per second (rad/s)
+        - Acceleration: radians per second squared (rad/s²)
+        - Current: milliamperes (mA)
+        - Voltage: volts (V)
+        - Temperature: degrees Celsius (°C)
+        - Torque: Newton-meters (N·m)
+        - Force: Newtons (N)
+        - Time: seconds (s)
+
+        Methods ending with '_values' (e.g., bulk_write_values, bulk_read_values)
+        accept/return these standard units.
+
+        Methods ending with '_register' (e.g., bulk_write_register, bulk_read_register)
+        accept/return raw integer register values (driver-specific encoding).
+
+    Thread Safety:
+        This class and its subclasses are NOT thread-safe by design.
+        All methods assume single-threaded access or external synchronization.
+
+        If you need concurrent access from multiple threads (e.g., separate
+        control and monitoring threads), you must:
+        1. Use external locking (e.g., threading.RLock) around all driver calls, OR
+        2. Create separate driver instances per thread (not recommended for
+           shared resources like serial ports or CAN buses)
+
+        Rationale: Adding internal locks would impose performance overhead for
+        the common single-threaded use case (typical control loops).
+    """
 
     def __init__(self, interface: str, baud_rate: int | None = None) -> None:
         """
@@ -35,12 +69,11 @@ class BaseMotorDriver(ABC, Generic[MotorID]):
         # assigned motor id on driver instances to reduce coupling.
 
     @abstractmethod
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """
         Connect to the motor bus.
 
-        Returns:
-            True if connection successful, False otherwise
+        Should raise :class:`OperationalError` on failure instead of returning False.
         """
         pass
 
@@ -54,21 +87,27 @@ class BaseMotorDriver(ABC, Generic[MotorID]):
         """
         pass
 
+    def is_connected(self) -> bool:
+        """Check if driver is connected"""
+        return self.connected
+
+    def __enter__(self) -> Self:
+        """Context manager support"""
+        self.connect()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
+    ) -> Literal[False]:
+        """Context manager cleanup"""
+        self.disconnect()
+        return False
+
     @abstractmethod
-    def ping_motor(self, motor_id: MotorID) -> bool:
-        """
-        Check if motor with given ID is on the bus.
-
-        Args:
-            motor_id: Motor ID (type depends on protocol / MotorBus)
-
-        Returns:
-            True if motor responds
-        """
-        pass
-
-    @abstractmethod
-    def scan_motors(self, scan_range: list[int] | None = None) -> dict[MotorID, MotorModelInfo]:
+    def scan_motors(self, scan_range: list[int] | None = None) -> dict[MotorIDVar, MotorModelInfo]:
         """
         Scan motor bus and discover all motors.
 
@@ -81,35 +120,9 @@ class BaseMotorDriver(ABC, Generic[MotorID]):
         pass
 
     @abstractmethod
-    def read_telemetry(self, motor_id: MotorID) -> MotorTelemetry | None:
-        """
-        Read real-time telemetry from a single motor.
-
-        Args:
-            motor_id: Motor ID
-
-        Returns:
-            Motor telemetry data or None if read fails
-        """
-        pass
-
-    @abstractmethod
-    def read_bulk_telemetry(self, motor_ids: list[MotorID]) -> dict[MotorID, MotorTelemetry]:
-        """
-        Read telemetry from multiple motors efficiently.
-
-        Args:
-            motor_ids: List of motor IDs
-
-        Returns:
-            Dict mapping motor_id -> telemetry
-        """
-        pass
-
-    @abstractmethod
     def identify_model(
         self,
-        motor_id: MotorID,
+        motor_id: MotorIDVar,
         model_number: int | None = None,
         fw_major: int | None = None,
         fw_minor: int | None = None,
@@ -138,49 +151,266 @@ class BaseMotorDriver(ABC, Generic[MotorID]):
         pass
 
     @abstractmethod
-    def set_position(self, motor_id: MotorID, position: int, speed: int | None = None) -> bool:
+    def read_register(self, motor_id: MotorIDVar, address: int) -> float:
         """
-        Set motor target position.
+        Read a register value from a motor.
+        How many bytes are read depends on the register. And the sign of the value is also
+        determined by the register type. The implementation should handle these details.
 
         Args:
             motor_id: Motor ID
-            position: Target position (raw encoder units or raw values)
-            speed: Optional movement speed
+            address: Register address
 
         Returns:
-            True if command sent successfully
+            Raw register value (int or float depending on register type, int value will convert to float)
         """
         pass
 
     @abstractmethod
-    def set_torque(self, motor_id: MotorID, enabled: bool) -> bool:
+    def write_register(self, motor_id: MotorIDVar, address: int, value: float) -> None:
+        """Write a register value to a motor.
+
+        Args:
+            motor_id: Motor ID
+            address: Register address
+            value: Value to write
+        """
+        pass
+
+    def bulk_read_registers(
+        self,
+        motor_ids: list[MotorIDVar],
+        register_addr: int,
+    ) -> dict[MotorIDVar, float]:
+        """Read the same register from multiple motors (raw register values).
+
+        Default implementation uses sequential reads. Subclasses should override
+        for protocol-specific bulk read optimization.
+
+        Args:
+            motor_ids: List of motor IDs to read from
+            register_addr: Register address to read
+
+        Returns:
+            Dict mapping motor_id -> raw register value
+
+        Example:
+            # Read current limits (raw register values)
+            currents = driver.bulk_read_registers([1, 2, 3], addr=38)
+            # Returns: {1: 372.0, 2: 297.0}
+        """
+        results: dict[MotorIDVar, float] = {}
+        for motor_id in motor_ids:
+            value = self.read_register(motor_id, register_addr)
+            results[motor_id] = value
+            time.sleep(0.001)  # Small delay to avoid bus overload
+        return results
+
+    def bulk_write_registers(
+        self,
+        motor_values: dict[MotorIDVar, float],
+        register_addr: int,
+    ) -> None:
+        """Write the same register to multiple motors with different values.
+
+        This is useful for batch initialization, e.g., setting operating mode,
+        drive mode, current limits, etc. for multiple motors.
+
+        Supports both signed and unsigned integer values. Negative values are
+        automatically encoded using two's complement representation.
+
+        Args:
+            motor_values: Dict mapping motor_id -> raw register value (can be negative)
+            register_addr: Register address to write
+
+        Example:
+            # Set velocity limit (supports negative values)
+            driver.bulk_write_register(
+                {1: -100, 2: 100, 3: -50},  # Negative values OK
+                register_addr=112,  # Profile Velocity register
+            )
+        """
+        # Default implementation: sequential writes
+        # Subclasses should override for protocol-specific bulk write
+        for motor_id, value in motor_values.items():
+            # Each driver should implement `write_register` method
+            self.write_register(motor_id, register_addr, value)
+            time.sleep(0.001)  # Small delay to avoid bus overload
+
+    def read_register_in_standard_unit(
+        self,
+        motor_id: MotorIDVar,
+        model_info: MotorModelInfo,
+        address: int,
+        unit_type: UnitType,
+    ) -> float:
+        """Read a physical value from a motor register.
+
+        Reads a raw register value via `read_register`, then converts it into
+        standard physical units (e.g., mA for current, rad/s for velocity)
+        using the motor's `MotorModelInfo`.
+
+        Args:
+            motor_id: Motor ID
+            address: Register address
+            unit_type: Type of physical unit ("current", "velocity", "acceleration",
+                      "temperature", "voltage")
+            model_info: Optional `MotorModelInfo` for the motor. If not provided
+                        the driver must override this method to supply lookup.
+        Returns:
+            Value in STANDARD UNITS (e.g., mA for current, rad/s for velocity)
+            or None if read failed
+        """
+
+        # Read raw register value
+        raw_value = self.read_register(motor_id, address)
+        # Get conversion factor and compute physical value (will raise if missing)
+
+        physical_value = model_info.convert_to_standard_unit(unit_type, raw_value)
+        return physical_value
+
+    def write_register_in_standard_unit(
+        self,
+        motor_id: MotorIDVar,
+        model_info: MotorModelInfo,
+        address: int,
+        value: float,
+        unit_type: UnitType,
+    ) -> None:
+        """Write a physical value to a motor register.
+
+        Converts a value expressed in standard physical units (e.g., mA for current,
+        rad/s for velocity) into the appropriate raw register value using
+        the motor's `MotorModelInfo`, then writes it via `write_register`.
+
+        Args:
+            motor_id: Motor ID
+            model_info: Optional `MotorModelInfo` for the motor. If not provided
+                        the driver must override this method to supply lookup.
+            address: Register address
+            value: Value in STANDARD UNITS (e.g., mA for current, rad/s for velocity)
+            unit_type: Type of physical unit ("current", "velocity", "acceleration",
+                      "temperature", "voltage")
+
+        Raises:
+            ValueError: If conversion factor not available for the motor model
+
+        """
+        # Drivers or callers should provide MotorModelInfo when possible to
+        # perform unit conversions. Base cannot look it up generically.
+
+        # Get conversion factor and compute raw register value (will raise if missing)
+        register_value = model_info.convert_from_standard_unit(unit_type, value)
+
+        # Delegate to write_register (driver-specific implementation)
+        return self.write_register(motor_id, address, register_value)
+
+    def bulk_read_registers_in_standard_unit(
+        self,
+        motor_models: dict[MotorIDVar, MotorModelInfo],
+        register_addr: int,
+        unit_type: UnitType,
+    ) -> dict[MotorIDVar, float]:
+        """Read register values in standard physical units from multiple motors.
+
+        This method automatically looks up the appropriate conversion factor from
+        each motor's MotorModelInfo based on the unit_type.
+
+        Args:
+            register_addr: Register address to read
+            motor_models: Dict mapping motor_id -> MotorModelInfo (for conversion factors)
+            unit_type: Type of physical unit ("current", "velocity", "acceleration",
+                      "temperature", "voltage")
+
+        Returns:
+            Dict mapping motor_id -> value in STANDARD UNITS
+
+        Raises:
+            ValueError: If conversion factor not available for a motor model
+
+        """
+        # Read raw register values
+        motor_ids = list(motor_models.keys())
+        raw_values = self.bulk_read_registers(motor_ids, register_addr)
+
+        # Convert to physical units
+        results: dict[MotorIDVar, float] = {}
+        for motor_id, raw_value in raw_values.items():
+            model_info = motor_models[motor_id]
+            # Convert to physical units
+            results[motor_id] = model_info.convert_to_standard_unit(unit_type, raw_value)
+
+        return results
+
+    def bulk_write_registers_in_standard_unit(
+        self,
+        motor_values: dict[MotorIDVar, float],
+        motor_models: dict[MotorIDVar, MotorModelInfo],
+        register_addr: int,
+        unit_type: UnitType,
+    ) -> None:
+        """Write values in standard physical units to multiple motors.
+
+        This method automatically looks up the appropriate conversion factor from
+        each motor's MotorModelInfo based on the unit_type.
+
+        Args:
+            register_addr: Register address to write
+            motor_values: Dict mapping motor_id -> value in STANDARD UNITS
+                         (e.g., mA for current, rad/s for velocity)
+            motor_models: Dict mapping motor_id -> MotorModelInfo (for conversion factors)
+            unit_type: Type of physical unit ("current", "velocity", "acceleration",
+                      "temperature", "voltage")
+
+        Raises:
+            ValueError: If conversion factor not available for a motor model
+
+        """
+        # Convert physical units to raw register values
+        register_values: dict[MotorIDVar, float] = {}
+
+        for motor_id, physical_value in motor_values.items():
+            # Caller is required to provide MotorModelInfo for each motor
+            model_info = motor_models[motor_id]
+
+            register_values[motor_id] = model_info.convert_from_standard_unit(unit_type, physical_value)
+
+        self.bulk_write_registers(register_values, register_addr)
+
+    @abstractmethod
+    def _get_register_address(self, name: str) -> int:
+        """Helper to get register address from name.
+
+        Subclasses should implement this method if they support named registers.
+
+        Args:
+            name: Supported register names may include:
+                - "torque_enable": Torque enable/disable register
+                - "position": Position register
+                - "goal_position": Goal position register
+                - "velocity": Velocity register
+                - "current": Current register
+                - "temperature": Temperature register
+                - "torque": Torque register
+        """
+        raise NotImplementedError("Driver does not support named registers")
+
+    def set_torque(self, motor_id: MotorIDVar, enabled: bool) -> None:
         """
         Enable or disable motor torque.
+
+        **Deprecated**: This legacy enable/disable API is scheduled for removal.
+        Prefer driver-specific torque control APIs (`write_torque` / `read_torque`) or
+        use value-level APIs where supported.
 
         Args:
             motor_id: Motor ID
             enabled: True to enable torque, False to disable
 
-        Returns:
-            True if command sent successfully
         """
-        pass
+        self.write_register(motor_id, self._get_register_address("torque_enable"), 1.0 if enabled else 0)
 
-    @abstractmethod
-    def reboot_motor(self, motor_id: MotorID) -> bool:
-        """
-        Reboot a single motor.
-
-        Args:
-            motor_id: Motor ID
-
-        Returns:
-            True if reboot command sent
-        """
-        pass
-
-    @abstractmethod
-    def bulk_set_torque(self, motor_ids: list[MotorID], enabled: bool) -> bool:
+    def bulk_set_torque(self, motor_ids: list[MotorIDVar], enabled: bool) -> None:
         """
         Set torque for multiple motors at once (more efficient than individual calls).
 
@@ -188,45 +418,202 @@ class BaseMotorDriver(ABC, Generic[MotorID]):
             motor_ids: List of motor IDs
             enabled: True to enable, False to disable
 
+        """
+        self.bulk_write_registers(
+            {motor_id: 1.0 if enabled else 0.0 for motor_id in motor_ids},
+            self._get_register_address("torque_enable"),
+        )
+
+    def get_operation_mode(self, motor_id: MotorIDVar) -> int:
+        """
+        Get the operation mode of a motor.
+
+        Args:
+            motor_id: Motor ID
+
         Returns:
-            True if all commands sent successfully
+            Operation mode code (driver-specific)
+
+        """
+        mode_value = self.read_register(motor_id, self._get_register_address("operation_mode"))
+        return int(mode_value)
+
+    def bulk_get_operation_mode(self, motor_ids: list[MotorIDVar]) -> dict[MotorIDVar, int]:
+        """
+        Get operation mode for multiple motors at once (more efficient than individual calls).
+
+        Args:
+            motor_ids: List of motor IDs
+        Returns:
+            Dict mapping motor_id -> operation mode code (driver-specific)
+
+        """
+        raw_modes = self.bulk_read_registers(motor_ids, self._get_register_address("operation_mode"))
+        return {motor_id: int(mode_value) for motor_id, mode_value in raw_modes.items()}
+
+    def set_operation_mode(self, motor_id: MotorIDVar, mode: int) -> None:
+        """
+        Set the operation mode of a motor.
+
+        Args:
+            motor_id: Motor ID
+            mode: Operation mode code (driver-specific)
+
+        """
+        self.write_register(motor_id, self._get_register_address("operation_mode"), float(mode))
+
+    def bulk_set_operation_mode(self, motor_ids: list[MotorIDVar], mode: int) -> None:
+        """
+        Set operation mode for multiple motors at once (more efficient than individual calls).
+
+        Args:
+            motor_ids: List of motor IDs
+            mode: Operation mode code (driver-specific)
+
+        """
+        self.bulk_write_registers(
+            {motor_id: float(mode) for motor_id in motor_ids},
+            self._get_register_address("operation_mode"),
+        )
+
+    def get_position(self, motor_id: MotorIDVar) -> float:
+        """
+        Get the current position of a motor in radians.
+
+        Args:
+            motor_id: Motor ID
+        
+        Returns:
+            Position in radians.
+        """
+        raw_value = self.read_register(motor_id, self._get_register_address("position"))
+        return raw_value
+
+    def bulk_get_positions(self, motor_ids: list[MotorIDVar]) -> dict[MotorIDVar, float]:
+        """
+        Get position for multiple motors at once (more efficient than individual calls).
+
+        Args:
+            motor_ids: List of motor IDs
+        
+        Returns:
+            Dict mapping motor_id -> position in radians.
+        """
+        raw_values = self.bulk_read_registers(motor_ids, self._get_register_address("position"))
+        return {motor_id: raw_value for motor_id, raw_value in raw_values.items()}
+
+    def get_goal_position(self, motor_id: MotorIDVar) -> float:
+        """
+        Get the goal position of a motor in radians.
+
+        Args:
+            motor_id: Motor ID
+    
+        Returns:
+            Goal position in radians.
+        """
+        raw_value = self.read_register(motor_id, self._get_register_address("goal_position"))
+        return raw_value
+
+    def bulk_get_goal_positions(self, motor_ids: list[MotorIDVar]) -> dict[MotorIDVar, float]:
+        """
+        Get goal position for multiple motors at once (more efficient than individual calls).
+
+        Args:
+            motor_ids: List of motor IDs
+
+        Returns:
+            Dict mapping motor_id -> goal position in radians.
+        """
+        raw_values = self.bulk_read_registers(motor_ids, self._get_register_address("goal_position"))
+        return {motor_id: raw_value for motor_id, raw_value in raw_values.items()}
+
+    def set_goal_position(self, motor_id: MotorIDVar, position: float) -> None:
+        """
+        Set the goal position of a motor in radians.
+
+        Args:
+            motor_id: Motor ID
+            position: Goal position in radians.
+        """
+        self.write_register(motor_id, self._get_register_address("goal_position"), position)
+
+    def bulk_set_goal_positions(self, motor_positions: dict[MotorIDVar, float]) -> None:
+        """
+        Set goal position for multiple motors at once (more efficient than individual calls).
+
+        Args:
+            motor_positions: Dict mapping motor IDs to goal positions in radians.
+            position: Goal position in radians.
+        """
+        self.bulk_write_registers(
+            motor_positions,
+            self._get_register_address("goal_position"),
+        )
+
+    @abstractmethod
+    def read_telemetry(self, motor_id: MotorIDVar, model_info: MotorModelInfo) -> MotorTelemetry:
+        """
+        Read real-time telemetry from a single motor.
+
+        Args:
+            motor_id: Motor ID
+            model_info: `MotorModelInfo` to avoid extra identification reads
+
+        Returns:
+            Motor telemetry data.
+
+            Excepts the position & goal_position fields are in raw units,
+            others are in standard units.
+
+
+            | Quantity     | Standard Unit              | Symbol |
+            |--------------|----------------------------|--------|
+            | Position     | radians                    | rad    |
+            | Velocity     | radians per second         | rad/s  |
+            | Acceleration | radians per second squared | rad/s² |
+            | Current      | milliamperes               | mA     |
+            | Voltage      | volts                      | V      |
+            | Temperature  | degrees Celsius            | °C     |
+            | Torque       | Newton-meters              | N·m    |
+            | Force        | Newtons                    | N      |
+            | Time         | seconds                    | s      |
+
         """
         pass
 
-    # Convenience aliases for telemetry session compatibility
-    def write_goal_position(self, motor_id: MotorID, position: int) -> bool:
-        """Alias for set_position for telemetry session compatibility.
-
-        Use the generic `MotorID` type so callers using protocol-specific ids
-        (e.g., tuples for damiao) type-check correctly.
+    def bulk_read_telemetry(self, motors: dict[MotorIDVar, MotorModelInfo]) -> dict[MotorIDVar, MotorTelemetry]:
         """
-        return self.set_position(motor_id, position)
+        Read telemetry from multiple motors efficiently.
 
-    def write_torque_enable(self, motor_id: MotorID, enabled: bool) -> bool:
-        """Alias for set_torque for telemetry session compatibility."""
-        return self.set_torque(motor_id, enabled)
+        Args:
+            motors: Mapping of motor_id -> MotorModelInfo (caller must supply model info)
 
-    def is_connected(self) -> bool:
-        """Check if driver is connected"""
-        return self.connected
+        Returns:
+            Dict mapping motor_id -> telemetry
 
-    def __enter__(self) -> Self:
-        """Context manager support"""
-        self.connect()
-        return self
+            Excepts the position & goal_position fields are in raw units,
+            others are in standard units.
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: object | None,
-    ) -> Literal[False]:
-        """Context manager cleanup"""
-        self.disconnect()
-        return False
+            | Quantity     | Standard Unit              | Symbol |
+            |--------------|----------------------------|--------|
+            | Position     | radians                    | rad    |
+            | Velocity     | radians per second         | rad/s  |
+            | Acceleration | radians per second squared | rad/s² |
+            | Current      | milliamperes               | mA     |
+            | Voltage      | volts                      | V      |
+            | Temperature  | degrees Celsius            | °C     |
+            | Torque       | Newton-meters              | N·m    |
+            | Force        | Newtons                    | N      |
+            | Time         | seconds                    | s      |
 
-
-# Utility registry for protocol model lookups
+        """
+        result: dict[MotorIDVar, MotorTelemetry] = {}
+        for motor_id, model_info in motors.items():
+            telemetry = self.read_telemetry(motor_id, model_info)
+            result[motor_id] = telemetry
+            time.sleep(0.001)
+        return result
 
 
 class MotorUtil:
@@ -245,7 +632,7 @@ class MotorUtil:
         """Register a list of MotorModelInfo entries."""
         with cls._lock:
             for m in models:
-                brand = m.brand.value if m.brand is not None else ""
+                brand = m.brand.value
                 model = (m.model or "").lower()
                 variant = m.variant.lower() if m.variant is not None else None
                 key = (brand.lower(), model, variant)

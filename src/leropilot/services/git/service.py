@@ -87,9 +87,7 @@ class GitService:
 
             return commit_hash
         except subprocess.CalledProcessError as e:
-            raise OperationalError(
-                "app_settings.git.failed", retriable=True, error=str(e), url=repo_url
-            ) from e
+            raise OperationalError("app_settings.git.failed", retriable=True, error=str(e), url=repo_url) from e
         except Exception as e:
             if isinstance(e, AppBaseError):
                 raise

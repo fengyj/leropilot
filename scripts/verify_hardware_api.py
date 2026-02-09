@@ -118,7 +118,9 @@ async def run_verification() -> None:
 
         # Verify persistence immediately in response
         # Structure: calibration_settings -> motor_bus -> [ {name, homing_offset, ...} ]
-        if updated_data.get("calibration_settings") and isinstance(updated_data["calibration_settings"].get("motor_bus"), list):
+        if updated_data.get("calibration_settings") and isinstance(
+            updated_data["calibration_settings"].get("motor_bus"), list
+        ):
             m1 = updated_data["calibration_settings"]["motor_bus"][0]
             assert m1.get("homing_offset") == 100
         else:

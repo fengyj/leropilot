@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import cv2
-from fastapi import APIRouter, Body, File, Query, Response, UploadFile
+from fastapi import APIRouter, Body, File, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from leropilot.exceptions import OperationalError, ResourceNotFoundError, ValidationError
@@ -17,7 +17,6 @@ from leropilot.models.hardware import (
     RobotDefinition,
 )
 from leropilot.services.hardware.cameras import CameraService
-from leropilot.services.hardware.motors import MotorService
 from leropilot.services.hardware.robots import RobotSpecService, get_robot_manager, get_robot_urdf_manager
 from leropilot.services.i18n import get_i18n_service
 from leropilot.utils.urdf import validate_file as validate_urdf_file
@@ -48,16 +47,6 @@ def get_camera_service() -> CameraService:
     if _camera_service is None:
         _camera_service = CameraService()
     return _camera_service
-
-
-
-
-def get_motor_service() -> MotorService:
-    global _motor_service
-    with _service_lock:
-        if _motor_service is None:
-            _motor_service = MotorService()
-        return _motor_service
 
 
 def get_robot_spec_service() -> RobotSpecService:
@@ -93,16 +82,9 @@ def resolve_robot(robot: Robot, lang: str) -> Robot:
 
 
 # ============================================================================
-# Discovery Endpoints
-# ============================================================================
-
-# Discovery endpoint moved to "Device Management Endpoints" to keep robot-related
-# APIs grouped together.
-
-
-# ============================================================================
 # Robot Configuration Endpoints
 # ============================================================================
+
 
 @router.get("/robots/definitions", response_model=list[RobotDefinition], operation_id="hardware_list_robot_definitions")
 async def list_robot_definitions(lang: str = Query("en", description="Language code")) -> list[RobotDefinition]:
@@ -127,6 +109,7 @@ async def get_robot_definition_image(
         raise ResourceNotFoundError("hardware.robot_definition.not_found", id=definition_id)
 
     from leropilot.utils.paths import get_resources_dir
+
     res_dir = get_resources_dir()
 
     # Try png then jpg
@@ -137,9 +120,11 @@ async def get_robot_definition_image(
 
     raise ResourceNotFoundError("hardware.robot_definition.thumbnail_not_found", id=definition_id)
 
+
 # ============================================================================
 # Device Management Endpoints
 # ============================================================================
+
 
 @router.get("/robots/discovery", response_model=list[Robot], operation_id="hardware_robots_discover")
 async def discover_robots(lang: str = Query("en", description="Language code")) -> list[Robot]:
@@ -201,8 +186,6 @@ async def add_robot(robot: Robot, lang: str = Query("en", description="Language 
     return resolve_robot(added, lang)
 
 
-
-
 @router.patch("/robots/{robot_id}", response_model=Robot, operation_id="hardware_update_robot")
 async def update_robot(
     robot_id: str,
@@ -259,6 +242,8 @@ async def get_robot_urdf(robot_id: str, path: str | None = None) -> Response:
         raise ResourceNotFoundError("hardware.robot_device.urdf_resource_not_found")
 
     return Response(content=content, media_type="text/xml")
+
+
 # NOTE: udev install logic has been moved to `leropilot.utils.unix`.
 # Manual install endpoint is intentionally not exposed. The backend will automatically
 # attempt to install udev (and update rules) as needed when a service operation requires it.
@@ -266,6 +251,7 @@ async def get_robot_urdf(robot_id: str, path: str | None = None) -> Response:
 # atomic updates (and optionally uses `pkexec` when root is required).
 
 # ------------------------- URDF Management Endpoints -------------------------
+
 
 @router.post("/robots/{robot_id}/urdf", operation_id="hardware_upload_robot_urdf")
 async def upload_robot_urdf(
@@ -282,7 +268,11 @@ async def upload_robot_urdf(
 
     contents = await file.read()
     urdf_mgr = get_robot_urdf_manager()
-    saved_path = urdf_mgr.upload_custom_urdf(robot_id, contents)
+    try:
+        saved_path = urdf_mgr.upload_custom_urdf(robot_id, contents)
+    except ValueError:
+        # Convert processing errors into a user-facing validation error (HTTP 400)
+        raise ValidationError("hardware.robot_device.failed_process_urdf") from None
 
     # Validate URDF; if invalid, remove the saved file and raise
     result = validate_urdf_file(str(saved_path))
@@ -292,12 +282,10 @@ async def upload_robot_urdf(
         except Exception:
             pass
         # Provide a user-facing validation error (message includes 'URDF')
-        raise ValidationError("failed_process_urdf") from None
+        raise ValidationError("hardware.robot_device.failed_process_urdf") from None
 
     # Return standardized response
     return {"message": "URDF uploaded successfully", "path": str(saved_path), "validation": result}
-
-
 
 
 @router.delete("/robots/{robot_id}/urdf", operation_id="hardware_delete_robot_urdf")
@@ -354,6 +342,7 @@ async def camera_snapshot(
 
 @router.get("/cameras/{camera_id}/mjpeg", operation_id="hardware_camera_mjpeg")
 async def camera_mjpeg(
+    request: Request,
     camera_id: str,
     fps: int = Query(15, description="Frames per second"),
     width: int | None = Query(None),
@@ -382,8 +371,18 @@ async def camera_mjpeg(
                 yield head + str(len(frame)).encode() + b"\r\n\r\n" + frame + b"\r\n"
         except (GeneratorExit, asyncio.CancelledError):
             logger.info("MJPEG stream cancelled for camera %s", camera_id)
+        except Exception as e:
+            logger.error("Error in MJPEG generator for camera %s: %s", camera_id, e)
         finally:
-            await frames.aclose()
+            # Ensure the underlying frame generator is closed even if the outer task
+            # is being cancelled. Use shield so cancellation cannot abort the cleanup.
+            try:
+                await asyncio.shield(frames.aclose())
+            except asyncio.CancelledError:
+                # Shield ensures aclose() completes; suppress CancelledError in cleanup
+                pass
+            except Exception:
+                logger.exception("Error closing MJPEG frame generator for camera %s", camera_id)
 
     return StreamingResponse(generator(), media_type="multipart/x-mixed-replace; boundary=frame")
 

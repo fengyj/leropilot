@@ -13,6 +13,7 @@ Notes on `pkexec` message support:
   dialog then invoking the privileged command; if those are not available we
   fall back to running the command directly with `pkexec`/`sudo`.
 """
+
 from __future__ import annotations
 
 import logging
@@ -149,7 +150,7 @@ class UdevManager:
         if product:
             attrs.append(f'ATTRS{{idProduct}}=="{product}"')
         attrs_str = (", " + ", ".join(attrs)) if attrs else ""
-        rule = f"{base}{attrs_str}, MODE=\"{mode}\", GROUP=\"{group}\""
+        rule = f'{base}{attrs_str}, MODE="{mode}", GROUP="{group}"'
         return rule
 
     def _rule_file_path(self, filename: str = "99-leropilot.rules") -> Path:
@@ -273,10 +274,7 @@ class UdevManager:
         if is_system_dir and not shutil.which("udevadm"):
             ok = self.ensure_package_installed(
                 "udev",
-                message=(
-                    "leropilot requires udev to manage camera/"
-                    "serial devices"
-                ),
+                message=("leropilot requires udev to manage camera/serial devices"),
             )
             if not ok:
                 return {"installed": False, "skipped": False, "rule": rule, "path": str(path)}

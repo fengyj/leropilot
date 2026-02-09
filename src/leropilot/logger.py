@@ -80,6 +80,7 @@ def get_logger(name: str) -> structlog.BoundLogger:
     if not hasattr(get_logger, "_configured"):
         try:
             from leropilot.services.config import get_config
+
             config = get_config()
         except (ImportError, AttributeError):
             # Fallback during circular imports at bootstrap

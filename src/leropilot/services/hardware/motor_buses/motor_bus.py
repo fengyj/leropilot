@@ -6,24 +6,255 @@ communication protocols and use appropriate drivers directly.
 """
 
 import logging
+import threading
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Generic
 
-from leropilot.models.hardware import MotorModelInfo, MotorTelemetry
+from leropilot.exceptions import OperationalError, ValidationError
+from leropilot.models.hardware import (
+    MotorCalibration,
+    MotorModelInfo,
+    MotorNormMode,
+    MotorTelemetry,
+    PositionType,
+    UnitType,
+)
 
-from ..motor_drivers.base import BaseMotorDriver, MotorID
+from ..motor_drivers.base import BaseMotorDriver, MotorIDVar
 
-# Do not redefine MotorID here; use the typevar from the driver base
+# Do not redefine MotorIDVar here; use the typevar from the driver base
 
 logger = logging.getLogger(__name__)
 
 
-class MotorBus(ABC, Generic[MotorID]):
+class PositionConvertCache(Generic[MotorIDVar]):
+    """Per-MotorBus cached position converter factory for position conversions.
+
+    Stores callables keyed by (motor_id, from_type, to_type). Each converter
+    is built once and captures the motor's calibration/model constants so
+    repeated calls to the converter are fast and allocation-free.
+    """
+
+    def __init__(self, motorbus: "MotorBus[MotorIDVar]") -> None:
+        self._motorbus = motorbus
+        # Position converters keyed by (motor_id, PositionType, PositionType)
+        self._cache: dict[tuple[MotorIDVar, PositionType, PositionType], Callable[[float], float]] = {}
+
+    def convert(self, motor_id: MotorIDVar, from_type: PositionType, to_type: PositionType, value: float) -> float:
+        """Convert a value from `from_type` to `to_type` for the given motor.
+
+        This will build and cache the per-(motor_id, from, to) converter on first use
+        and call it immediately. Converters raise `ValueError` when conversion is
+        not possible (missing calibration or invalid constants).
+        """
+        # Identity conversion is a no-op
+        if from_type == to_type:
+            return value
+
+        key = (motor_id, from_type, to_type)
+        conv = self._cache.get(key)
+        if conv is None:
+            conv = self._build_converter(motor_id, from_type, to_type)
+            if conv is None:
+                raise ValueError(f"Unsupported conversion: {from_type} -> {to_type} for motor {motor_id}")
+            self._cache[key] = conv
+        result = conv(value)
+        # Converters are expected to raise on failure; guard double-check
+        return result
+
+    def _build_converter(
+        self,
+        motor_id: MotorIDVar,
+        from_type: PositionType,
+        to_type: PositionType,
+    ) -> Callable[[float], float] | None:
+        mb = self._motorbus
+        cal = mb.calibrations[motor_id]
+        model_info = mb.motors[motor_id]
+
+        # Capture commonly used constants
+        homing_offset = cal.homing_offset if cal else 0.0
+        soft_homing = bool(cal.soft_homing_offset) if cal else False
+        min_ = cal.range_min if cal else 0.0
+        max_ = cal.range_max if cal else 0.0
+        denom = max_ - min_
+        drive_mode = int(cal.drive_mode) if cal else 0
+        norm_mode = cal.norm_mode if cal else None
+        # Directly read model attributes; missing attributes are programming errors and should raise
+        pos_ratio = model_info.position_to_radian_ratio
+        encoder_res = model_info.encoder_resolution
+
+        # Helper builders
+        def raw_to_cal(x: float) -> float:
+            return x - homing_offset if soft_homing else x
+
+        def raw_to_norm(x: float) -> float:
+            # RAW -> NORMALIZED delegates to RAW -> CALIBRATED then CALIBRATED -> NORMALIZED
+            cal_val = raw_to_cal(x)
+            return cal_to_norm(cal_val)
+
+        def raw_to_raw_in_radian(x: float) -> float:
+            return x * pos_ratio
+
+        def raw_to_cal_radian(x: float) -> float:
+            return raw_to_raw_in_radian(raw_to_cal(x))
+
+        def cal_to_raw(x: float) -> float:
+            return x + homing_offset if soft_homing else x
+
+        def cal_to_norm(x: float) -> float:
+            # CALIBRATED -> NORMALIZED requires calibration
+            if denom == 0.0:
+                raise ValueError(f"Invalid calibration range for motor {motor_id}")
+            if norm_mode is None:
+                raise ValueError(f"Missing norm_mode for motor {motor_id}")
+            bounded = min(max_, max(min_, x))
+            if norm_mode == MotorNormMode.RANGE_M100_100:
+                norm = (((bounded - min_) / denom) * 200.0) - 100.0
+                return -norm if drive_mode == 1 else norm
+            if norm_mode == MotorNormMode.RANGE_0_100:
+                norm = ((bounded - min_) / denom) * 100.0
+                return 100.0 - norm if drive_mode == 1 else norm
+            if norm_mode == MotorNormMode.DEGREES:
+                mid = (min_ + max_) / 2.0
+                max_res = (encoder_res - 1.0) if encoder_res else denom
+                if max_res == 0.0:
+                    raise ValueError(f"Invalid encoder resolution for motor {motor_id}")
+                return (x - mid) * 360.0 / max_res
+            raise NotImplementedError(f"Unsupported MotorNormMode: {norm_mode}")
+
+        def cal_to_raw_in_radian(x: float) -> float:
+            return raw_to_raw_in_radian(cal_to_raw(x))
+
+        def norm_to_raw(x: float) -> float:
+            # NORMALIZED -> RAW requires calibration
+            if denom == 0.0:
+                raise ValueError(f"Invalid calibration range for motor {motor_id}")
+            if norm_mode is None:
+                raise ValueError(f"Missing norm_mode for motor {motor_id}")
+            # normalized (-1..1) -> calibrated
+            if norm_mode == MotorNormMode.RANGE_M100_100:
+                percent = x * 100.0
+                if drive_mode == 1:
+                    percent = -percent
+                calibrated = ((percent + 100.0) / 200.0) * denom + min_
+            elif norm_mode == MotorNormMode.RANGE_0_100:
+                percent = (x + 1.0) * 50.0
+                if drive_mode == 1:
+                    percent = 100.0 - percent
+                calibrated = (percent / 100.0) * denom + min_
+            elif norm_mode == MotorNormMode.DEGREES:
+                deg = x * 180.0
+                mid = (min_ + max_) / 2.0
+                denom_res = (encoder_res - 1.0) if encoder_res else denom
+                if denom_res == 0.0:
+                    raise ValueError(f"Invalid encoder resolution for motor {motor_id}")
+                calibrated = deg * denom_res / 360.0 + mid
+            else:
+                raise NotImplementedError(f"Unsupported MotorNormMode: {norm_mode}")
+            return calibrated + homing_offset if soft_homing else calibrated
+
+        def calibrated_in_radian_to_raw(x: float) -> float:
+            raw_from_radian = x / pos_ratio
+            return raw_from_radian + homing_offset if soft_homing else raw_from_radian
+
+        # Build mapping of supported converters
+        mapping: dict[tuple[PositionType, PositionType], Callable[[float], float]] = {
+            (PositionType.RAW, PositionType.CALIBRATED): raw_to_cal,
+            (PositionType.RAW, PositionType.NORMALIZED): raw_to_norm,
+            (PositionType.RAW, PositionType.RAW_IN_RADIAN): raw_to_raw_in_radian,
+            (PositionType.RAW, PositionType.CALIBRATED_IN_RADIAN): raw_to_cal_radian,
+            (PositionType.CALIBRATED, PositionType.RAW): cal_to_raw,
+            (PositionType.CALIBRATED, PositionType.NORMALIZED): cal_to_norm,
+            (PositionType.CALIBRATED, PositionType.RAW_IN_RADIAN): cal_to_raw_in_radian,
+            (PositionType.NORMALIZED, PositionType.RAW): norm_to_raw,
+            (PositionType.RAW_IN_RADIAN, PositionType.RAW): (lambda x: x / pos_ratio),
+            (PositionType.CALIBRATED_IN_RADIAN, PositionType.RAW): calibrated_in_radian_to_raw,
+        }
+
+        # Direct mapping
+        if (from_type, to_type) in mapping:
+            return mapping[(from_type, to_type)]
+
+        # Route via RAW: try to get from -> RAW and RAW -> to
+        to_raw = mapping.get((from_type, PositionType.RAW))
+        raw_to_target = mapping.get((PositionType.RAW, to_type))
+        if to_raw and raw_to_target:
+
+            def routed(x: float) -> float:
+                # to_raw and raw_to_target are expected to raise ValueError when conversion
+                # is not possible. We propagate that exception to the caller.
+                r = to_raw(x)
+                return raw_to_target(r)
+
+            return routed
+
+        # Unsupported
+        return None
+
+
+class VelocityConverterCache(Generic[MotorIDVar]):
+    """Per-Motor cached velocity converters for raw <-> rad/s conversions.
+
+    Stores a pair of callables keyed by motor_id: (raw_to_rad, rad_to_raw). Each
+    callable captures the motor's `velocity_ratio` at build time for fast repeated
+    conversions.
+    """
+
+    def __init__(self, motorbus: "MotorBus[MotorIDVar]") -> None:
+        self._motorbus = motorbus
+        self._cache: dict[MotorIDVar, tuple[Callable[[float], float], Callable[[float], float]]] = {}
+
+    def raw_to_rad(self, motor_id: MotorIDVar, raw_v: float) -> float:
+        """Convert a raw velocity to rad/s for the given motor ID."""
+        if motor_id not in self._cache:
+            raw_to_rad, rad_to_raw = self._build_converters(motor_id)
+            self._cache[motor_id] = (raw_to_rad, rad_to_raw)
+        return self._cache[motor_id][0](raw_v)
+
+    def rad_to_raw(self, motor_id: MotorIDVar, rad_v: float) -> float:
+        """Convert a rad/s velocity to raw units for the given motor ID."""
+        if motor_id not in self._cache:
+            raw_to_rad, rad_to_raw = self._build_converters(motor_id)
+            self._cache[motor_id] = (raw_to_rad, rad_to_raw)
+        return self._cache[motor_id][1](rad_v)
+
+    def _build_converters(self, motor_id: MotorIDVar) -> tuple[Callable[[float], float], Callable[[float], float]]:
+        mb = self._motorbus
+        model_info = mb.motors.get(motor_id)
+        assert model_info is not None, f"MotorModelInfo must be available for motor_id {motor_id} to build velocity converters"
+        # Assume model_info and its velocity_ratio attribute exist; let AttributeError surface if not
+        velocity_ratio = model_info.velocity_ratio
+        # Read calibration drive_mode to determine direction inversion (0 = normal, 1 = inverted)
+        cal = mb.calibrations.get(motor_id)
+        drive_mode = int(cal.drive_mode) if cal else 0
+
+        def raw_to_rad(v: float) -> float:
+            val = v * velocity_ratio
+            return -val if drive_mode == 1 else val
+
+        def rad_to_raw(v: float) -> float:
+            if velocity_ratio == 0:
+                return 0.0
+            raw = v / velocity_ratio
+            return -raw if drive_mode == 1 else raw
+
+        return raw_to_rad, rad_to_raw
+
+
+class MotorBus(ABC, Generic[MotorIDVar]):
     """Abstract base class for motor bus implementations.
 
     MotorBus provides a unified interface for motor control operations.
     Different subclasses handle different communication protocols (serial, CAN, etc.)
     and use appropriate driver implementations directly.
+
+    Thread Safety:
+        MotorBus instances include an internal RLock to ensure that concurrent
+        calls to the shared driver do not interleave bus transactions.
+
+        All public methods that access the driver are wrapped in this lock.
     """
 
     def __init__(
@@ -39,18 +270,36 @@ class MotorBus(ABC, Generic[MotorID]):
         """
         self.interface = interface
         self.baud_rate = baud_rate
-        # Map motor_id -> (driver, MotorModelInfo | None)
-        self.motors: dict[MotorID, tuple[BaseMotorDriver[MotorID], MotorModelInfo | None]] = {}
+        # Shared driver instance for all motors on this bus
+        self.driver: BaseMotorDriver[MotorIDVar] | None = None
+        # Map motor_id -> MotorModelInfo (driver is shared). MotorModelInfo is required
+        # at registration time — callers should register with a full MotorModelInfo.
+        self.motors: dict[MotorIDVar, MotorModelInfo] = {}
+        # Map motor_id -> MotorCalibration
+        self.calibrations: dict[MotorIDVar, MotorCalibration] = {}
         self._connected = False
+        self._lock = threading.RLock()
+        # Position converter cache per MotorBus instance
+        self._position_converter_cache = PositionConvertCache(self)
+        # Velocity converter cache per MotorBus instance
+        self._velocity_converter_cache = VelocityConverterCache(self)
 
     @abstractmethod
-    def connect(self) -> bool:
-        """Connect to the motor bus."""
+    def connect(self) -> None:
+        """Connect to the motor bus.
+
+        Raises:
+            OperationalError: If connection fails.
+        """
         pass
 
     @abstractmethod
-    def disconnect(self) -> bool:
-        """Disconnect from the motor bus."""
+    def disconnect(self) -> None:
+        """Disconnect from the motor bus.
+
+        Raises:
+            OperationalError: If disconnection fails.
+        """
         pass
 
     def is_connected(self) -> bool:
@@ -58,82 +307,515 @@ class MotorBus(ABC, Generic[MotorID]):
         return self._connected
 
     @abstractmethod
-    def scan_motors(self, id_range: list[int] | None = None) -> dict[MotorID, MotorModelInfo]:
+    def scan_motors(self, id_range: list[int] | None = None) -> dict[MotorIDVar, MotorModelInfo]:
         """Scan bus for motors and return mapping motor_id -> MotorModelInfo."""
         pass
 
     def register_motor(
         self,
-        motor_id: MotorID,
-        driver: BaseMotorDriver[MotorID],
-        motor_info: MotorModelInfo | None = None,
+        motor_id: MotorIDVar,
+        motor_info: MotorModelInfo,
     ) -> None:
-        """Register a motor driver with the bus using an explicit motor_id and optional MotorModelInfo."""
+        """Register a motor with the bus using an explicit motor_id and a required MotorModelInfo.
+
+        MotorModelInfo MUST be provided at registration time. This simplifies runtime
+        assumptions elsewhere in the codebase (e.g., bulk reads) by guaranteeing
+        `self.motors[motor_id]` is a valid `MotorModelInfo`.
+        """
         if motor_id is None:
-            raise ValueError("motor_id must be provided when registering a driver")
-        self.motors[motor_id] = (driver, motor_info)
+            raise ValueError("motor_id must be provided when registering a motor")
+        self.motors[motor_id] = motor_info.model_copy(deep=True)  # store a copy because needs to change the limits data
 
-    def get_motor(self, motor_id: MotorID) -> BaseMotorDriver[MotorID] | None:
-        """Get motor driver by ID (returns driver instance or None)."""
-        entry = self.motors.get(motor_id)
-        return entry[0] if entry is not None else None
+    def register_calibration(
+        self,
+        motor_id: MotorIDVar,
+        calibration: MotorCalibration,
+    ) -> None:
+        """Register calibration data for a motor to enable normalization."""
+        self.calibrations[motor_id] = calibration
 
-    def get_motor_info(self, motor_id: MotorID) -> MotorModelInfo | None:
+    def _ensure_driver(self) -> BaseMotorDriver[MotorIDVar]:
+        """Ensure driver is available, raising exception if not.
+
+        Returns:
+            The shared driver instance.
+
+        Raises:
+            OperationalError: If bus is not connected or driver is not available.
+        """
+        if not self.driver:
+            raise OperationalError(
+                i18n_key="hardware.robot_device.connect_failed",
+                retriable=False,
+                interface=self.interface,
+            )
+        return self.driver
+
+    def get_motor_info(self, motor_id: MotorIDVar) -> MotorModelInfo | None:
         """Return the MotorModelInfo object associated with a registered motor, if any."""
-        entry = self.motors.get(motor_id)
-        return entry[1] if entry is not None else None
+        return self.motors.get(motor_id)
 
-    def ping_motor(self, motor_id: MotorID) -> bool:
-        """Ping a motor to check if it's responsive."""
-        driver = self.get_motor(motor_id)
-        if driver:
-            return driver.ping_motor(motor_id)
-        return False
+    def read_telemetry(self, motor_id: MotorIDVar, position_type: PositionType = PositionType.RAW) -> MotorTelemetry:
+        """Read telemetry from a single motor.
 
-    def read_telemetry(self, motor_id: MotorID) -> MotorTelemetry | None:
-        """Read telemetry from a single motor."""
-        driver = self.get_motor(motor_id)
-        if driver:
-            return driver.read_telemetry(motor_id)
-        return None
+        Converts position to the specified position_type (raw, calibrated, or normalized).
 
-    def read_bulk_telemetry(self, motor_ids: list[MotorID]) -> dict[MotorID, MotorTelemetry]:
-        """Read telemetry from multiple motors."""
-        results: dict[MotorID, MotorTelemetry] = {}
-        for motor_id in motor_ids:
-            telemetry = self.read_telemetry(motor_id)
-            if telemetry:
-                results[motor_id] = telemetry
-        return results
+        Args:
+            motor_id: The ID of the motor to read.
+            position_type: The position unit/representation to return (default: RAW).
 
-    def set_position(self, motor_id: MotorID, position: int, speed: int | None = None) -> bool:
-        """Set motor position."""
-        driver = self.get_motor(motor_id)
-        if driver:
-            return driver.set_position(motor_id, position, speed)
-        return False
+        Raises:
+            OperationalError: If read fails or bus not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            # motor_id must be registered and contain a MotorModelInfo per contract
+            model_info = self.motors[motor_id]
+            telemetry = driver.read_telemetry(motor_id, model_info)
 
-    def set_torque(self, motor_id: MotorID, enabled: bool) -> bool:
-        """Enable/disable motor torque."""
-        driver = self.get_motor(motor_id)
-        if driver:
-            return driver.set_torque(motor_id, enabled)
-        return False
+            # Convert velocity from raw hardware units to rad/s via cached converter
+            telemetry.velocity = self._velocity_converter_cache.raw_to_rad(motor_id, telemetry.velocity)
 
-    def bulk_set_torque(self, motor_ids: list[MotorID], enabled: bool) -> bool:
-        """Set torque for multiple motors."""
-        success = True
-        for motor_id in motor_ids:
-            if not self.set_torque(motor_id, enabled):
-                success = False
-        return success
+            # Convert position based on requested position_type (identity handled by converter)
+            if telemetry.position is not None:
+                converted_pos = self._position_converter_cache.convert(
+                    motor_id, PositionType.RAW, position_type, telemetry.position
+                )
+                telemetry.position = converted_pos
+                telemetry.position_type = position_type
 
-    def reboot_motor(self, motor_id: MotorID) -> bool:
-        """Reboot a motor."""
-        driver = self.get_motor(motor_id)
-        if driver:
-            return driver.reboot_motor(motor_id)
-        return False
+            # Convert goal_position if available
+            if telemetry.goal_position is not None:
+                converted_goal = self._position_converter_cache.convert(
+                    motor_id, PositionType.RAW, position_type, telemetry.goal_position
+                )
+                telemetry.goal_position = converted_goal
+
+            return telemetry
+
+    def bulk_read_telemetry(
+        self, motor_ids: list[MotorIDVar], position_type: PositionType = PositionType.RAW
+    ) -> dict[MotorIDVar, MotorTelemetry]:
+        """Read telemetry from multiple motors efficiently.
+
+        Uses the driver's native bulk read implementation for optimal performance.
+        For protocols that support it (e.g., Dynamixel), this is a single bus transaction.
+
+        Converts position to the specified position_type (raw, calibrated, or normalized).
+
+        Args:
+            motor_ids: List of motor IDs.
+            position_type: The position unit/representation to return (default: RAW).
+
+        Returns:
+            Dict mapping motor_id -> MotorTelemetry. Motors that failed to read will be
+            omitted from the result. Caller should check result length against input.
+
+        Raises:
+            OperationalError: If bus is not connected.
+        """
+        with self._lock:
+            if not self.driver:
+                raise OperationalError(
+                    i18n_key="hardware.robot_device.connect_failed",
+                    retriable=False,
+                    interface=self.interface,
+                )
+
+            # Build mapping motor_id -> MotorModelInfo for the requested motor_ids.
+            # We assume callers only pass registered motor IDs (simpler, trust contract).
+            if not motor_ids:
+                return {}
+
+            motors_map: dict[MotorIDVar, MotorModelInfo] = {mid: self.motors[mid] for mid in motor_ids}
+
+            # Use driver's bulk read method (single transaction for supported protocols)
+            results = self.driver.bulk_read_telemetry(motors_map)
+
+            # Log warning if some motors failed, but don't raise
+            if len(results) < len(motor_ids):
+                missing = set(motor_ids) - set(results.keys())
+                logger.warning(f"Bulk telemetry read: {len(missing)} motor(s) failed: {missing}")
+
+            # Build all three position types for each motor and convert velocities
+            for mid, telemetry in results.items():
+                # Convert velocity from raw hardware units to rad/s via cached converter
+                telemetry.velocity = self._velocity_converter_cache.raw_to_rad(mid, telemetry.velocity)
+
+                # Convert position based on requested position_type (identity handled by converter)
+                converted_pos = self._position_converter_cache.convert(
+                    mid, PositionType.RAW, position_type, telemetry.position
+                ) if telemetry.position is not None else None
+                if converted_pos is not None:
+                    telemetry.position = converted_pos
+                    telemetry.position_type = position_type
+
+                # Convert goal_position if available
+                if telemetry.goal_position is not None:
+                    converted_goal = self._position_converter_cache.convert(
+                        mid, PositionType.RAW, position_type, telemetry.goal_position
+                    )
+                    telemetry.goal_position = converted_goal
+
+            return results
+
+    def set_torque(self, motor_id: MotorIDVar, enabled: bool) -> None:
+        """Enable/disable motor torque.
+
+        Raises:
+            OperationalError: If operation fails or bus is not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            driver.set_torque(motor_id, enabled)
+
+    def bulk_set_torque(self, motor_ids: list[MotorIDVar], enabled: bool) -> None:
+        """Set torque for multiple motors efficiently.
+
+        For protocols that support bulk write, this is a single bus transaction.
+
+        Returns:
+            Dict mapping motor_id -> success (bool). Caller should check all values
+            to determine if any operations failed.
+
+        Raises:
+            OperationalError: If bus is not connected.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+
+            # Filter to only registered motors
+            valid_ids = [mid for mid in motor_ids if mid in self.motors]
+            if not valid_ids:
+                return
+
+            driver.bulk_set_torque(valid_ids, enabled)
+
+    def get_operation_mode(self, motor_id: MotorIDVar) -> int:
+        """Get the operation mode of a motor, if supported by the driver.
+
+        Returns:
+            The operation mode as an integer, or None if not supported.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+            return driver.get_operation_mode(motor_id)
+
+    def bulk_get_operation_mode(self, motor_ids: list[MotorIDVar]) -> dict[MotorIDVar, int]:
+        """Get operation modes for multiple motors efficiently.
+
+        Returns:
+            Dict mapping motor_id -> operation mode (int) or None if not supported.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+            return driver.bulk_get_operation_mode(motor_ids)
+
+    def set_operation_mode(self, motor_id: MotorIDVar, mode: int) -> None:
+        """Set the operation mode of a motor, if supported by the driver.
+
+        Raises:
+            OperationalError: If operation fails or bus is not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            success = driver.set_operation_mode(motor_id, mode)
+            if not success:
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.operation_failed",
+                    motor_id=str(motor_id),
+                    operation="set_operation_mode",
+                )
+
+    def bulk_set_operation_mode(self, motor_ids: list[MotorIDVar], mode: int) -> None:
+        """Set operation modes for multiple motors efficiently.
+
+        Returns:
+            Dict mapping motor_id -> success (bool). Caller should check all values
+            to determine if any operations failed.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+
+            # Filter to only registered motors
+            valid_ids = [mid for mid in motor_ids if mid in self.motors]
+            if not valid_ids:
+                return
+
+            driver.bulk_set_operation_mode(valid_ids, mode)
+
+    def get_register_value(self, motor_id: MotorIDVar, address: int) -> float:
+        """Get a raw register value from a motor.
+
+        Raises:
+            OperationalError: If operation fails or bus is not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            return driver.read_register(motor_id, address)
+
+    def set_register_value(self, motor_id: MotorIDVar, address: int, value: float) -> None:
+        """Set a raw register value on a motor.
+
+        Raises:
+            OperationalError: If operation fails or bus is not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            driver.write_register(motor_id, address, value)
+
+    def bulk_get_register_values(self, motor_ids: list[MotorIDVar], address: int) -> dict[MotorIDVar, float]:
+        """Get raw register values from multiple motors efficiently.
+
+        Returns:
+            Dict mapping motor_id -> register value (float).
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+
+            # Filter to only registered motors
+            valid_ids = [mid for mid in motor_ids if mid in self.motors]
+            if not valid_ids:
+                return {}
+
+            return driver.bulk_read_registers(valid_ids, address)
+
+    def bulk_set_register_values(self, motor_values: dict[MotorIDVar, float], address: int) -> None:
+        """Set raw register values on multiple motors efficiently.
+
+        Args:
+            motor_values: Dict mapping motor_id -> value to set.
+            address: Register address to write.
+
+        Returns:
+            Dict mapping motor_id -> success (bool). Caller should check all values
+            to determine if any operations failed.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+
+            # Filter to only registered motors
+            valid_values = {mid: val for mid, val in motor_values.items() if mid in self.motors}
+            if not valid_values:
+                return
+
+            driver.bulk_write_registers(valid_values, address)
+
+    def get_register_value_in_standard_unit(self, motor_id: MotorIDVar, motor_info: MotorModelInfo, address: int, unit: UnitType) -> float:
+        """Get a register value converted to a standard unit.
+
+        Raises:
+            OperationalError: If operation fails or bus is not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            return driver.read_register_in_standard_unit(motor_id, motor_info, address, unit)
+
+    def set_register_value_in_standard_unit(self, motor_id: MotorIDVar, motor_info: MotorModelInfo, address: int, value: float, unit: UnitType) -> None:
+        """Set a register value converted from a standard unit.
+
+        Raises:
+            OperationalError: If operation fails or bus is not connected.
+            ValidationError: If motor_id is not registered.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        with self._lock:
+            driver = self._ensure_driver()
+            driver.write_register_in_standard_unit(motor_id, motor_info, address, value, unit)
+
+    def bulk_get_register_values_in_standard_unit(self, motor_info_map: dict[MotorIDVar, MotorModelInfo], address: int, unit: UnitType) -> dict[MotorIDVar, float]:
+        """Get register values from multiple motors converted to a standard unit.
+
+        Returns:
+            Dict mapping motor_id -> register value (float).
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+
+            return driver.bulk_read_registers_in_standard_unit(motor_info_map, address, unit)
+
+    def bulk_set_register_values_in_standard_unit(self, motor_values: dict[MotorIDVar, float], motor_info_map: dict[MotorIDVar, MotorModelInfo], address: int, unit: UnitType) -> None:
+        """Set register values on multiple motors converted from a standard unit.
+
+        Args:
+            motor_values: Dict mapping motor_id -> value to set.
+            motor_info_map: Dict mapping motor_id -> MotorModelInfo.
+            address: Register address to write.
+            unit: Standard unit of the values.
+        Returns:
+            None
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+
+            driver.bulk_write_registers_in_standard_unit(motor_values, motor_info_map, address, unit)
+
+    def get_position(
+        self,
+        motor_id: MotorIDVar,
+        position_type: PositionType = PositionType.RAW,
+    ) -> float:
+        """Get the current position of a motor in the specified position type.
+
+        Args:
+            motor_id: The ID of the motor to read.
+            position_type: The position unit/representation to return (default: RAW).
+        Returns:
+            The motor position in the requested position type.
+        """
+        assert self.driver is not None, "Driver must be available to get position"
+        position = self.driver.get_position(motor_id=motor_id)
+        position = self._position_converter_cache.convert(
+            motor_id, PositionType.RAW, position_type, position
+        )
+        return position
+
+    def bulk_get_positions(
+        self,
+        motor_ids: list[MotorIDVar],
+        position_type: PositionType = PositionType.RAW,
+    ) -> dict[MotorIDVar, float]:
+        """Get the current positions of multiple motors in the specified position type.
+
+        Args:
+            motor_ids: List of motor IDs.
+            position_type: The position unit/representation to return (default: RAW).
+        Returns:
+            Dict mapping motor_id -> position in the requested position type.
+        """
+        assert self.driver is not None, "Driver must be available to bulk get positions"
+        raw_positions = self.driver.bulk_get_positions(motor_ids=motor_ids)
+        converted_positions: dict[MotorIDVar, float] = {}
+        for motor_id, position in raw_positions.items():
+            converted_position = self._position_converter_cache.convert(
+                motor_id, PositionType.RAW, position_type, position
+            )
+            converted_positions[motor_id] = converted_position
+        return converted_positions
+
+    def get_goal_position(
+        self,
+        motor_id: MotorIDVar,
+        position_type: PositionType = PositionType.RAW,
+    ) -> float | None:
+        """Get the last set goal position of a motor in the specified position type.
+
+        Args:
+            motor_id: The ID of the motor to read.
+            position_type: The position unit/representation to return (default: RAW).
+        Returns:
+            The last set goal position in the requested position type, or None if not set.
+        """
+        assert self.driver is not None, "Driver must be available to get goal position"
+        goal_position = self.driver.get_goal_position(motor_id=motor_id)
+
+        goal_position = self._position_converter_cache.convert(
+            motor_id, PositionType.RAW, position_type, goal_position
+        )
+        return goal_position
+
+    def set_goal_position(
+        self,
+        motor_id: MotorIDVar,
+        position: float,
+        position_type: PositionType = PositionType.RAW,
+    ) -> None:
+        """Set the goal position of a motor in the specified position type.
+
+        Args:
+            motor_id: The ID of the motor to set.
+            position: The goal position to set.
+            position_type: The position unit/representation of the input (default: RAW).
+        """
+        assert self.driver is not None, "Driver must be available to set goal position"
+        raw_position = self._position_converter_cache.convert(
+            motor_id, position_type, PositionType.RAW, position
+        )
+        self.driver.set_goal_position(motor_id=motor_id, position=raw_position)
+
+    def bulk_get_goal_positions(
+        self,
+        motor_ids: list[MotorIDVar],
+        position_type: PositionType = PositionType.RAW,
+    ) -> dict[MotorIDVar, float | None]:
+        """Get the last set goal positions of multiple motors in the specified position type.
+
+        Args:
+            motor_ids: List of motor IDs.
+            position_type: The position unit/representation to return (default: RAW).
+        Returns:
+            Dict mapping motor_id -> last set goal position in the requested position type, or None if not set.
+        """
+        assert self.driver is not None, "Driver must be available to bulk get goal positions"
+        raw_goal_positions = self.driver.bulk_get_goal_positions(motor_ids=motor_ids)
+        converted_goal_positions: dict[MotorIDVar, float | None] = {}
+        for motor_id, position in raw_goal_positions.items():
+            converted_position = self._position_converter_cache.convert(
+                motor_id, PositionType.RAW, position_type, position
+            )
+            converted_goal_positions[motor_id] = converted_position
+
+        return converted_goal_positions
+
+    def bulk_set_goal_positions(
+        self,
+        motor_positions: dict[MotorIDVar, float],
+        position_type: PositionType = PositionType.RAW,
+    ) -> None:
+        """Set the goal positions of multiple motors in the specified position type.
+
+        Args:
+            motor_positions: Dict mapping motor_id -> goal position to set.
+            position_type: The position unit/representation of the input (default: RAW).
+        """
+        assert self.driver is not None, "Driver must be available to bulk set goal positions"
+        raw_motor_positions: dict[MotorIDVar, float] = {}
+        for motor_id, position in motor_positions.items():
+            raw_position = self._position_converter_cache.convert(
+                motor_id, position_type, PositionType.RAW, position
+            )
+            raw_motor_positions[motor_id] = raw_position
+        self.driver.bulk_set_goal_positions(motor_positions=raw_motor_positions)
 
     @staticmethod
     def serial_types() -> list[type]:
@@ -167,8 +849,7 @@ class MotorBus(ABC, Generic[MotorID]):
         raise NotImplementedError
 
     @staticmethod
-    @staticmethod
-    def resolve_bus_class(motorbus_type: str | type["MotorBus"]) -> type["MotorBus"]:
+    def resolve_bus_class(motorbus_type: str | type["MotorBus[MotorIDVar]"]) -> type["MotorBus[MotorIDVar]"]:
         """Resolve a motorbus type identifier (string or class) to a MotorBus class.
 
         Public helper; centralizes mapping logic and avoids duplication.
@@ -195,13 +876,13 @@ class MotorBus(ABC, Generic[MotorID]):
             raise ValueError(f"Unknown MotorBus type: {motorbus_type}")
 
     @staticmethod
-    def supported_baudrates_for(motorbus_type: str | type["MotorBus"]) -> list[int]:
+    def supported_baudrates_for(motorbus_type: str | type["MotorBus[MotorIDVar]"]) -> list[int]:
         """Return supported baudrates for a given motorbus type (string or class)."""
         cls = MotorBus.resolve_bus_class(motorbus_type)
         return cls.supported_baudrates()
 
     # Context manager support
-    def __enter__(self) -> "MotorBus":
+    def __enter__(self) -> "MotorBus[MotorIDVar]":
         self.connect()
         return self
 
@@ -209,7 +890,7 @@ class MotorBus(ABC, Generic[MotorID]):
         self.disconnect()
 
     @staticmethod
-    def create(motorbus_type: str | type["MotorBus"], interface: str, baud_rate: int | None = None) -> "MotorBus":
+    def create(motorbus_type: str | type["MotorBus[MotorIDVar]"], interface: str, baud_rate: int | None = None) -> "MotorBus[MotorIDVar]":
         """
         Factory method to create a MotorBus instance based on type name.
 

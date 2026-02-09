@@ -419,9 +419,7 @@ async def execute_installation(env_id: str, request: ExecuteRequest) -> ExecuteI
     if not executor:
         raise ResourceNotFoundError("environment.instance.install_session_not_found", id=env_id)
 
-    result = executor.execute(
-        step_id=request.step_id, command_index=request.command_index, exit_code=request.exit_code
-    )
+    result = executor.execute(step_id=request.step_id, command_index=request.command_index, exit_code=request.exit_code)
 
     # Cache the response if we have an execution_id
     if request.execution_id:

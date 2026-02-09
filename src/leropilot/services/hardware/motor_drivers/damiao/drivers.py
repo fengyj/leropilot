@@ -13,18 +13,17 @@ Uses python-can library for CAN communication.
 
 import logging
 import time
+from threading import Event, Thread
 from typing import Any
 
 import can
 
-from leropilot.models.hardware import MotorModelInfo, MotorTelemetry
+from leropilot.exceptions import OperationalError
+from leropilot.models.hardware import MotorModelInfo, MotorTelemetry, PositionType
 
 from ..base import BaseMotorDriver
-from .tables import (
-    DAMAIO_MODELS_LIST,
-    DamiaoConstants,
-    select_model_for_number,
-)
+from .message_cache import MessageCache
+from .tables import DAMAIO_MODELS_LIST, DamiaoConstants, DamiaoRegisters, select_model_for_number
 
 logger = logging.getLogger(__name__)
 
@@ -55,34 +54,45 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
         """
         super().__init__(interface, baud_rate or DamiaoConstants.DEFAULT_BAUDRATE)
         self.bus: Any = None
-        self.motors: dict[tuple[int, int], dict[str, Any]] = {}  # (send, recv) -> state dict
+        # Register-level accessor (centralized access)
+        # Local import to avoid cyclical import at module load time
+        from .registers import DamiaoRegister
 
-    def _get_motor_limits(self, motor_id: tuple[int, int]) -> tuple[float, float, float]:
-        """Get (pmax, vmax, tmax) for a motor, using cached model info if available."""
-        motor_info = self.motors.get(motor_id, {}).get("model_info")
-        model_name = motor_info.variant if motor_info else "DM4310"
-        return DamiaoConstants.MOTOR_LIMIT_PARAMS.get(model_name, (12.5, 45.0, 18.0))
+        self.register: DamiaoRegister = DamiaoRegister(self)
 
-    def connect(self) -> bool:
-        """Connect to CAN bus"""
+        # Message cache for status and parameter responses
+        self.cache = MessageCache(max_age=1.0)
+        # Cache for last set goal position (raw units)
+        self._goal_position_cache: dict[tuple[int, int], float | None] = {}
+
+        # Receive thread for continuous message collection
+        self._recv_thread: Thread | None = None
+        self._recv_stop_event = Event()
+        self._recv_pause_event = Event()  # 临时暂停
+        self._recv_pause_event.set()  # 默认不暂停
+
+        # Motor ID registry: maps recv_id -> motor_id and can_id -> motor_id
+        # Populated when motors are registered/used
+        self._recv_id_map: dict[int, tuple[int, int]] = {}  # recv_id -> (send_id, recv_id)
+        self._can_id_map: dict[int, tuple[int, int]] = {}  # can_id -> (send_id, recv_id)
+
+        # Per-motor runtime state is not stored by this driver; callers provide `model_info` when needed.
+
+    def connect(self) -> None:
+        """Connect to CAN bus.
+
+        Raises:
+            OperationalError: If connection fails.
+        """
         if self.connected and self.bus:
-            return True
+            return
 
         try:
             # Parse interface: "type:channel"
             if ":" in self.interface:
                 bustype, channel = self.interface.split(":", 1)
             else:
-                # Backward compatibility: infer from channel name
-                channel = self.interface
-                if self.interface.startswith("COM") or self.interface.startswith("/dev/tty"):
-                    bustype = "slcan"
-                elif self.interface.startswith("can"):
-                    bustype = "socketcan"
-                elif self.interface.startswith("PCAN_"):
-                    bustype = "pcan"
-                else:
-                    bustype = "socketcan"  # Default
+                raise ValueError(f"Interface must be in format 'type:channel', got: {self.interface}")
 
             # PCAN specific: if re-connecting rapidly, wait for driver to settle
             if bustype == "pcan":
@@ -90,36 +100,58 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
 
             logger.debug(f"Connecting to CAN bus: {channel} (type: {bustype})")
 
-            # For PCAN FD adapters on Windows, we try to be compatible.
-            # python-can't pcan backend handles bitrate but we ensure it's not blocked by
-            # leftover FD configurations.
             try:
                 self.bus = can.interface.Bus(channel=channel, bustype=bustype, bitrate=self.baud_rate)
             except Exception as e:
                 if "current configuration" in str(e).lower():
                     logger.error(
-                        "PCAN Access Denied: Please ensure PCAN-View or other CAN tools "
-                        f"are CLOSED. Error: {e}"
+                        f"PCAN Access Denied: Please ensure PCAN-View or other CAN tools are CLOSED. Error: {e}"
                     )
                 raise e
 
             self.connected = True
             logger.debug(f"Connected to Damiao CAN bus on {self.interface}")
-            return True
+
+            self._goal_position_cache.clear()
+
+            # Start receive thread for message caching
+            self._recv_stop_event.clear()
+            self._recv_thread = Thread(target=self._receive_loop, daemon=True, name="DamiaoCAN-Recv")
+            self._recv_thread.start()
+            logger.debug("Started CAN message receive thread")
 
         except Exception as e:
             logger.error(f"Failed to connect to Damiao CAN bus: {e}")
             self.connected = False
-            return False
+            raise OperationalError(
+                i18n_key="hardware.motor_device.connect_failed",
+                retriable=True,
+                interface=self.interface,
+            ) from e
 
     def disconnect(self) -> bool:
         """Disconnect from CAN bus"""
         try:
+            # Stop receive thread first
+            if self._recv_thread and self._recv_thread.is_alive():
+                logger.debug("Stopping receive thread...")
+                self._recv_stop_event.set()
+                self._recv_thread.join(timeout=2.0)
+                if self._recv_thread.is_alive():
+                    logger.warning("Receive thread did not stop gracefully")
+                else:
+                    logger.debug("Receive thread stopped")
+
+            # Clear message cache
+            self.cache.clear()
+
+            # Shutdown CAN bus
             if self.bus:
                 self.bus.shutdown()
                 # PCAN/Windows driver needs a solid moment to release hardware
                 if self.interface.startswith("PCAN_") or ":PCAN_" in self.interface:
                     time.sleep(0.3)
+
             self.connected = False
             logger.debug("Disconnected from Damiao CAN bus")
             return True
@@ -127,71 +159,172 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
             logger.error(f"Error disconnecting: {e}")
             return False
 
-    def _encode_mit_cmd(
-        self,
-        pos: float,
-        vel: float,
-        torq: float,
-        kp: float,
-        kd: float,
-        pmax: float = 12.5,
-        vmax: float = 45.0,
-        tmax: float = 18.0,
-    ) -> bytes:
-        """Encode MIT control command into 8-byte CAN frame using provided limits"""
-        pos_u = float_to_uint(pos, -pmax, pmax, 16)
-        vel_u = float_to_uint(vel, -vmax, vmax, 12)
-        kp_u = float_to_uint(kp, 0.0, 500.0, 12)  # KP limits are fixed
-        kd_u = float_to_uint(kd, 0.0, 5.0, 12)  # KD limits are fixed
-        torq_u = float_to_uint(torq, -tmax, tmax, 12)
+    def _register_motor_id(self, motor_id: tuple[int, int]) -> None:
+        """Register a motor ID for message routing.
 
-        return bytes(
-            [
-                (pos_u >> 8) & 0xFF,
-                pos_u & 0xFF,
-                (vel_u >> 4) & 0xFF,
-                ((vel_u & 0xF) << 4) | ((kp_u >> 8) & 0xF),
-                kp_u & 0xFF,
-                (kd_u >> 4) & 0xFF,
-                ((kd_u & 0xF) << 4) | ((torq_u >> 8) & 0xF),
-                torq_u & 0xFF,
-            ]
-        )
+        Populates internal maps used by receive thread to classify messages.
+        Should be called when a motor is added to the system.
 
-    def _send_can_frame(self, motor_id: int | tuple[int, int], data: bytes) -> bool:
-        """Send CAN frame to motor.
-
-        motor_id may be an int (send/recv ID) or a tuple (send_id, recv_id). When
-        a tuple is provided, the first element is used as the arbitration id to send.
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
         """
-        if not self.bus or not self.connected:
-            return False
+        send_id, recv_id = motor_id
+        self._recv_id_map[recv_id] = motor_id
+        # CAN ID is lower 8 bits of send_id (CANID_L)
+        can_id = send_id & 0xFF
+        self._can_id_map[can_id] = motor_id
 
+    def _receive_loop(self) -> None:
+        """Receive thread main loop.
+
+        Continuously receives CAN messages and caches them by type.
+        Runs until disconnect sets stop event.
+        """
+        logger.debug("CAN receive loop started")
         try:
-            if isinstance(motor_id, (list, tuple)):
-                arb = int(motor_id[0])
-            else:
-                arb = int(motor_id)
+            while not self._recv_stop_event.is_set():
+                try:
+                    self._recv_pause_event.wait()  # 等待未暂停
+                    # Short timeout to allow checking stop event frequently
+                    msg = self.bus.recv(timeout=0.05)
+                    if not msg:
+                        continue
 
-            msg = can.Message(arbitration_id=arb, data=data, is_extended_id=False)
-            self.bus.send(msg)
-            return True
+                    # Classify and cache the message
+                    self._classify_and_cache(msg)
+
+                except Exception as e:
+                    # Log errors but keep running unless stopping
+                    if not self._recv_stop_event.is_set():
+                        logger.warning(f"Error in receive loop: {e}")
+
         except Exception as e:
-            logger.error(f"Error sending CAN message to motor {motor_id}: {e}")
-            return False
+            logger.error(f"Fatal error in receive loop: {e}", exc_info=True)
+        finally:
+            logger.debug("CAN receive loop stopped")
 
-    def _recv_motor_response(
-        self, expected_id: int | tuple[int, int] | None = None, timeout: float = 0.1
-    ) -> can.Message | None:
-        """Receive response from motor.
+    def _classify_and_cache(self, msg: can.Message) -> None:
+        """Classify CAN message by type and cache appropriately.
 
-        Accept messages by either matching the reply arbitration ID or by
-        recognizing the motor's send ID in data[0]. `expected_id` may be an
-        int (send/recv same) or a tuple (send_id, recv_id).
+        Message types:
+        1. Status feedback (MST_ID): Position, velocity, torque, temps
+        2. Parameter response (0x7FF): Read/write parameter responses
+
+        Args:
+            msg: CAN message from bus
         """
-        if not self.bus:
-            return None
+        arb_id = msg.arbitration_id
+        data = msg.data
 
+        # Minimum message length check
+        if not data or len(data) < 2:
+            return
+
+        # Extract motor CAN ID from data (CANID_L | CANID_H)
+        motor_can_id = data[0] | (data[1] << 8)
+
+        # Classify by arbitration ID
+        if arb_id == 0x7FF:
+            # Parameter message (read/write response)
+            self._cache_parameter_message(motor_can_id, data, arb_id)
+        else:
+            # Status feedback message (from recv_id)
+            self._cache_status_message(arb_id, data)
+
+    def _cache_status_message(self, recv_id: int, data: bytes) -> None:
+        """Cache motor status feedback message.
+
+        Args:
+            recv_id: CAN arbitration ID (should match motor recv_id)
+            data: 8-byte CAN data
+        """
+        # Look up motor_id from recv_id
+        motor_id = self._recv_id_map.get(recv_id)
+        if motor_id:
+            self.cache.update_status(motor_id, data, recv_id)
+        else:
+            # Unknown motor - could be a new motor or noise
+            logger.debug(f"Received status from unregistered motor: recv_id={recv_id:#x}")
+
+    def _cache_parameter_message(self, motor_can_id: int, data: bytes, arb_id: int) -> None:
+        """Cache parameter read/write response message.
+
+        Args:
+            motor_can_id: Motor CAN ID from data[0:2]
+            data: 8-byte CAN data
+            arb_id: CAN arbitration ID (0x7FF)
+        """
+        if len(data) < 4:
+            return
+
+        cmd_type = data[2]
+
+        if cmd_type == 0x33:
+            # Read parameter response: CANID_L | CANID_H | 0x33 | RID | data[4 bytes]
+            register_id = data[3]
+            motor_id = self._can_id_to_motor_id(motor_can_id)
+            if motor_id:
+                self.cache.update_parameter(motor_id, register_id, data, arb_id)
+                logger.debug(f"Cached parameter read: motor={motor_id}, reg={register_id:#x}")
+
+        elif cmd_type == 0x55:
+            # Write parameter confirmation: CANID_L | CANID_H | 0x55 | RID
+            register_id = data[3]
+            motor_id = self._can_id_to_motor_id(motor_can_id)
+            if motor_id:
+                self.cache.update_parameter(motor_id, register_id, data, arb_id)
+                logger.debug(f"Cached parameter write confirmation: motor={motor_id}, reg={register_id:#x}")
+
+        elif cmd_type == 0xAA:
+            # Store parameter confirmation: CANID_L | CANID_H | 0xAA | 0x01
+            # Could log or track, but typically no action needed
+            motor_id = self._can_id_to_motor_id(motor_can_id)
+            logger.debug(f"Parameter stored to flash: motor={motor_id}")
+
+    def _can_id_to_motor_id(self, can_id: int) -> tuple[int, int] | None:
+        """Convert CAN ID to motor_id.
+
+        Args:
+            can_id: CAN ID from message data (CANID_L | CANID_H << 8)
+
+        Returns:
+            motor_id (send_id, recv_id) if registered, None otherwise
+        """
+        # Try direct lookup by lower 8 bits
+        motor_id = self._can_id_map.get(can_id & 0xFF)
+        if motor_id:
+            return motor_id
+
+        # Try full 16-bit CAN ID
+        motor_id = self._can_id_map.get(can_id)
+        if motor_id:
+            return motor_id
+
+        logger.debug(f"Unknown motor CAN ID: {can_id:#x}")
+        return None
+
+    def send_can_frame(self, motor_id: tuple[int, int], data: bytes, motor_can_id: int | None = None) -> None:
+        """Send a raw CAN frame using the driver's bus.
+
+        `send_id` is used as the CAN arbitration id for outgoing frames.
+        Returns True on success or raises :class:`OperationalError` on send failure.
+        """
+        try:
+            self._register_motor_id(motor_id)
+            send_id = int(motor_can_id if motor_can_id is not None else motor_id[0])
+            msg = can.Message(arbitration_id=int(send_id), data=data, is_extended_id=False)
+            self.bus.send(msg)
+        except Exception as e:
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def recv_motor_response(self, expected_id: tuple[int, int], timeout: float = 0.1) -> can.Message:
+        """Receive response message matching `expected_id` or payload source byte.
+
+        `expected_id` may be None (return first message), or a (send_id, recv_id) tuple.
+        Returns `can.Message` or raise TimeoutError on timeout. Raises :class:`OperationalError` on bus errors.
+        """
         deadline = time.time() + timeout
         try:
             while time.time() < deadline:
@@ -200,81 +333,714 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
                 if not msg:
                     continue
 
-                # If no expected_id specified, return the first message seen
-                if expected_id is None:
-                    return msg
-
-                # Normalize expected ids
-                if isinstance(expected_id, (list, tuple)):
-                    send_id = int(expected_id[0])
-                    recv_id = int(expected_id[1])
-                else:
-                    send_id = int(expected_id)
-                    recv_id = int(expected_id)
+                send_id = int(expected_id[0])
+                recv_id = int(expected_id[1])
 
                 # Match by reply arbitration id
                 if msg.arbitration_id == recv_id:
                     return msg
 
                 # Match by payload first byte indicating source motor id
-                try:
-                    if msg.data and len(msg.data) >= 1 and (msg.data[0] & 0xFF) == (send_id & 0xFF):
-                        return msg
-                except Exception:
-                    pass
 
-            return None
+                if msg.data and len(msg.data) == 8 and (msg.data[0] & 0xFF) == (send_id & 0xFF):
+                    return msg
+            raise TimeoutError()
         except Exception as e:
-            logger.debug(f"Error receiving CAN message: {e}")
-            return None
+            raise OperationalError(i18n_key="hardware.motor_device.recv_failed", retriable=True) from e
 
-    def _decode_motor_state(
-        self, data: bytes, pmax: float = 12.5, vmax: float = 45.0, tmax: float = 18.0
-    ) -> tuple[float, float, float, int, int]:
-        """Decode motor state from CAN data using provided or default limits"""
-        if len(data) < 8:
-            raise ValueError("Invalid motor state data")
+    def read_parameter(
+        self, motor_id: tuple[int, int], param_addr: int, timeout: float = 0.1, max_age: float | None = None
+    ) -> bytes:
+        """Read a 4-byte parameter value from motor using CAN_CMD_QUERY_PARAM.
 
-        # Extract encoded values
-        pos_u = (data[1] << 8) | data[2]
-        vel_u = (data[3] << 4) | (data[4] >> 4)
-        torq_u = ((data[4] & 0x0F) << 8) | data[5]
-        temp_mos = data[6]
-        temp_rotor = data[7]
-
-        # Decode to physical values
-        position = uint_to_float(pos_u, -pmax, pmax, 16)
-        velocity = uint_to_float(vel_u, -vmax, vmax, 12)
-        torque = uint_to_float(torq_u, -tmax, tmax, 12)
-
-        return position, velocity, torque, temp_mos, temp_rotor
-
-    def ping_motor(self, motor_id: tuple[int, int]) -> bool:
-        """Ping motor by sending refresh command and checking for response.
-
-        `motor_id` must be a `(send_id, recv_id)` tuple for Damiao CAN motors.
+        Returns: 4 bytes (little-endian representation) or None on timeout/malformed response.
+        Raises OperationalError for bus-level errors.
         """
+
         try:
-            # Normalize motor id tuple
+            response_data = self.cache.get_parameter_raw(motor_id, param_addr, max_age)
+            if response_data is None:
+                send_id = int(motor_id[0])
+                query_data = bytes(
+                    [
+                        send_id & 0xFF,
+                        (send_id >> 8) & 0xFF,
+                        DamiaoConstants.CAN_CMD_QUERY_PARAM,
+                        param_addr & 0xFF,
+                        (param_addr >> 8) & 0xFF,
+                        0,
+                        0,
+                        0,
+                    ]
+                )
+
+                self.send_can_frame(motor_id, query_data, DamiaoConstants.PARAM_ID)
+                if self.cache.wait_for_parameter(motor_id, param_addr, timeout=timeout):
+                    response_data = self.cache.get_parameter_raw(motor_id, param_addr)
+                    if response_data is None:
+                        raise OperationalError(
+                            i18n_key="hardware.motor_device.malformed_response",
+                            retriable=True,
+                            motor_id=motor_id,
+                            param_addr=param_addr,
+                        )
+                else:
+                    raise OperationalError(
+                        i18n_key="hardware.motor_device.param_response_timeout",
+                        retriable=True,
+                        motor_id=motor_id,
+                        param_addr=param_addr,
+                    )
+
+            if len(response_data) < 8:
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.malformed_response",
+                    retriable=True,
+                    motor_id=motor_id,
+                    param_addr=param_addr,
+                )
+
+            # Expect response payload: data[2] == CMD (0x33 for query)
+            if response_data[2] != DamiaoConstants.CAN_CMD_QUERY_PARAM:
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.unexpected_response",
+                    retriable=True,
+                    motor_id=motor_id,
+                    param_addr=param_addr,
+                )
+
+            # Value bytes are stored in data[4:8] (little-endian)
+            return response_data[4:8]
+        except OperationalError:
+            raise
+        except Exception as e:
+            raise OperationalError(
+                i18n_key="hardware.motor_device.read_param_failed",
+                retriable=True,
+                motor_id=motor_id,
+                param_addr=param_addr,
+            ) from e
+
+    def bulk_read_parameters(
+        self,
+        motor_id_and_params: list[tuple[tuple[int, int], int]],
+        base_timeout: float = 0.1,
+        max_age: float | None = None,
+    ) -> dict[tuple[tuple[int, int], int], bytes]:
+        """Bulk read multiple parameters from multiple motors.
+
+        Args:
+            motor_id_and_params: List of (motor_id, param_addr) tuples to read.
+            base_timeout: Base timeout per parameter in seconds.
+            max_age: Maximum age in seconds for cached data to be considered valid.
+        Returns:
+            Dict mapping (motor_id, param_addr) to value_bytes for successful reads.
+        """
+        results: dict[tuple[tuple[int, int], int], bytes] = {}
+
+        start_time = time.time()
+        max_wait = base_timeout + (0.005 * len(motor_id_and_params))
+
+        for motor_id, param_addr in motor_id_and_params:
+            if (time.time() - start_time) >= max_wait:
+                break  # Overall timeout reached
+            if (motor_id, param_addr) in results:
+                continue  # Already read
+            wait_list: list[tuple[tuple[int, int], int]] = []
+            response_data = self.cache.get_parameter_raw(motor_id, param_addr, max_age)
+            if response_data is None:
+                try:
+                    send_id = int(motor_id[0])
+                    query_data = bytes(
+                        [
+                            send_id & 0xFF,
+                            (send_id >> 8) & 0xFF,
+                            DamiaoConstants.CAN_CMD_QUERY_PARAM,
+                            param_addr & 0xFF,
+                            (param_addr >> 8) & 0xFF,
+                            0,
+                            0,
+                            0,
+                        ]
+                    )
+
+                    self.send_can_frame(motor_id, query_data, DamiaoConstants.PARAM_ID)
+                    wait_list.append((motor_id, param_addr))
+                except OperationalError as e:
+                    logger.warning(f"Bulk read parameter send failed for motor {motor_id}, param {param_addr:#x}: {e}")
+                    continue
+            else:
+                results[(motor_id, param_addr)] = response_data[4:8]
+            if wait_list:
+                for motor_id_w, param_addr_w in wait_list:
+                    self.cache.wait_for_parameter(motor_id_w, param_addr_w, timeout=base_timeout)
+
+        if len(results) < len(motor_id_and_params):
+            raise OperationalError(
+                i18n_key="hardware.motor_device.bulk_param_response_timeout",
+                retriable=True,
+            )
+        return results
+
+    def write_parameter(self, motor_id: tuple[int, int], param_addr: int, value_bytes: bytes) -> None:
+        """Write a 4-byte parameter value to `param_addr`.
+
+        `value_bytes` must be 4 bytes (little-endian representation).
+        Raises OperationalError on errors.
+        """
+        # Prevent writes to read-only registers
+        if self.register.is_read_only(param_addr):
+            raise OperationalError(
+                i18n_key="hardware.motor_device.write_ro_register",
+                retriable=False,
+                motor_id=motor_id,
+                param_addr=param_addr,
+            )
+
+        if not isinstance(value_bytes, (bytes, bytearray)) or len(value_bytes) != 4:
+            raise ValueError("value_bytes must be exactly 4 bytes")
+
+        try:
             send_id = int(motor_id[0])
 
-            # Send refresh command to motor ID (not PARAM_ID)
-            # Format: [motor_id_low, motor_id_high, CMD_REFRESH, 0, 0, 0, 0, 0]
-            refresh_data = bytes([send_id & 0xFF, (send_id >> 8) & 0xFF, DamiaoConstants.CMD_REFRESH, 0, 0, 0, 0, 0])
+            write_data = bytes(
+                [
+                    send_id & 0xFF,
+                    (send_id >> 8) & 0xFF,
+                    DamiaoConstants.CAN_CMD_WRITE_PARAM,
+                    param_addr & 0xFF,
+                    (param_addr >> 8) & 0xFF,
+                ]
+            ) + bytes(value_bytes)
 
-            # Send to motor ID (use send_id for arbitration)
-            if not self._send_can_frame(motor_id, refresh_data):
-                return False
+            self.send_can_frame(motor_id, write_data, DamiaoConstants.PARAM_ID)
+            if not self.cache.wait_for_parameter(motor_id, param_addr, timeout=0.1):
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.param_response_timeout",
+                    retriable=True,
+                    motor_id=motor_id,
+                    param_addr=param_addr,
+                )
 
-            # Wait for response (30ms)
-            response = self._recv_motor_response(expected_id=motor_id, timeout=0.03)
-            if response and len(response.data) >= 8:
-                self.motors[motor_id] = {"last_seen": time.time(), "state": self._decode_motor_state(response.data)}
-                return True
-            return False
+        except OperationalError:
+            raise
         except Exception as e:
-            logger.debug(f"Ping exception for motor {motor_id}: {e}")
-            return False
+            raise OperationalError(
+                i18n_key="hardware.motor_device.write_param_failed",
+                retriable=True,
+                motor_id=motor_id,
+                param_addr=param_addr,
+            ) from e
+
+    def bulk_write_parameters(self, items: list[tuple[tuple[int, int], int, bytes]], base_timeout: float = 0.1) -> None:
+        """Bulk write multiple parameters.
+
+        Args:
+            items: list of (motor_id, param_addr, value_bytes)
+            base_timeout: base timeout used when waiting for confirmations
+
+        Behavior: send all write frames first, then wait for confirmations
+        for all items. Raises OperationalError if any confirmation is missing.
+        """
+        if not items:
+            return
+
+        # Send all write frames without waiting
+        wait_list: list[tuple[tuple[int, int], int]] = []
+        for motor_id, param_addr, value_bytes in items:
+            if not isinstance(value_bytes, (bytes, bytearray)) or len(value_bytes) != 4:
+                raise ValueError("value_bytes must be exactly 4 bytes")
+            if self.register.is_read_only(param_addr):
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.write_ro_register",
+                    retriable=False,
+                    motor_id=motor_id,
+                    param_addr=param_addr,
+                )
+            try:
+                send_id = int(motor_id[0])
+                write_data = bytes(
+                    [
+                        send_id & 0xFF,
+                        (send_id >> 8) & 0xFF,
+                        DamiaoConstants.CAN_CMD_WRITE_PARAM,
+                        param_addr & 0xFF,
+                        (param_addr >> 8) & 0xFF,
+                    ]
+                ) + bytes(value_bytes)
+                self.send_can_frame(motor_id, write_data, DamiaoConstants.PARAM_ID)
+                wait_list.append((motor_id, param_addr))
+            except OperationalError as e:
+                logger.warning(f"Bulk write parameter send failed for motor {motor_id}, param {param_addr:#x}: {e}")
+
+        # Wait for confirmations
+        for motor_id_w, param_addr_w in wait_list:
+            self.cache.wait_for_parameter(motor_id_w, param_addr_w, timeout=base_timeout)
+
+        # Verify all confirmations received
+        missing = [(m, p) for (m, p) in wait_list if self.cache.get_parameter_raw(m, p) is None]
+        if missing:
+            logger.error(f"Bulk write confirmation missing for {len(missing)} items: {missing}")
+            raise OperationalError(i18n_key="hardware.motor_device.bulk_param_write_timeout", retriable=True)
+        return None
+
+    def save_parameters(
+        self,
+        motor_id: tuple[int, int],
+        timeout: float = 0.1,
+    ) -> None:
+        """Send command to save parameters to flash memory.
+
+        存储参数命令:
+        报文ID: 0x7FF (STD)
+        数据格式: CANID_L | CANID_H | 0xAA | 0x01 | 0x00 | 0x00 | 0x00 | 0x00
+
+        写入成功后, 会返回写入的数据, 帧格式与发送的相同.
+
+        注意:
+        1. 存储参数只在失能模式下生效
+        2. 存储参数时会一次性保留全部参数
+        3. 该操作将参数写入片内flash中, 每次操作时间最大为30ms, 请注意留足够的时间
+        4. flash擦写次数约1万次, 请不要频繁发送"存储参数"指令
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+            timeout: Timeout for confirmation response
+
+        Raises:
+            OperationalError: On send failure or timeout
+        """
+        try:
+            send_id = motor_id[0]
+
+            # 数据格式: CANID_L | CANID_H | 0xAA | 0x01 | 0x00...
+            cmd_data = bytes(
+                [
+                    send_id & 0xFF,
+                    (send_id >> 8) & 0xFF,
+                    0xAA,
+                    0x01,
+                    0x00,
+                    0x00,
+                    0x00,
+                    0x00,
+                ]
+            )
+
+            # 发送到 0x7FF
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=0x7FF)
+            logger.info(f"Sent save parameters command to {motor_id}")
+
+            # 等待确认响应 (可选，根据需求决定是否等待)
+            # 接收线程会自动缓存 0xAA 确认消息
+            # 如果需要确认，可以等待一小段时间
+            time.sleep(timeout)
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send save parameters to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def refresh_status(self, motor_id: tuple[int, int]) -> None:
+        """Send a refresh command to the motor to request updated status.
+
+        Raises OperationalError on send failure.
+
+        NOTICE: this is not a official Damiao command, but motors respond to it by sending status frames.
+        """
+        send_id = int(motor_id[0])
+        refresh_data = bytes([send_id & 0xFF, (send_id >> 8) & 0xFF, DamiaoConstants.CMD_REFRESH, 0, 0, 0, 0, 0])
+        self.send_can_frame(motor_id, refresh_data, DamiaoConstants.PARAM_ID)
+
+    def bulk_refresh_status(self, motors: dict[tuple[int, int], MotorModelInfo]) -> None:
+        """Send refresh commands to multiple motors to request updated status.
+
+        Raises OperationalError on send failure.
+        """
+        for mid in motors.keys():
+            self.refresh_status(mid)
+
+    def read_feedback(
+        self,
+        motor_id: tuple[int, int],
+        max_age: float = 1.0,
+    ) -> tuple[int, float, float, float, float, float] | None:
+        """Read a motor feedback frame and return (state, position, velocity, torque, temp_mos, temp_rotor).
+
+        Raises OperationalError on IO or parsing errors. Uses `self.register.get_pmax_vmax_tmax`
+        to obtain pmax/vmax/tmax for decoding; falls back to driver defaults when unavailable.
+        """
+        data = self.cache.get_status_raw(motor_id, max_age=max_age)
+        if data is None:
+            return None
+
+        # Extract status/error nibble if present (per documentation ERR encoded in upper nibble of data[1])
+        try:
+            state = (data[1] >> 4) & 0x0F
+        except Exception:
+            state = 0
+
+        # Fetch effective limits for decoding
+        pmax, vmax, tmax = self.register.get_pmax_vmax_tmax(motor_id)
+
+        try:
+            # Inline decode to avoid dependency on _decode_motor_state and ensure types
+            pos_u = (data[1] << 8) | data[2]
+            vel_u = (data[3] << 4) | (data[4] >> 4)
+            torq_u = ((data[4] & 0x0F) << 8) | data[5]
+            temp_mos = float(int(data[6]))
+            temp_rotor = float(int(data[7]))
+
+            position = uint_to_float(int(pos_u), -pmax, pmax, 16)
+            velocity = uint_to_float(int(vel_u), -vmax, vmax, 12)
+            torque = uint_to_float(int(torq_u), -tmax, tmax, 12)
+        except Exception as e:
+            logger.debug(f"Failed to decode feedback frame for {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.parse_failed", retriable=False, motor_id=motor_id
+            ) from e
+
+        return (int(state), float(position), float(velocity), float(torque), float(temp_mos), float(temp_rotor))
+
+    def send_mit_control(
+        self,
+        motor_id: tuple[int, int],
+        position: float,
+        velocity: float,
+        torque: float,
+        kp: float = 50.0,
+        kd: float = 1.0,
+    ) -> None:
+        """Send a MIT control frame to `motor_id` using register-derived limits.
+
+        All of `position`, `velocity`, and `torque` are required and must be numeric.
+        This uses `self.register.get_pmax_vmax_tmax` to obtain pmax/vmax/tmax and
+        clamps the provided inputs before encoding. Raises OperationalError on
+        send failure.
+        """
+
+        # Obtain limits from register (fallback to driver defaults)
+        pmax, vmax, tmax = self.register.get_pmax_vmax_tmax(motor_id=motor_id)
+
+        # Clamp
+        pos_clamped = max(-pmax, min(pmax, position))
+        vel_clamped = max(-vmax, min(vmax, velocity))
+        tor_clamped = max(-tmax, min(tmax, torque))
+
+        # Encode and send (inline)
+        try:
+            pos_u = float_to_uint(pos_clamped, -pmax, pmax, 16)
+            vel_u = float_to_uint(vel_clamped, -vmax, vmax, 12)
+            kp_u = float_to_uint(kp, 0.0, 500.0, 12)
+            kd_u = float_to_uint(kd, 0.0, 5.0, 12)
+            torq_u = float_to_uint(tor_clamped, -tmax, tmax, 12)
+            cmd = bytes(
+                [
+                    (pos_u >> 8) & 0xFF,
+                    pos_u & 0xFF,
+                    (vel_u >> 4) & 0xFF,
+                    ((vel_u & 0xF) << 4) | ((kp_u >> 8) & 0xF),
+                    kp_u & 0xFF,
+                    (kd_u >> 4) & 0xFF,
+                    ((kd_u & 0xF) << 4) | ((torq_u >> 8) & 0xF),
+                    torq_u & 0xFF,
+                ]
+            )
+            self.send_can_frame(motor_id, cmd)
+            self._goal_position_cache[motor_id] = pos_clamped
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send MIT control to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def send_position_velocity_control(
+        self,
+        motor_id: tuple[int, int],
+        position: float,
+        velocity: float,
+    ) -> None:
+        """Send position-velocity control command (0x100+ID mode).
+
+        控制报文 ID: 0x100+ID
+        数据格式: p_des[D0-D3], v_des[D4-D7]
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+            position: Target position in radians (浮点型, 低位在前, 高位在后)
+            velocity: Target velocity in rad/s, 作为梯形加速度运行下最高速度 (浮点型)
+
+        Raises:
+            OperationalError: On send failure
+        """
+        try:
+            # 获取电机限制
+            pmax, vmax, _ = self.register.get_pmax_vmax_tmax(motor_id)
+
+            # 限制范围
+            pos_clamped = max(-pmax, min(pmax, position))
+            vel_clamped = max(-vmax, min(vmax, velocity))
+
+            # 位置和速度都是浮点型, 低位在前, 高位在后
+            import struct
+
+            pos_bytes = struct.pack("<f", pos_clamped)  # little-endian float
+            vel_bytes = struct.pack("<f", vel_clamped)
+
+            # 数据格式: p_des (4 bytes) + v_des (4 bytes)
+            cmd_data = pos_bytes + vel_bytes
+
+            # CAN ID = 0x100 + motor_id
+            send_id = motor_id[0]
+            arb_id = 0x100 + send_id
+
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=arb_id)
+            self._goal_position_cache[motor_id] = pos_clamped
+            logger.debug(f"Sent position-velocity control to {motor_id}: pos={position:.3f}, vel={velocity:.3f}")
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send position-velocity control to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def send_velocity_control(
+        self,
+        motor_id: tuple[int, int],
+        velocity: float,
+    ) -> None:
+        """Send velocity control command (0x200+ID mode).
+
+        控制报文 ID: 0x200+ID
+        数据格式: v_des[D0-D3]
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+            velocity: Target velocity in rad/s (浮点型, 低位在前, 高位在后)
+
+        Raises:
+            OperationalError: On send failure
+        """
+        try:
+            # 获取电机限制
+            _, vmax, _ = self.register.get_pmax_vmax_tmax(motor_id)
+
+            # 限制范围
+            vel_clamped = max(-vmax, min(vmax, velocity))
+
+            # 速度是浮点型, 低位在前, 高位在后
+            import struct
+
+            vel_bytes = struct.pack("<f", vel_clamped)
+
+            # 数据格式: v_des (4 bytes), 其余补0
+            cmd_data = vel_bytes + bytes([0, 0, 0, 0])
+
+            # CAN ID = 0x200 + motor_id
+            send_id = motor_id[0]
+            arb_id = 0x200 + send_id
+
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=arb_id)
+            self._goal_position_cache[motor_id] = None  # No position goal in velocity mode
+            logger.debug(f"Sent velocity control to {motor_id}: vel={velocity:.3f}")
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send velocity control to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def send_torque_position_control(
+        self,
+        motor_id: tuple[int, int],
+        position: float,
+        velocity_limit: float,
+        current_limit: float,
+    ) -> None:
+        """Send torque-position hybrid control command (0x300+ID mode).
+
+        控制报文 ID: 0x300+ID
+        数据格式: p_des[D0-D3], v_des[D4-D5], i_des[D6-D7]
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+            position: Target position in rad (单位为rad, 浮点类型4字节, 低位在前, 高位在后)
+            velocity_limit: Velocity limit in rad/s (限速值, 单位rad/s, 放大100倍, 类型为无符号16位)
+                           范围: 0-10000, 超过10000会限制在10000, 对应的实际速度限速幅值为0~100rad/s
+            current_limit: Current limit (扭矩电流限定标幺值, 放大10000倍, 类型为无符号16位)
+                          范围: 0-10000, 超过10000会限制在10000
+                          对应的原始电流限定标幺值为0~1.0, 实际电流除以最大相电流
+
+        Raises:
+            OperationalError: On send failure
+        """
+        try:
+            # 获取电机限制
+            pmax, _, _ = self.register.get_pmax_vmax_tmax(motor_id)
+
+            # 位置限制
+            pos_clamped = max(-pmax, min(pmax, position))
+
+            # 速度限速值: 放大100倍, 类型为无符号16位, 范围0-10000 (对应0-100rad/s)
+            vel_limit_scaled = int(max(0, min(10000, velocity_limit * 100)))
+
+            # 电流限定: 放大10000倍, 类型为无符号16位, 范围0-10000 (对应0-1.0标幺值)
+            current_limit_scaled = int(max(0, min(10000, current_limit * 10000)))
+
+            # 数据格式:
+            # D[0-3]: p_des (4字节浮点, 低位在前)
+            # D[4-5]: v_des (2字节无符号16位, 放大100倍, 低位在前)
+            # D[6-7]: i_des (2字节无符号16位, 放大10000倍, 低位在前)
+
+            import struct
+
+            pos_bytes = struct.pack("<f", pos_clamped)  # 4字节浮点, little-endian
+
+            cmd_data = pos_bytes + bytes(
+                [
+                    vel_limit_scaled & 0xFF,  # D[4]: v_des低位
+                    (vel_limit_scaled >> 8) & 0xFF,  # D[5]: v_des高位
+                    current_limit_scaled & 0xFF,  # D[6]: i_des低位
+                    (current_limit_scaled >> 8) & 0xFF,  # D[7]: i_des高位
+                ]
+            )
+
+            # CAN ID = 0x300 + motor_id
+            send_id = motor_id[0]
+            arb_id = 0x300 + send_id
+
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=arb_id)
+            self._goal_position_cache[motor_id] = pos_clamped
+            logger.debug(
+                f"Sent torque-position control to {motor_id}: "
+                f"pos={position:.3f}, vel_lim={velocity_limit:.2f}, i_lim={current_limit:.4f}"
+            )
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send torque-position control to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def send_motor_control(
+        self,
+        motor_id: tuple[int, int],
+        enable: bool,
+    ) -> None:
+        """Send motor enable or disable command.
+
+        使能/失能命令属于控制帧, 帧ID如前所述, 数据段定义如下:
+        使能: D[0-6]=0xFF, D[7]=0xFC
+        失能: D[0-6]=0xFF, D[7]=0xFD
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+            enable: True to enable motor, False to disable
+
+        Raises:
+            OperationalError: On send failure
+        """
+        try:
+            # 数据格式: 0xFF * 7 + (0xFC for enable, 0xFD for disable)
+            cmd_byte = 0xFC if enable else 0xFD
+            cmd_data = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, cmd_byte])
+
+            # 发送到 send_id
+            send_id = motor_id[0]
+
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=send_id)
+            if not enable:
+                self._goal_position_cache[motor_id] = None  # Clear goal on disable
+            logger.debug(f"Sent {'enable' if enable else 'disable'} command to {motor_id}")
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send motor control to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def send_save_zero_position(
+        self,
+        motor_id: tuple[int, int],
+    ) -> None:
+        """Send command to save current position as zero point.
+
+        保存位置零点命令属于控制帧:
+        D[0-6]=0xFF, D[7]=0xFE
+
+        该命令会将当前输出轴的位置设定成零点, 并将位置给定值设定成0.
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+
+        Raises:
+            OperationalError: On send failure
+        """
+        try:
+            # 数据格式: 0xFF * 7 + 0xFE
+            cmd_data = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE])
+
+            # 发送到 send_id
+            send_id = motor_id[0]
+
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=send_id)
+            logger.info(f"Sent save zero position command to {motor_id}")
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send save zero position to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
+
+    def send_clear_error(
+        self,
+        motor_id: tuple[int, int],
+    ) -> None:
+        """Send command to clear motor errors.
+
+        清除错误命令属于控制帧:
+        D[0-6]=0xFF, D[7]=0xFB
+
+        电机出现过热等错误时, 发送"清除"命令可以清除错误.
+
+        Args:
+            motor_id: Motor identifier (send_id, recv_id)
+
+        Raises:
+            OperationalError: On send failure
+        """
+        try:
+            # 数据格式: 0xFF * 7 + 0xFB
+            cmd_data = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFB])
+
+            # 发送到 send_id
+            send_id = motor_id[0]
+
+            self.send_can_frame(motor_id, cmd_data, motor_can_id=send_id)
+            logger.info(f"Sent clear error command to {motor_id}")
+
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to send clear error to {motor_id}: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.send_failed", retriable=True, motor_id=motor_id
+            ) from e
 
     def identify_model(
         self,
@@ -291,29 +1057,16 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
         """
         try:
             # Try to read model number from motor parameter
-            # Address 0x01 is the standard model number address for Damiao motors
-            model_param_addrs = [0x01, 0x00, 0x100]  # Prioritize 0x01
+            # NOTE: 0x01 is KT_VALUE per the DM-J4310 tables and should NOT be treated
+            # as a model number. Some firmwares historically returned identifying
+            # values at other addresses; use these as heuristics only (not from the
+            # official spec). Prioritize 0x100 then 0x00 as fallbacks.
+            # model_param_addrs = [0x100, 0x00]
 
-            for param_addr in model_param_addrs:
-                # Add a tiny delay between parameter reads to ensure motor can process
-                if param_addr != model_param_addrs[0]:
-                    time.sleep(0.01)
-
-                model_num = self.read_parameter(motor_id, param_addr)
-                if model_num is not None and model_num > 0:
-                    model_info = select_model_for_number(model_num)
-                    if model_info:
-                        logger.debug(f"Identified motor {motor_id} as {model_info.model} (model_num: {model_num})")
-                        # Cache the model info for future limit lookups
-                        if motor_id not in self.motors:
-                            self.motors[motor_id] = {}
-                        self.motors[motor_id]["model_info"] = model_info
-                        return model_info
-                    else:
-                        logger.warning(
-                            f"Motor {motor_id} returned unknown model number: {model_num} "
-                            f"(hex: {hex(model_num)}) at address {hex(param_addr)}"
-                        )
+            # Identification is not reliable across firmwares; return the generic fallback model.
+            # We keep the legacy model_param_addrs variable for compatibility but no longer use it.
+            logger.info(f"identify_model: returning generic Damiao model for motor {motor_id}")
+            return DAMAIO_MODELS_LIST[0]
 
             # Fallback to provided model_number if available
             if model_number is not None:
@@ -324,17 +1077,21 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
 
             # Could not determine model -> raise
             raise ValueError(
-                f"Unable to identify Damiao motor model for {motor_id} "
-                "(read failed or model mapping missing)"
+                f"Unable to identify Damiao motor model for {motor_id} (read failed or model mapping missing)"
             )
 
         except Exception as e:
+            # Uniformly wrap any exception with operation-specific OperationalError
             if raise_on_ambiguous:
                 logger.error(f"Error identifying motor {motor_id}: {e}")
                 raise
             else:
                 logger.warning(f"Identification failed for motor {motor_id}: {e}")
-                raise
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.identify_failed",
+                    retriable=True,
+                    motor_id=motor_id,
+                ) from e
 
     def supported_models(self) -> list[MotorModelInfo]:
         """Return list of supported Damiao models"""
@@ -355,360 +1112,250 @@ class DamiaoCAN_Driver(BaseMotorDriver[tuple[int, int]]):
         discovered_recv_ids: set[int] = set()
         logger.info(f"Scanning {len(scan_range)} motor IDs on Damiao CAN bus")
 
-        # Scan in smaller batches to avoid overwhelming the bus
-        batch_size = 10
+        self._recv_pause_event.clear()  # suspend receiving during scan
+        time.sleep(0.05)  # brief delay to ensure receive thread is paused
+
+        # Scan one motor at a time with delays to prevent bus errors
+        # CAN buses accumulate errors when broadcasting to non-existent motors
+        # This sequential approach is slower but more reliable for sparse motor deployments
+        batch_size = 10  # Process one motor at a time
         for i in range(0, len(scan_range), batch_size):
-            # Abort early if the bus has entered an error state (e.g. wrong bitrate)
-            try:
-                # can.BusState: ACTIVE=0, PASSIVE=1, ERROR=2, OFF=3
-                if hasattr(self.bus, "state") and self.bus.state in (can.BusState.PASSIVE, can.BusState.OFF):
-                    # If we haven't found anything yet, passive state strongly suggests wrong bitrate
-                    if not discovered and i >= batch_size:
-                        logger.warning(
-                            f"Aborting Damiao scan: Bus is in {self.bus.state.name} "
-                            "state (likely incorrect bitrate)"
-                        )
-                        break
-            except Exception:
-                pass
-
             batch = scan_range[i : i + batch_size]
-            logger.debug(f"Scanning batch: {batch}")
 
-            for send_id in batch:
-                # If this send_id was previously observed as a recv id for another
-                # motor, skip sending to it (it's a receive-only address)
-                if send_id in discovered_recv_ids:
-                    logger.debug(f"Skipping {send_id} because it was observed as a recv ID earlier")
-                    continue
+            # Filter out IDs that are known recv-only addresses
+            send_ids_to_probe = [sid for sid in batch if sid not in discovered_recv_ids]
+            if not send_ids_to_probe:
+                continue
 
-                # Send refresh (probe) using the send arbitration id (int)
-                refresh_data = bytes(
-                    [send_id & 0xFF, (send_id >> 8) & 0xFF, DamiaoConstants.CMD_REFRESH, 0, 0, 0, 0, 0]
+            # Process each motor ID individually
+            for send_id in send_ids_to_probe:
+                query_data = bytes(
+                    [
+                        send_id & 0xFF,
+                        (send_id >> 8) & 0xFF,
+                        DamiaoConstants.CAN_CMD_QUERY_PARAM,
+                        DamiaoRegisters.MST_ID[0] & 0xFF,
+                        (DamiaoRegisters.MST_ID[0] >> 8) & 0xFF,
+                        0,
+                        0,
+                        0,
+                    ]
                 )
-
-                # Send refresh (probe) using the send arbitration id (int)
-                refresh_data = bytes(
-                    [send_id & 0xFF, (send_id >> 8) & 0xFF, DamiaoConstants.CMD_REFRESH, 0, 0, 0, 0, 0]
-                )
-
-                if not self._send_can_frame(send_id, refresh_data):
-                    continue
-
-                # Use a moderate timeout for discovery (30ms is a safe balance)
-                response = self._recv_motor_response(expected_id=None, timeout=0.03)
-                if not response or not response.data:
-                    continue
-
-                # If reply came from a different arbitration id, and it includes the
-                # original send id in data[0], treat that arbitration id as the recv id
-                recv_id: int | None = None
                 try:
-                    if (
-                        response.arbitration_id != send_id
-                        and len(response.data) >= 1
-                        and (response.data[0] & 0xFF) == (send_id & 0xFF)
-                    ):
-                        recv_id = int(response.arbitration_id)
-                        discovered_recv_ids.add(recv_id)
-                    elif response.arbitration_id == send_id:
-                        # If the payload's first byte doesn't match the send id, that
-                        # suggests we accidentally sent to a recv id or saw unrelated
-                        # traffic. Treat the probed id as a recv id and skip it.
-                        if len(response.data) >= 1 and (response.data[0] & 0xFF) != (send_id & 0xFF):
-                            logger.debug(
-                                "Probed id %s appears to be a recv-id (payload indicates different source); skipping",
-                                send_id,
-                            )
-                            discovered_recv_ids.add(send_id)
-                            continue
-                        recv_id = send_id
-                    else:
-                        # If we got a frame that doesn't match the expected pattern but
-                        # contains a different source id in data[0], this likely means
-                        # we accidentally sent to a recv id: mark this send_id as a
-                        # recv id and skip it going forward.
-                        if len(response.data) >= 1:
-                            logger.debug(
-                                "Received unexpected frame when probing %s; marking %s as recv-id and skipping",
-                                send_id,
-                                send_id,
-                            )
-                            discovered_recv_ids.add(send_id)
-                        continue
+                    msg = can.Message(arbitration_id=DamiaoConstants.PARAM_ID, data=query_data, is_extended_id=False)
+                    self.bus.send(msg)
                 except Exception:
                     continue
 
-                # For Damiao, we accept both distinct and identical send/recv IDs.
-                # Many standard configurations use the same arbitration ID for both directions.
-                if recv_id is None:
-                    logger.debug(f"Skipping send id {send_id}: no response arbitration ID discovered")
-                    continue
+            timeout = 0.02
+            start_time = time.time()
+            while (time.time() - start_time) < timeout:
+                msg = self.bus.recv(timeout=0.005)
+                if msg and msg.data:
+                    # Check if response matches any send_id
+                    resp_send_id = int(msg.data[0]) | (int(msg.data[1]) << 8)
+                    if resp_send_id in send_ids_to_probe:
+                        # Determine recv_id from response
+                        recv_id = int.from_bytes(msg.data[4:8], byteorder="little", signed=False)
+                        discovered_recv_ids.add(recv_id)
 
-                id_tuple = (send_id, recv_id)
-                try:
-                    # During discovery, we don't want to crash the whole scan if one motor fails to identify
-                    model_info = self.identify_model(id_tuple, raise_on_ambiguous=False)
-                    from typing import cast
+                        id_tuple = (resp_send_id, recv_id)
 
-                    discovered[id_tuple] = cast(MotorModelInfo, model_info)
-                except Exception as e:
-                    logger.warning(f"Failed to identify motor {id_tuple}, skipping: {e}")
-                    continue
+                        try:
+                            # Identify motor model
+                            model_info = self.identify_model(id_tuple, raise_on_ambiguous=False)
 
-                logger.info("Found motor send=%s recv=%s (%s)", send_id, recv_id, discovered[id_tuple].model)
+                            discovered[id_tuple] = model_info
+                            logger.info(
+                                "Found motor send=%s recv=%s (%s)", resp_send_id, recv_id, discovered[id_tuple].model
+                            )
 
-            # Small delay between batches to let bus recover
-            if i + batch_size < len(scan_range):
-                time.sleep(0.01)
+                        except Exception as e:
+                            logger.warning(f"Failed to identify motor {resp_send_id}, skipping: {e}")
+                            continue
 
+            time.sleep(0.01)  # brief delay between batches
+
+        self._recv_pause_event.set()  # resume receiving
         logger.info(f"Scan complete: found {len(discovered)} motors")
         return discovered
 
-    def read_telemetry(self, motor_id: tuple[int, int]) -> MotorTelemetry | None:
-        """Read real-time telemetry from a single motor
+    def read_telemetry(self, motor_id: tuple[int, int], model_info: MotorModelInfo) -> MotorTelemetry:
+        """Read real-time telemetry from a single motor (uses raw-state helper)."""
 
-        `motor_id` is a tuple `(send_id, recv_id)`. `MotorTelemetry.id` will be
-        populated with the logical send id (int) for compatibility with callers.
-        """
         try:
-            # Normalize send id
-            send_id = int(motor_id[0])
+            state = self.read_feedback(motor_id)
+            if state is None:
+                position, _, temp_rotor = self.register.get_current_state(motor_id)
+                state = (0, position, 0.0, 0.0, 0, temp_rotor)
 
-            # Send refresh command to motor ID (not PARAM_ID)
-            refresh_data = bytes([send_id & 0xFF, (send_id >> 8) & 0xFF, DamiaoConstants.CMD_REFRESH, 0, 0, 0, 0, 0])
+            position = state[1]
+            velocity = state[2]
+            torque = state[3]
+            temp_rotor = state[5]
+            current = 0.0
 
-            if not self._send_can_frame(motor_id, refresh_data):
-                return None
+            velocity = model_info.convert_to_standard_unit("velocity", velocity)
+            torque = model_info.convert_to_standard_unit("torque", torque)
+            temp_rotor = model_info.convert_to_standard_unit("temperature", temp_rotor)
 
-            # Read response (30ms)
-            response = self._recv_motor_response(expected_id=motor_id, timeout=0.03)
-            if not response or len(response.data) < 8:
-                return None
-
-            # Get limits for this specific motor
-            pmax, vmax, tmax = self._get_motor_limits(motor_id)
-            position, velocity, torque, temp_mos, temp_rotor = self._decode_motor_state(
-                response.data, pmax=pmax, vmax=vmax, tmax=tmax
-            )
-
-            if motor_id not in self.motors:
-                self.motors[motor_id] = {}
-
-            self.motors[motor_id].update({
-                "last_seen": time.time(),
-                "state": (position, velocity, torque, temp_mos, temp_rotor),
-            })
+            if torque > 0:
+                kt = self.register.read_float32(motor_id, DamiaoRegisters.KT_VALUE[0])
+                current = torque / kt if kt != 0 else 0.0
 
             return MotorTelemetry(
-                id=send_id,
-                position=int(position * 1000),  # Convert to milli-radians for compatibility
-                velocity=int(velocity * 1000),  # Convert to milli-rad/s
-                current=int(torque * 1000),  # Approximate current from torque
-                load=0,  # Not available
-                voltage=24.0,  # Typical voltage
+                motor_id=motor_id,
+                position=position,
+                position_type=PositionType.RAW,
+                goal_position=self._goal_position_cache.get(motor_id),
+                velocity=velocity,
+                torque=torque,
+                current=current,
+                voltage=None,
                 temperature=temp_rotor,
                 moving=abs(velocity) > 0.01,
-                goal_position=0.0,
                 error=0,
             )
+        except OperationalError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to read telemetry from motor {motor_id}: {e}")
-            return None
+            raise OperationalError(
+                i18n_key="hardware.motor_device.read_failed",
+                retriable=True,
+                motor_id=motor_id,
+            ) from e
 
-    def read_bulk_telemetry(self, motor_ids: list[tuple[int, int]]) -> dict[tuple[int, int], MotorTelemetry]:
-        """Read telemetry from multiple motors efficiently
+    def bulk_read_telemetry(
+        self, motors: dict[tuple[int, int], MotorModelInfo]
+    ) -> dict[tuple[int, int], MotorTelemetry]:
+        """Read telemetry from multiple motors efficiently using concurrent CAN frames.
 
-        Accepts a list of MotorID tuples and returns a dict keyed by the same tuple ids.
+        Uses `bulk_read_raw_states` to obtain raw frames and then decodes them.
         """
-        result: dict[tuple[int, int], MotorTelemetry] = {}
+        if len(motors) == 0:
+            return {}
+
+        motors_no_state: list[tuple[int, int]] = []
+        for mid in motors.keys():
+            raw = self.cache.get_status_raw(mid, max_age=0.5)
+            if raw is None:
+                motors_no_state.append(mid)
+
+        # load missing states in bulk
+        if motors_no_state:
+            self.register.bulk_get_current_state(motors_no_state)
+
+        # load KT values in bulk
+        self.bulk_read_parameters([(mid, DamiaoRegisters.KT_VALUE[0]) for mid in motors.keys()])
+
+        return {mid: self.read_telemetry(mid, motor_info) for mid, motor_info in motors.items()}
+
+    def _get_register_address(self, name: str) -> int:
+        """Return register address for a logical name when available.
+
+        Supported names (best-effort): "position" -> XOUT, "temperature" -> TMTR,
+        "voltage" -> VBUS, "operation_mode" -> CTRL_MODE. Names that are not applicable (e.g., "goal_position",
+        "torque_enable") will raise NotImplementedError.
+        """
+        mapping = {
+            "position": DamiaoRegisters.XOUT[0],
+            "temperature": DamiaoRegisters.TMTR[0],
+            "voltage": DamiaoRegisters.VBUS[0],
+            "operation_mode": DamiaoRegisters.CTRL_MODE[0],
+        }
+        try:
+            return mapping[name]
+        except KeyError as e:
+            raise NotImplementedError(f"Named register '{name}' not supported by DamiaoCAN_Driver") from e
+
+    def read_register(self, motor_id: tuple[int, int], address: int) -> float:
+        return self.register.read_number(motor_id, address, max_age=2.0)
+
+    def write_register(self, motor_id: tuple[int, int], address: int, value: float) -> None:
+        self.register.write_number(motor_id, address, value)
+
+    def bulk_read_registers(self, motor_ids: list[tuple[int, int]], register_addr: int) -> dict[tuple[int, int], float]:
+        return { mid[0]: value for mid, value in self.register.bulk_read_numbers([(mid, register_addr) for mid in motor_ids], max_age=2.0).items() }
+
+    def bulk_write_registers(self, motor_values: dict[tuple[int, int], float], register_addr: int) -> None:
+        self.register.bulk_write_numbers([(mid, register_addr, value) for mid, value in motor_values.items()])
+
+    def set_torque(self, motor_id: tuple[int, int], enabled: bool) -> None:
+        """
+        Enable or disable motor torque.
+
+        **Deprecated**: This legacy enable/disable API is scheduled for removal.
+        Prefer driver-specific torque control APIs (`write_torque` / `read_torque`) or
+        use value-level APIs where supported.
+
+        Args:
+            motor_id: Motor ID
+            enabled: True to enable torque, False to disable
+
+        """
+        self.send_motor_control(motor_id, enable=enabled)
+
+    def bulk_set_torque(self, motor_ids: list[tuple[int, int]], enabled: bool) -> None:
+        """
+        Set torque for multiple motors at once (more efficient than individual calls).
+
+        Args:
+            motor_ids: List of motor IDs
+            enabled: True to enable, False to disable
+
+        """
         for mid in motor_ids:
-            telemetry = self.read_telemetry(mid)
-            if telemetry:
-                result[mid] = telemetry
+            self.send_motor_control(mid, enable=enabled)
+
+    def get_position(self, motor_id: tuple[int, int]) -> float:
+        """Get current motor position in radians."""
+        state = self.read_feedback(motor_id)
+        if state is None:
+            position = self.register.get_current_position(motor_id)
+            return position
+        else:
+            return state[1]
+
+    def bulk_get_position(self, motor_ids: list[tuple[int, int]]) -> dict[tuple[int, int], float]:
+        results: dict[tuple[int, int], float] = {}
+        motors_no_state: list[tuple[int, int]] = []
+        for mid in motor_ids:
+            state = self.read_feedback(mid)
+            if state is None:
+                motors_no_state.append(mid)
+            else:
+                results[mid] = state[1]
+        for mid, position in self.register.bulk_get_current_position(motors_no_state).items():
+            results[mid] = position
+        return results
+
+    def get_goal_position(self, motor_id: tuple[int, int]) -> float:
+        goal = self._goal_position_cache[motor_id]
+        if goal is not None:
+            return goal
+
+        return self.get_position(motor_id)  # use current position as fallback if we don't have a cached goal
+
+    def set_goal_position(self, motor_id: tuple[int, int], position: float) -> None:
+        op_mode = self.get_operation_mode(motor_id)
+        if op_mode == 1:
+            self.send_mit_control(motor_id, position, 0.0, 0.0)
+        raise NotImplementedError("Setting goal position is only supported in MIT control mode (1)")
+
+    def bulk_get_goal_position(self, motor_ids: list[tuple[int, int]]) -> dict[tuple[int, int], float]:
+        result : dict[tuple[int, int], float] = {}
+        missing_goal_ids: list[tuple[int, int]] = []
+        for mid in motor_ids:
+            goal = self._goal_position_cache[mid]
+            if goal is not None:
+                result[mid] = goal
+            else:
+                missing_goal_ids.append(mid)
+        if missing_goal_ids:
+            for mid in missing_goal_ids:
+                result[mid] = self.get_position(mid)  # fallback to current position if no cached goal
         return result
 
-    def set_position(self, motor_id: tuple[int, int], position: int, speed: int | None = None) -> bool:
-        """Set motor target position using MIT control mode
-
-        `motor_id` must be a tuple `(send_id, recv_id)`.
-        """
-        try:
-            pos_rad = float(position) / 1000.0
-
-            # Get motor limits
-            pmax, vmax, tmax = self._get_motor_limits(motor_id)
-            pos_rad = max(-pmax, min(pmax, pos_rad))
-
-            # Use moderate gains for position control
-            kp = 50.0
-            kd = 1.0
-
-            cmd_data = self._encode_mit_cmd(pos_rad, 0.0, 0.0, kp, kd, pmax=pmax, vmax=vmax, tmax=tmax)
-            return self._send_can_frame(motor_id, cmd_data)
-        except Exception as e:
-            logger.error(f"Failed to set position for motor {motor_id}: {e}")
-            return False
-
-    def set_torque(self, motor_id: tuple[int, int], enabled: bool) -> bool:
-        """Enable or disable motor torque
-
-        `motor_id` must be a tuple `(send_id, recv_id)`.
-        """
-        try:
-            if enabled:
-                data = bytes([0xFF] * 7 + [DamiaoConstants.CMD_ENABLE])
-            else:
-                data = bytes([0xFF] * 7 + [DamiaoConstants.CMD_DISABLE])
-
-            result = self._send_can_frame(motor_id, data)
-            logger.debug(f"Set motor {motor_id} torque to {enabled}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to set torque for motor {motor_id}: {e}")
-            return False
-
-    def reboot_motor(self, motor_id: tuple[int, int]) -> bool:
-        """Reboot motor - not supported by Damiao protocol
-
-        Accepts MotorID tuple `(send_id, recv_id)` for compatibility with base class.
-        """
-        logger.warning("Damiao motors do not support reboot command")
-        return False
-
-    def bulk_set_torque(self, motor_ids: list[tuple[int, int]], enabled: bool) -> bool:
-        """Set torque for multiple motors at once
-
-        `motor_ids` should be a list of `(send_id, recv_id)` tuples.
-        """
-        try:
-            success = True
-            for motor_id in motor_ids:
-                if not self.set_torque(motor_id, enabled):
-                    success = False
-            return success
-        except Exception as e:
-            logger.error(f"Failed to bulk set torque: {e}")
-            return False
-
-    def read_parameter(self, motor_id: tuple[int, int], param_addr: int) -> int | None:
-        """Read parameter from motor using CAN_CMD_QUERY_PARAM
-
-        `motor_id` must be a `(send_id, recv_id)` tuple. The query is sent using the
-        `send_id` (first element of the tuple).
-        """
-        try:
-            # Normalize send id
-            send_id = int(motor_id[0])
-            # Format: [motor_id_low, motor_id_high, CMD_QUERY_PARAM, param_addr_low, param_addr_high, 0, 0, 0]
-            query_data = bytes(
-                [
-                    send_id & 0xFF,
-                    (send_id >> 8) & 0xFF,
-                    DamiaoConstants.CAN_CMD_QUERY_PARAM,
-                    param_addr & 0xFF,
-                    (param_addr >> 8) & 0xFF,
-                    0,
-                    0,
-                    0,
-                ]
-            )
-
-            # Send query to parameter ID (0x7FF)
-            if not self._send_can_frame(DamiaoConstants.PARAM_ID, query_data):
-                return None
-
-            # Wait for response from motor (100ms for parameter reads)
-            response = self._recv_motor_response(expected_id=motor_id, timeout=0.1)
-            if not response or len(response.data) < 8:
-                return None
-
-            # Parse parameter value from response
-            # Response format:
-            #   [motor_id_low, motor_id_high, CMD_QUERY_PARAM,
-            #    param_addr_low, param_addr_high, value_low, value_high, 0]
-            if response.data[2] != DamiaoConstants.CAN_CMD_QUERY_PARAM:
-                return None
-
-            param_value = (response.data[6] << 8) | response.data[5]  # value_high, value_low
-            return param_value
-
-        except Exception as e:
-            logger.error(f"Failed to read parameter {param_addr} from motor {motor_id}: {e}")
-            return None
-
-    def write_parameter(self, motor_id: tuple[int, int], param_addr: int, value: int) -> bool:
-        """Write parameter to motor using CAN_CMD_WRITE_PARAM
-
-        `motor_id` must be a `(send_id, recv_id)` tuple. The write is sent using
-        the `send_id` (first element of the tuple).
-        """
-        try:
-            send_id = int(motor_id[0])
-            # Format (bytes): [motor_id_low, motor_id_high, CMD_WRITE_PARAM, param_addr_low, param_addr_high,
-            #                value_low, value_high, 0]
-            write_data = bytes(
-                [
-                    send_id & 0xFF,
-                    (send_id >> 8) & 0xFF,
-                    DamiaoConstants.CAN_CMD_WRITE_PARAM,
-                    param_addr & 0xFF,
-                    (param_addr >> 8) & 0xFF,
-                    value & 0xFF,
-                    (value >> 8) & 0xFF,
-                    0,
-                ]
-            )
-
-            # Send write command to parameter ID (0x7FF)
-            if not self._send_can_frame(DamiaoConstants.PARAM_ID, write_data):
-                return False
-
-            # Wait for acknowledgment (optional - some implementations may not respond)
-            response = self._recv_motor_response(expected_id=motor_id, timeout=0.1)
-            if response and len(response.data) >= 3:
-                # Check if response acknowledges the write command
-                if response.data[2] == DamiaoConstants.CAN_CMD_WRITE_PARAM:
-                    return True
-
-            # If no response or timeout, assume success (common for write operations)
-            logger.debug(f"Parameter {param_addr} written to motor {motor_id} (value: {value})")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to write parameter {param_addr} to motor {motor_id}: {e}")
-            return False
-
-    def save_parameters(self, motor_id: tuple[int, int]) -> bool:
-        """Save current parameters to motor's non-volatile memory using CAN_CMD_SAVE_PARAM
-
-        `motor_id` must be a `(send_id, recv_id)` tuple; the save command is sent
-        using the `send_id` and the acknowledgment is matched by `motor_id`.
-        """
-        try:
-            send_id = int(motor_id[0])
-            # Format: [motor_id_low, motor_id_high, CMD_SAVE_PARAM, 0, 0, 0, 0, 0]
-            save_data = bytes(
-                [send_id & 0xFF, (send_id >> 8) & 0xFF, DamiaoConstants.CAN_CMD_SAVE_PARAM, 0, 0, 0, 0, 0]
-            )
-
-            # Send save command to parameter ID (0x7FF)
-            if not self._send_can_frame(DamiaoConstants.PARAM_ID, save_data):
-                return False
-
-            # Wait for acknowledgment
-            response = self._recv_motor_response(expected_id=motor_id, timeout=0.2)
-            if response and len(response.data) >= 3:
-                # Check if response acknowledges the save command
-                if response.data[2] == DamiaoConstants.CAN_CMD_SAVE_PARAM:
-                    logger.info(f"Parameters saved to motor {motor_id}")
-                    return True
-
-            # If no response, assume success after a delay
-            time.sleep(0.1)  # Give motor time to save
-            logger.info(f"Parameters save command sent to motor {motor_id}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to save parameters for motor {motor_id}: {e}")
-            return False
+    def bulk_set_goal_position(self, motor_positions: dict[tuple[int, int], float]) -> None:
+        for mid, pos in motor_positions.items():
+            self.set_goal_position(mid, pos)

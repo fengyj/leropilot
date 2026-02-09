@@ -25,8 +25,15 @@ import { PageContainer } from '../../components/ui/page-container';
 import { Modal } from '../../components/ui/modal';
 import { MessageBox } from '../../components/ui/message-box';
 import { StatusBadge } from '../../components/ui/status-badge';
+import { MotorGauge } from '../../components/ui/motor-gauge';
+import { MotorGaugeGroup } from '../../components/ui/motor-gauge-group';
+
+
+import { useTheme } from '../../contexts/theme-context';
+// ... imports
 
 export function DesignSystemPreview() {
+    const { theme, setTheme } = useTheme(); // Use the hook
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [showDangerConfirm, setShowDangerConfirm] = useState(false);
@@ -39,7 +46,16 @@ export function DesignSystemPreview() {
             <div className="space-y-12 pb-20">
                 {/* Header */}
                 <section className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight text-content-primary">Design System Preview</h1>
+                    <div className="flex justify-between items-start">
+                        <h1 className="text-4xl font-bold tracking-tight text-content-primary">Design System Preview</h1>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                        >
+                            {theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+                        </Button>
+                    </div>
                     <p className="text-xl text-content-secondary max-w-2xl">
                         A showcase of the unified visual language for LeroPilot.
                         This page demonstrates components, states, and the overall aesthetic.
@@ -361,9 +377,89 @@ export function DesignSystemPreview() {
                         </div>
                     </div>
                 </section>
+                {/* Motor Gauge Section */}
+                <section className="space-y-6">
+                    <div className="border-b border-border-default pb-2">
+                        <h2 className="text-2xl font-semibold text-content-primary">Motor Interface</h2>
+                        <p className="text-content-tertiary">Specialized visualizations for hardware telemetry.</p>
+                    </div>
+
+                    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium uppercase tracking-wider text-content-tertiary">Standard Gauge</h3>
+                            <Card className="p-6 flex flex-col items-center justify-center bg-surface-secondary/30">
+                                <MotorGauge
+                                    speed={130.9} // 1250 RPM * (2PI/60)
+                                    angle={Math.PI / 4} // 45 degrees
+                                    limitMax={3000} // RPM
+                                    rangeMin={-261.8} // -2500 RPM
+                                    rangeMax={261.8} // 2500 RPM
+                                    limitAngleMin={-2.356} // -135 degrees
+                                    limitAngleMax={2.356} // 135 degrees
+                                    size={200}
+                                />
+                                <p className="mt-4 text-sm text-content-secondary font-mono">Speed: 1250 RPM (Input: 130.9 rad/s)</p>
+                            </Card>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium uppercase tracking-wider text-content-tertiary">Warning State</h3>
+                            <Card className="p-6 flex flex-col items-center justify-center bg-surface-secondary/30">
+                                <MotorGauge
+                                    speed={335.1} // 3200 RPM
+                                    angle={Math.PI} // 180 degrees
+                                    limitMax={3000} // RPM
+                                    size={200}
+                                    className="border-error/20"
+                                />
+                                <p className="mt-4 text-sm text-error-content font-mono font-medium">Over Speed! (Input: 335.1 rad/s)</p>
+                            </Card>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium uppercase tracking-wider text-content-tertiary">Mini / Thumbnail</h3>
+                            <Card className="p-4 flex flex-row gap-4 items-center bg-surface-secondary/30">
+                                <MotorGauge
+                                    speed={-52.36} // -500 RPM
+                                    angle={1.5 * Math.PI} // 270 degrees
+                                    limitMax={3000} // RPM
+                                    limitAngleMin={-Math.PI / 2}
+                                    limitAngleMax={Math.PI / 2}
+                                    size={80}
+                                />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium text-content-primary">Joint 1</p>
+                                    <p className="text-xs text-content-secondary font-mono">-500 RPM (-52.3 rad/s)</p>
+                                </div>
+                            </Card>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Motor Gauge Group Section */}
+                <section className="space-y-6">
+                    <div className="border-b border-border-default pb-2">
+                        <h2 className="text-2xl font-semibold text-content-primary">Motor Interface Groups</h2>
+                        <p className="text-content-tertiary">Coordinated control for multiple motor bus systems.</p>
+                    </div>
+
+                    <MotorGaugeGroup
+                        title="Left Arm Bus"
+                        motors={{
+                            "Shoulder Pitch": { speed: 47.1, angle: 0.26, limitMax: 3000, rangeMax: 261.8, limitAngleMin: -1.57, limitAngleMax: 1.57 },
+                            "Shoulder Roll": { speed: -12.5, angle: 0.78, limitMax: 3000, rangeMax: 261.8, limitAngleMin: -0.78, limitAngleMax: 0.78 },
+                            "Shoulder Yaw": { speed: 83.7, angle: -0.17, limitMax: 3000, rangeMax: 261.8 },
+                            "Elbow Pitch": { speed: 125.6, angle: 2.09, limitMax: 3000, rangeMax: 261.8, limitAngleMin: 0, limitAngleMax: 2.61 },
+                            "Wrist Roll": { speed: 219.9, angle: 3.14, limitMax: 3000, rangeMax: 261.8 },
+                            "Wrist Pitch": { speed: 5.2, angle: 0.52, limitMax: 3000, rangeMax: 261.8 },
+                            "Gripper": { speed: 0, angle: 0.08, limitMax: 1000, rangeMax: 83.7 },
+                        }}
+                    />
+                </section>
             </div>
 
             {/* Demo Dialogs */}
+
             <Modal
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
@@ -434,6 +530,6 @@ export function DesignSystemPreview() {
                 description="A new version of the software is available. Would you like to update now?"
                 buttonType="yes-no"
             />
-        </PageContainer>
+        </PageContainer >
     );
 }

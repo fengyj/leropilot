@@ -28,12 +28,13 @@ def probe(interface: str, motor_id: int, baud: int = 1000000) -> None:
         print(f"Ping motor {motor_id}: {ping_ok}")
 
         if ping_ok:
-            telemetry = driver.read_telemetry(motor_id)
-            print(f"Telemetry: {telemetry}")
-
             model = driver.identify_model(motor_id)
             if model:
                 print(f"Identified model: {model.model} (variant: {model.variant}, ids: {model.model_ids})")
+
+                # Read telemetry with model_info
+                telemetry = driver.read_telemetry(motor_id, model)
+                print(f"Telemetry: {telemetry}")
             else:
                 print("Model identification failed or not available")
         else:

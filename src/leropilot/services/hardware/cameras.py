@@ -8,6 +8,7 @@ Note: This module replaces the older `camera.py` module; `camera.py` remains as 
 compatibility shim re-exporting `CameraService` from here.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 
@@ -30,14 +31,14 @@ class CameraService:
         logger.info("CameraService initialized")
 
     def list_cameras(self) -> list[CameraSummary]:
-        """Enumerate available cameras using OpenCV indices (0..19).
+        """Enumerate available cameras using OpenCV indices (0..15).
 
         Returns a list of `CameraSummary` objects with best-effort width/height.
         """
         summaries: list[CameraSummary] = []
 
         try:
-            for index in range(20):
+            for index in range(16):
                 cap = cv2.VideoCapture(index)
                 if cap.isOpened():
                     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
@@ -82,6 +83,7 @@ class CameraService:
         from leropilot.utils.unix import UdevManager
 
         udev_manager = UdevManager()
+        # On Linux udev needs /dev/videoX for permission checking, on Windows this is ignored
         device_path = f"/dev/video{camera_index}"
 
         def _try_open() -> cv2.VideoCapture | None:
@@ -122,8 +124,6 @@ class CameraService:
         Name: `stream_encoded_frames` is intentionally generic — it yields encoded images
         (JPEG or PNG). For WebSocket transport this is a simple and interoperable approach.
         """
-        import asyncio
-
         fmt_lower = (fmt or "jpeg").lower()
         if fmt_lower not in ("jpeg", "png"):
             raise ValueError("Unsupported format; supported: jpeg, png")
@@ -135,6 +135,7 @@ class CameraService:
         from leropilot.utils.unix import UdevManager
 
         udev_manager = UdevManager()
+        # On Linux udev needs /dev/videoX for permission checking, on Windows this is ignored
         device_path = f"/dev/video{camera_index}"
 
         def _try_open() -> cv2.VideoCapture | None:
@@ -152,11 +153,24 @@ class CameraService:
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
             cap.set(cv2.CAP_PROP_FPS, fps)
 
+            consecutive_failures = 0
             while True:
+                if not cap.isOpened():
+                    logger.error(f"Camera {camera_index} was closed or lost")
+                    break
+
                 ret, frame = await loop.run_in_executor(None, cap.read)
                 if not ret or frame is None:
+                    consecutive_failures += 1
+                    # If we fail for ~2 seconds (40 * 0.05s), stop to avoid infinite loop
+                    if consecutive_failures > 40:
+                        logger.error(f"Camera {camera_index} read failed consistently, stopping stream.")
+                        break
+
                     await asyncio.sleep(0.05)
                     continue
+
+                consecutive_failures = 0
                 ok, buf = await loop.run_in_executor(None, cv2.imencode, ext, frame)
                 if not ok:
                     await asyncio.sleep(interval)

@@ -296,6 +296,7 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
   const [_showTransientConfirm, setShowTransientConfirm] = useState(false);
   const [duplicateCandidate, setDuplicateCandidate] = useState<{ id: string; name: string } | null>(null);
   const [refreshingDevices, setRefreshingDevices] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const [selectedDefinitionId, setSelectedDefinitionId] = useState<string>("");
   const [category, setCategory] = useState<'robot'|'controller'>('robot');
@@ -337,6 +338,11 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
       }
     }
   }, [selectedDefinitionId, definitions]);
+
+  // Reset image error state when selecting a new definition
+  useEffect(() => {
+    setImageError(false);
+  }, [selectedDefinitionId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -695,25 +701,21 @@ export const AddRobotModal: React.FC<AddRobotModalProps> = ({ isOpen, onClose, o
           
           {/* Image Area: Takes remaining space */}
           <div className="flex-1 flex items-center justify-center relative min-h-0 w-full z-10">
-            {selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id ? (
+            {selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id && !imageError ? (
               <img
                 key={selectedDef.id}
                 src={`/api/hardware/robots/definitions/${selectedDef.id}/image`}
                 alt={selectedDef.display_name}
                 className="block max-w-full max-h-full w-auto h-auto mx-auto object-contain drop-shadow-xl animate-in fade-in zoom-in slide-in-from-bottom-4 duration-700 ease-out"
-                // Fallback for when image fails to load (optional but recommended)
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement?.querySelector('.image-placeholder')?.classList.remove('hidden');
-                }}
+                onLoad={() => setImageError(false)}
+                onError={() => setImageError(true)}
               />
-            ) : null}
-
-            {/* Placeholder icon shown when no image or custom selection */}
-            <div className={`image-placeholder flex flex-col items-center text-content-tertiary p-8 border-2 border-dashed border-border-default rounded-3xl animate-in fade-in duration-500 ${(selectedDefinitionId && selectedDefinitionId !== 'custom' && selectedDef?.id) ? 'hidden' : ''}`}>
-              <Bot className="h-32 w-32 mb-4 opacity-10" />
-              <div className="h-1.5 w-16 bg-content-tertiary/20 rounded-full" />
-            </div>
+            ) : (
+              <div className="image-placeholder flex flex-col items-center text-content-tertiary p-8 border-2 border-dashed border-border-default rounded-3xl animate-in fade-in duration-500">
+                <Bot className="h-32 w-32 mb-4 opacity-10" />
+                <div className="h-1.5 w-16 bg-content-tertiary/20 rounded-full" />
+              </div>
+            )}
           </div>
 
           {/* Info Area: Fixed Height */}

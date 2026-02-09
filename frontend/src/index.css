@@ -116,49 +116,86 @@
 :root.dark,
 [data-theme='dark'] {
   color-scheme: dark;
-  
+
   /* Deep Blue/Slate Black for Modern Dark Mode */
-  --bg-primary: #020617; /* Slate 950 */
-  --bg-secondary: #0f172a; /* Slate 900 */
-  --bg-tertiary: #1e293b; /* Slate 800 */
-  --bg-card: rgba(30, 41, 59, 0.4); /* Glassy Slate 800 - Lighter than background for better depth */
-  --bg-inverse: #f8fafc; /* Slate 50 */
-  
-  --text-primary: #f8fafc; /* Slate 50 */
-  --text-secondary: #94a3b8; /* Slate 400 */
-  --text-tertiary: #64748b; /* Slate 500 */
-  --text-inverse: #0f172a; /* Slate 900 */
+  --bg-primary: #020617;
+  /* Slate 950 */
+  --bg-secondary: #0f172a;
+  /* Slate 900 */
+  --bg-tertiary: #1e293b;
+  /* Slate 800 */
+  --bg-card: rgba(30, 41, 59, 0.4);
+  /* Glassy Slate 800 - Lighter than background for better depth */
+  --bg-inverse: #f8fafc;
+  /* Slate 50 */
+
+  --text-primary: #f8fafc;
+  /* Slate 50 */
+  --text-secondary: #94a3b8;
+  /* Slate 400 */
+  --text-tertiary: #64748b;
+  /* Slate 500 */
+  --text-inverse: #0f172a;
+  /* Slate 900 */
 
   /* Subtle, sophisticated borders */
-  --border-primary: rgba(148, 163, 184, 0.25); /* Slate 400 at 25% - Increased for better visibility */
-  --border-secondary: rgba(148, 163, 184, 0.15); /* Slate 400 at 15% */
-  --border-strong: rgba(148, 163, 184, 0.5); /* Stronger border for modals/popups */
+  --border-primary: rgba(148, 163, 184, 0.25);
+  /* Slate 400 at 25% - Increased for better visibility */
+  --border-secondary: rgba(148, 163, 184, 0.15);
+  /* Slate 400 at 15% */
+  --border-strong: rgba(148, 163, 184, 0.5);
+  /* Stronger border for modals/popups */
 
   /* Status - Vibrant yet contained */
   --bg-success: rgba(16, 185, 129, 0.15);
-  --text-success: #34d399; /* Emerald 400 */
+  --text-success: #34d399;
+  /* Emerald 400 */
   --border-success: rgba(16, 185, 129, 0.3);
   --icon-success: #34d399;
 
   --bg-error: rgba(225, 29, 72, 0.15);
-  --text-error: #fb7185; /* Rose 400 */
+  --text-error: #fb7185;
+  /* Rose 400 */
   --border-error: rgba(225, 29, 72, 0.3);
   --icon-error: #fb7185;
 
   --bg-warning: rgba(245, 158, 11, 0.15);
-  --text-warning: #fbbf24; /* Amber 400 */
+  --text-warning: #fbbf24;
+  /* Amber 400 */
   --border-warning: rgba(245, 158, 11, 0.3);
   --icon-warning: #fbbf24;
 
   --bg-info: rgba(124, 58, 237, 0.15);
-  --text-info: #a78bfa; /* Violet 400 */
+  --text-info: #a78bfa;
+  /* Violet 400 */
   --border-info: rgba(124, 58, 237, 0.3);
   --icon-info: #a78bfa;
+
+  /* MotorGauge Component */
+  --motor-gauge-bg-track: var(--border-info);
+  /* Violet 200 - Disabled Button Look */
+  --motor-gauge-safe-range: var(--color-primary);
+  /* Primary (Violet) */
+  --motor-gauge-warning: var(--color-status-danger);
+  /* Rose 600 */
+  --motor-gauge-needle: var(--color-status-danger);
+  /* Rose 600 */
+  --motor-gauge-marker-static: var(--text-secondary);
+  /* Slate 600 */
+  --motor-gauge-marker-dynamic: var(--text-secondary);
+  --motor-gauge-text-primary: var(--text-primary);
+  /* Slate 800 */
+  --motor-gauge-text-secondary: var(--text-secondary);
+  /* Slate 600 */
+
+
 }
 
 /* Custom Status Badge Animations */
 @keyframes signal-ping {
-  75%, 100% {
+
+  75%,
+  100% {
     transform: scale(2);
     opacity: 0;
   }
@@ -176,44 +213,88 @@
 :root.light,
 [data-theme='light'] {
   color-scheme: light;
-  
-  /* Clean Off-White Foundation */
-  --bg-primary: #f8fafc; /* Slate 50 */
-  --bg-secondary: #ffffff; /* White */
-  --bg-tertiary: #f1f5f9; /* Slate 100 */
-  --bg-card: #ffffff;
-  --bg-inverse: #0f172a; /* Slate 900 */
 
-  --text-primary: #0f172a; /* Slate 900 */
-  --text-secondary: #64748b; /* Slate 500 */
-  --text-tertiary: #94a3b8; /* Slate 400 */
-  --text-inverse: #f8fafc; /* Slate 50 */
+  /* Clean Off-White Foundation */
+  --bg-primary: #f8fafc;
+  /* Slate 50 */
+  --bg-secondary: #ffffff;
+  /* White */
+  --bg-tertiary: #f1f5f9;
+  /* Slate 100 */
+  --bg-card: #ffffff;
+  --bg-inverse: #0f172a;
+  /* Slate 900 */
+
+  --text-primary: #1e293b;
+  /* Slate 800 - Slightly softer for headers */
+  --text-secondary: #475569;
+  /* Slate 600 - Readable sub-headers */
+  --text-tertiary: #64748b;
+  /* Slate 500 - Clear auxiliary labels (fixing too light) */
+  --text-inverse: #f8fafc;
+  /* Slate 50 */
 
   /* Subtle Borders for "Non-Stiff" feel */
-  --border-primary: rgba(15, 23, 42, 0.08); /* Black-ish at 8% */
-  --border-secondary: rgba(15, 23, 42, 0.04); /* Black-ish at 4% */
-  --border-strong: #e2e8f0; /* Slate 200 - Solid for visibility */
+  --border-primary: rgba(15, 23, 42, 0.08);
+  /* Black-ish at 8% */
+  --border-secondary: rgba(15, 23, 42, 0.04);
+  /* Black-ish at 4% */
+  --border-strong: #e2e8f0;
+  /* Slate 200 - Solid for visibility */
 
   /* Status - Soft & Clear */
-  --bg-success: #ecfdf5; /* Emerald 50 */
-  --text-success: #047857; /* Emerald 700 */
-  --border-success: #a7f3d0; /* Emerald 200 */
-  --icon-success: #059669; /* Emerald 600 */
+  --bg-success: #ecfdf5;
+  /* Emerald 50 */
+  --text-success: #047857;
+  /* Emerald 700 */
+  --border-success: #a7f3d0;
+  /* Emerald 200 */
+  --icon-success: #059669;
+  /* Emerald 600 */
 
-  --bg-error: #fff1f2; /* Rose 50 */
-  --text-error: #be123c; /* Rose 700 */
-  --border-error: #fecdd3; /* Rose 200 */
-  --icon-error: #e11d48; /* Rose 600 */
+  --bg-error: #fff1f2;
+  /* Rose 50 */
+  --text-error: #be123c;
+  /* Rose 700 */
+  --border-error: #fecdd3;
+  /* Rose 200 */
+  --icon-error: #e11d48;
+  /* Rose 600 */
 
-  --bg-warning: #fffbeb; /* Amber 50 */
-  --text-warning: #b45309; /* Amber 700 */
-  --border-warning: #fde68a; /* Amber 200 */
-  --icon-warning: #d97706; /* Amber 600 */
+  --bg-warning: #fffbeb;
+  /* Amber 50 */
+  --text-warning: #b45309;
+  /* Amber 700 */
+  --border-warning: #fde68a;
+  /* Amber 200 */
+  --icon-warning: #d97706;
+  /* Amber 600 */
 
-  --bg-info: #f5f3ff; /* Violet 50 */
-  --text-info: #6d28d9; /* Violet 700 */
-  --border-info: #ddd6fe; /* Violet 200 */
-  --icon-info: #7c3aed; /* Violet 600 */
+  --bg-info: #f5f3ff;
+  /* Violet 50 */
+  --text-info: #6d28d9;
+  /* Violet 700 */
+  --border-info: #ddd6fe;
+  /* Violet 200 */
+  --icon-info: #7c3aed;
+  /* Violet 600 */
+
+  /* MotorGauge Component - Light Theme Defaults */
+  --motor-gauge-bg-track: var(--border-info);
+  /* Violet 200 - Disabled Button Look */
+  --motor-gauge-safe-range: var(--color-primary);
+  /* Primary (Violet) */
+  --motor-gauge-warning: var(--color-status-danger);
+  /* Rose 600 */
+  --motor-gauge-needle: var(--color-status-danger);
+  /* Rose 600 */
+  --motor-gauge-marker-static: var(--text-secondary);
+  /* Slate 600 */
+  --motor-gauge-marker-dynamic: var(--text-secondary);
+  --motor-gauge-text-primary: var(--text-primary);
+  /* Slate 800 */
+  --motor-gauge-text-secondary: var(--text-secondary);
+  /* Slate 600 */
 }
 
 /* Apply theme to body */
@@ -224,16 +305,16 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
-  
+
   /* Ambient Background Gradients for depth */
-  background-image: 
+  background-image:
     radial-gradient(circle at 0% 0%, rgba(124, 58, 237, 0.03) 0%, transparent 40%),
     radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.03) 0%, transparent 40%);
   background-attachment: fixed;
 }
 
 [data-theme='dark'] body {
-  background-image: 
+  background-image:
     radial-gradient(circle at 0% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 40%),
     radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.08) 0%, transparent 40%);
 }

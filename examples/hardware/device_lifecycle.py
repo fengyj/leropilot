@@ -37,7 +37,7 @@ def main() -> None:
 
         # Add a device
         print("\n➕ Adding Device: 'Koch v1.1 (Dynamixel)'")
-        robot = Robot(id="demo123", name="Koch v1.1 (Dynamixel)")
+        robot = Robot(id="demo123", name="Koch v1.1 (Dynamixel)", is_calibrated=False)
         manager.add_robot(robot)
         print(f"  ✅ Added: {robot.id}")
 

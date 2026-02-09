@@ -268,7 +268,6 @@ class RobotManager:
 
                 existing_limits = {limit.type: limit.value for limit in current_settings[key]}
 
-
                 for type_name, val in default_limits.items():
                     if type_name not in existing_limits:
                         current_settings[key].append(MotorLimit(type=type_name, value=val))
@@ -288,6 +287,9 @@ class RobotManager:
                 robot.id = uuid.uuid4().hex
 
             self._normalize_robot(robot)
+
+            # Ensure newly-added robots are marked uncalibrated by default
+            robot.is_calibrated = False
 
             if robot.id in self._robots:
                 raise ResourceConflictError("hardware.robot_device.conflict_id", id=robot.id)

@@ -13,13 +13,10 @@ import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .manager import RobotManager
 
 from leropilot.exceptions import ResourceNotFoundError
 
+from .manager import RobotManager
 from .paths import get_robot_urdf_dir
 
 logger = logging.getLogger(__name__)
@@ -28,7 +25,7 @@ logger = logging.getLogger(__name__)
 class RobotUrdfManager:
     """Manager for robot URDF files and archives."""
 
-    def __init__(self, robot_manager: "RobotManager | None" = None) -> None:
+    def __init__(self, robot_manager: RobotManager | None = None) -> None:
         """
         Initialize URDF manager.
 
@@ -38,7 +35,7 @@ class RobotUrdfManager:
         """
         self._robot_manager = robot_manager
 
-    def _get_robot_manager(self) -> "RobotManager":
+    def _get_robot_manager(self) -> RobotManager:
         """Get robot manager instance (lazy loading to avoid circular imports)."""
         if self._robot_manager is None:
             from .manager import get_robot_manager
@@ -154,6 +151,12 @@ class RobotUrdfManager:
                     if not src_urdf.exists():
                         raise ValueError(f"Expected URDF file not found: {src_urdf}")
                     if src_urdf.name != "robot.urdf":
+                        # Replace existing file if present (helps tests that run repeatedly)
+                        if dest_urdf.exists():
+                            try:
+                                dest_urdf.unlink()
+                            except Exception:
+                                pass
                         src_urdf.rename(dest_urdf)
 
                     validate_fn(dest_urdf)
@@ -192,6 +195,12 @@ class RobotUrdfManager:
                     if not src_urdf.exists():
                         raise ValueError(f"Expected URDF file not found: {src_urdf}")
                     if src_urdf.name != "robot.urdf":
+                        # Replace existing file if present (helps tests that run repeatedly)
+                        if dest_urdf.exists():
+                            try:
+                                dest_urdf.unlink()
+                            except Exception:
+                                pass
                         src_urdf.rename(dest_urdf)
 
                     validate_fn(dest_urdf)
@@ -244,7 +253,8 @@ class RobotUrdfManager:
         defn = robot.definition
         if isinstance(defn, str):
             raise ValueError("Robot.definition must be a RobotDefinition, not a string")
-        # If there's no definition, there is no built-in URDF
+
+        # If there's no explicit definition, there is no built-in URDF
         if not defn:
             return None
 

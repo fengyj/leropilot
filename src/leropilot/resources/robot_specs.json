@@ -18,50 +18,51 @@
                 "motorbus": {
                     "type": "FeetechMotorBus",
                     "baud_rate": 1000000,
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "variant": "STS3215-C002",
+                            "norm_mode": "range_0_100"
                         }
-                    ]
+                    }
                 }
             }
         },
@@ -83,50 +84,51 @@
                 "motorbus": {
                     "type": "FeetechMotorBus",
                     "baud_rate": 1000000,
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C002"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "variant": "STS3215-C002",
+                            "norm_mode": "range_0_100"
                         }
-                    ]
+                    }
                 }
             }
         },
@@ -147,50 +149,51 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C018"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
-                            "variant": "STS3215-C018"
+                            "variant": "STS3215-C018",
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -212,50 +215,51 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "variant": "STS3215-C001",
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -277,50 +281,51 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C044"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C044"
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
                             "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "variant": "STS3215-C046",
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -342,50 +347,51 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "DynamixelMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "dynamixel",
-                            "model": "XL330-M288",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M288"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "dynamixel",
-                            "model": "XL330-M288",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M288"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "dynamixel",
-                            "model": "XL330-M288",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M288"
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "dynamixel",
-                            "model": "XL330-M288",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M288"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "dynamixel",
-                            "model": "XL330-M288",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M288"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "dynamixel",
-                            "model": "XL330-M288",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M288",
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -407,51 +413,52 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "DynamixelMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pan": {
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "dynamixel",
-                            "model": "XL330-M077",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M077"
                         },
-                        {
+                        "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "dynamixel",
-                            "model": "XL330-M077",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M077"
                         },
-                        {
+                        "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "dynamixel",
-                            "model": "XL330-M077",
-                            "variant": null,
+                            "model": "XL330",
+                            "variant": "M077",
                             "drive_mode": 1
                         },
-                        {
+                        "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "dynamixel",
-                            "model": "XL330-M077",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M077"
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "dynamixel",
-                            "model": "XL330-M077",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M077"
                         },
-                        {
+                        "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "dynamixel",
-                            "model": "XL330-M077",
-                            "variant": null
+                            "model": "XL330",
+                            "variant": "M077",
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -473,57 +480,57 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "DynamixelMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "joint_1": {
                             "id": 1,
                             "name": "joint_1",
                             "brand": "dynamixel",
-                            "model": "XM430-W350",
-                            "variant": null
+                            "model": "XM430",
+                            "variant": "W350"
                         },
-                        {
+                        "joint_2": {
                             "id": 2,
                             "name": "joint_2",
                             "brand": "dynamixel",
-                            "model": "XM430-W350",
-                            "variant": null
+                            "model": "XM430",
+                            "variant": "W350"
                         },
-                        {
+                        "joint_3": {
                             "id": 3,
                             "name": "joint_3",
                             "brand": "dynamixel",
-                            "model": "XL430-W250",
-                            "variant": null
+                            "model": "XL430",
+                            "variant": "W250"
                         },
-                        {
+                        "joint_4": {
                             "id": 4,
                             "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_5": {
                             "id": 5,
                             "name": "joint_5",
                             "brand": "dynamixel",
-                            "model": "XL430-W250",
-                            "variant": null
+                            "model": "XL430",
+                            "variant": "W250"
                         },
-                        {
+                        "joint_6": {
                             "id": 6,
                             "name": "joint_6",
                             "brand": "dynamixel",
-                            "model": "XL430-W250",
-                            "variant": null
+                            "model": "XL430",
+                            "variant": "W250"
                         },
-                        {
+                        "joint_7": {
                             "id": 7,
                             "name": "joint_7",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -545,57 +552,57 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "DynamixelMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "joint_1": {
                             "id": 1,
                             "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XC430-W150",
                             "variant": null
                         },
-                        {
+                        "joint_2": {
                             "id": 2,
                             "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
-                        {
+                        "joint_3": {
                             "id": 3,
                             "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
-                        {
+                        "joint_4": {
                             "id": 4,
                             "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
-                        {
+                        "joint_5": {
                             "id": 5,
                             "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
-                        {
+                        "joint_6": {
                             "id": 6,
                             "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
-                        {
+                        "joint_7": {
                             "id": 7,
                             "name": "joint_7",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -617,74 +624,75 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "base_left_wheel": {
                             "id": 17,
                             "name": "base_left_wheel",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046",
-                            "need_calibration": false
+                            "is_full_turn": true
                         },
-                        {
+                        "base_back_wheel": {
                             "id": 18,
                             "name": "base_back_wheel",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046",
-                            "need_calibration": false
+                            "is_full_turn": true
                         },
-                        {
+                        "base_right_wheel": {
                             "id": 19,
                             "name": "base_right_wheel",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046",
-                            "need_calibration": false
+                            "is_full_turn": true
                         },
-                        {
+                        "arm_shoulder_pan": {
                             "id": 1,
                             "name": "arm_shoulder_pan",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C001"
                         },
-                        {
+                        "arm_shoulder_lift": {
                             "id": 2,
                             "name": "arm_shoulder_lift",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
-                        {
+                        "arm_elbow_flex": {
                             "id": 3,
                             "name": "arm_elbow_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
-                        {
+                        "arm_wrist_flex": {
                             "id": 4,
                             "name": "arm_wrist_flex",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
-                        {
+                        "arm_wrist_roll": {
                             "id": 5,
                             "name": "arm_wrist_roll",
                             "brand": "feetech",
                             "model": "STS3215",
                             "variant": "STS3215-C046"
                         },
-                        {
+                        "arm_gripper": {
                             "id": 6,
                             "name": "arm_gripper",
                             "brand": "feetech",
                             "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "variant": "STS3215-C046",
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -706,50 +714,50 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "DynamixelMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "joint_1": {
                             "id": 11,
                             "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_2": {
                             "id": 12,
                             "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_3": {
                             "id": 13,
                             "name": "joint_3",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_4": {
                             "id": 14,
                             "name": "joint_4",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_5": {
                             "id": 15,
                             "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         },
-                        {
+                        "joint_6": {
                             "id": 16,
                             "name": "joint_6",
                             "brand": "dynamixel",
                             "model": "XL330-M288",
                             "variant": null
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -771,43 +779,43 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "DynamixelMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "joint_1": {
                             "id": 1,
                             "name": "joint_1",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_2": {
                             "id": 2,
                             "name": "joint_2",
                             "brand": "dynamixel",
                             "model": "XL430-W250",
                             "variant": null
                         },
-                        {
+                        "joint_3": {
                             "id": 3,
                             "name": "joint_3",
                             "brand": "dynamixel",
-                            "model": "XL430-W250",
-                            "variant": null
+                            "model": "XL430",
+                            "variant": "W250"
                         },
-                        {
+                        "joint_4": {
                             "id": 4,
                             "name": "joint_4",
                             "brand": "dynamixel",
-                            "model": "XL430-W250",
-                            "variant": null
+                            "model": "XL430",
+                            "variant": "W250"
                         },
-                        {
+                        "joint_5": {
                             "id": 5,
                             "name": "joint_5",
                             "brand": "dynamixel",
                             "model": "XL330-M077",
                             "variant": null
                         },
-                        {
+                        "joint_6": {
                             "id": 6,
                             "name": "joint_6",
                             "brand": "dynamixel",
@@ -815,7 +823,7 @@
                             "variant": null,
                             "drive_mode": 1
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -837,57 +845,57 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pitch": {
                             "id": 1,
                             "name": "shoulder_pitch",
                             "brand": "feetech",
                             "model": "SM8512BL",
                             "variant": null
                         },
-                        {
+                        "shoulder_yaw": {
                             "id": 2,
                             "name": "shoulder_yaw",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "shoulder_roll": {
                             "id": 3,
                             "name": "shoulder_roll",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "elbow_flex": {
                             "id": 4,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
-                        {
+                        "wrist_yaw": {
                             "id": 6,
                             "name": "wrist_yaw",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
-                        {
+                        "wrist_pitch": {
                             "id": 7,
                             "name": "wrist_pitch",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -909,135 +917,151 @@
             "motor_buses": {
                 "motorbus": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "thumb_cmc": {
                             "id": 1,
                             "name": "thumb_cmc",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_mcp": {
                             "id": 2,
                             "name": "thumb_mcp",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_pip": {
                             "id": 3,
                             "name": "thumb_pip",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_dip": {
                             "id": 4,
                             "name": "thumb_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_radial_flexor": {
                             "id": 5,
                             "name": "index_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_ulnar_flexor": {
                             "id": 6,
                             "name": "index_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_pip_dip": {
                             "id": 7,
                             "name": "index_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_radial_flexor": {
                             "id": 8,
                             "name": "middle_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_ulnar_flexor": {
                             "id": 9,
                             "name": "middle_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_pip_dip": {
                             "id": 10,
                             "name": "middle_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_radial_flexor": {
                             "id": 11,
                             "name": "ring_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_ulnar_flexor": {
                             "id": 12,
                             "name": "ring_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_pip_dip": {
                             "id": 13,
                             "name": "ring_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_radial_flexor": {
                             "id": 14,
                             "name": "pinky_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_ulnar_flexor": {
                             "id": 15,
                             "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_pip_dip": {
                             "id": 16,
                             "name": "pinky_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -1059,366 +1083,398 @@
             "motor_buses": {
                 "left_arm": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pitch": {
                             "id": 1,
                             "name": "shoulder_pitch",
                             "brand": "feetech",
                             "model": "SM8512BL",
                             "variant": null
                         },
-                        {
+                        "shoulder_yaw": {
                             "id": 2,
                             "name": "shoulder_yaw",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "shoulder_roll": {
                             "id": 3,
                             "name": "shoulder_roll",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "elbow_flex": {
                             "id": 4,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
-                        {
+                        "wrist_yaw": {
                             "id": 6,
                             "name": "wrist_yaw",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
-                        {
+                        "wrist_pitch": {
                             "id": 7,
                             "name": "wrist_pitch",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 },
                 "right_arm": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "shoulder_pitch": {
                             "id": 1,
                             "name": "shoulder_pitch",
                             "brand": "feetech",
                             "model": "SM8512BL",
                             "variant": null
                         },
-                        {
+                        "shoulder_yaw": {
                             "id": 2,
                             "name": "shoulder_yaw",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "shoulder_roll": {
                             "id": 3,
                             "name": "shoulder_roll",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "elbow_flex": {
                             "id": 4,
                             "name": "elbow_flex",
                             "brand": "feetech",
                             "model": "ST3215-C018",
                             "variant": null
                         },
-                        {
+                        "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
-                        {
+                        "wrist_yaw": {
                             "id": 6,
                             "name": "wrist_yaw",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         },
-                        {
+                        "wrist_pitch": {
                             "id": 7,
                             "name": "wrist_pitch",
                             "brand": "feetech",
                             "model": "ST3250-C001",
                             "variant": null
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 },
                 "left_hand": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "thumb_cmc": {
                             "id": 1,
                             "name": "thumb_cmc",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_mcp": {
                             "id": 2,
                             "name": "thumb_mcp",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_pip": {
                             "id": 3,
                             "name": "thumb_pip",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_dip": {
                             "id": 4,
                             "name": "thumb_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_radial_flexor": {
                             "id": 5,
                             "name": "index_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_ulnar_flexor": {
                             "id": 6,
                             "name": "index_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_pip_dip": {
                             "id": 7,
                             "name": "index_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_radial_flexor": {
                             "id": 8,
                             "name": "middle_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_ulnar_flexor": {
                             "id": 9,
                             "name": "middle_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_pip_dip": {
                             "id": 10,
                             "name": "middle_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_radial_flexor": {
                             "id": 11,
                             "name": "ring_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_ulnar_flexor": {
                             "id": 12,
                             "name": "ring_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_pip_dip": {
                             "id": 13,
                             "name": "ring_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_radial_flexor": {
                             "id": 14,
                             "name": "pinky_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_ulnar_flexor": {
                             "id": 15,
                             "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_pip_dip": {
                             "id": 16,
                             "name": "pinky_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 },
                 "right_hand": {
                     "type": "FeetechMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "thumb_cmc": {
                             "id": 1,
                             "name": "thumb_cmc",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_mcp": {
                             "id": 2,
                             "name": "thumb_mcp",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_pip": {
                             "id": 3,
                             "name": "thumb_pip",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "thumb_dip": {
                             "id": 4,
                             "name": "thumb_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_radial_flexor": {
                             "id": 5,
                             "name": "index_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_ulnar_flexor": {
                             "id": 6,
                             "name": "index_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "index_pip_dip": {
                             "id": 7,
                             "name": "index_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_radial_flexor": {
                             "id": 8,
                             "name": "middle_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_ulnar_flexor": {
                             "id": 9,
                             "name": "middle_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "middle_pip_dip": {
                             "id": 10,
                             "name": "middle_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_radial_flexor": {
                             "id": 11,
                             "name": "ring_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_ulnar_flexor": {
                             "id": 12,
                             "name": "ring_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "ring_pip_dip": {
                             "id": 13,
                             "name": "ring_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_radial_flexor": {
                             "id": 14,
                             "name": "pinky_radial_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
-                            "variant": null
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_ulnar_flexor": {
                             "id": 15,
                             "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         },
-                        {
+                        "pinky_pip_dip": {
                             "id": 16,
                             "name": "pinky_pip_dip",
                             "brand": "feetech",
                             "model": "SCS0009",
                             "variant": null,
-                            "drive_mode": 1
+                            "drive_mode": 1,
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }
@@ -1430,7 +1486,6 @@
                 "en": "OpenArm Dual Arm Robot",
                 "zh": "OpenArm 双臂机器人"
             },
-            
             "description": {
                 "en": "Dual-arm collaborative robot with 7-DOF per arm using Damiao CAN motors",
                 "zh": "双臂协作机器人，双臂各 7 自由度，使用 Damiao CAN 电机"
@@ -1441,174 +1496,190 @@
             "motor_buses": {
                 "left_arm": {
                     "type": "DamiaoMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "joint_1": {
                             "id": [
                                 1,
                                 17
                             ],
                             "name": "joint_1",
                             "brand": "damiao",
-                            "model": "DM8009",
-                            "variant": "DM8009P"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_2": {
                             "id": [
                                 2,
                                 18
                             ],
                             "name": "joint_2",
                             "brand": "damiao",
-                            "model": "DM8009",
-                            "variant": "DM8009P"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_3": {
                             "id": [
                                 3,
                                 19
                             ],
                             "name": "joint_3",
                             "brand": "damiao",
-                            "model": "DM4340",
-                            "variant": "DM4340P"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_4": {
                             "id": [
                                 4,
                                 20
                             ],
                             "name": "joint_4",
                             "brand": "damiao",
-                            "model": "DM4340",
-                            "variant": "DM4340"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_5": {
                             "id": [
                                 5,
                                 21
                             ],
                             "name": "joint_5",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_6": {
                             "id": [
                                 6,
                                 22
                             ],
                             "name": "joint_6",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_7": {
                             "id": [
                                 7,
                                 23
                             ],
                             "name": "joint_7",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "gripper": {
                             "id": [
                                 8,
                                 24
                             ],
                             "name": "gripper",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 },
                 "right_arm": {
                     "type": "DamiaoMotorBus",
-                    "motors": [
-                        {
+                    "motors": {
+                        "joint_1": {
                             "id": [
                                 1,
                                 17
                             ],
                             "name": "joint_1",
                             "brand": "damiao",
-                            "model": "DM8009",
-                            "variant": "DM8009P"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_2": {
                             "id": [
                                 2,
                                 18
                             ],
                             "name": "joint_2",
                             "brand": "damiao",
-                            "model": "DM8009",
-                            "variant": "DM8009P"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_3": {
                             "id": [
                                 3,
                                 19
                             ],
                             "name": "joint_3",
                             "brand": "damiao",
-                            "model": "DM4340",
-                            "variant": "DM4340P"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_4": {
                             "id": [
                                 4,
                                 20
                             ],
                             "name": "joint_4",
                             "brand": "damiao",
-                            "model": "DM4340",
-                            "variant": "DM4340"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_5": {
                             "id": [
                                 5,
                                 21
                             ],
                             "name": "joint_5",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_6": {
                             "id": [
                                 6,
                                 22
                             ],
                             "name": "joint_6",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "joint_7": {
                             "id": [
                                 7,
                                 23
                             ],
                             "name": "joint_7",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "degrees"
                         },
-                        {
+                        "gripper": {
                             "id": [
                                 8,
                                 24
                             ],
                             "name": "gripper",
                             "brand": "damiao",
-                            "model": "DM4310",
-                            "variant": "DM4310"
+                            "model": "DM",
+                            "variant": null,
+                            "norm_mode": "range_0_100"
                         }
-                    ],
+                    },
                     "baud_rate": 1000000
                 }
             }

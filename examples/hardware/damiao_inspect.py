@@ -11,6 +11,7 @@ Example:
 import logging
 import sys
 
+from leropilot.exceptions import OperationalError
 from leropilot.models.hardware import MotorBrand
 from leropilot.services.hardware.motor_buses.damiao_motor_bus import DamiaoMotorBus
 from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
@@ -35,13 +36,13 @@ def main(interface: str, send_id: int, recv_id: int, baud: int = 1000000) -> Non
         ping_ok = driver.ping_motor(motor_tuple)
         print(f"Ping ({motor_tuple}): {ping_ok}")
 
-        # Read telemetry
-        telemetry = driver.read_telemetry(motor_tuple)
-        print(f"Telemetry: {telemetry}")
-
-        # Identify model via parameter reads
+        # Identify model via parameter reads (required for read_telemetry)
         model = driver.identify_model(motor_tuple)
         print(f"Identified model: {model}")
+
+        # Read telemetry with model_info
+        telemetry = driver.read_telemetry(motor_tuple, model)
+        print(f"Telemetry: {telemetry}")
 
         # Read a few parameters
         for addr in (0x00, 0x01, 0x100):
@@ -54,8 +55,7 @@ def main(interface: str, send_id: int, recv_id: int, baud: int = 1000000) -> Non
         # Register motor in a DamiaoMotorBus instance
         try:
             bus = DamiaoMotorBus(interface, bitrate=baud, motor_ids=[motor_tuple])
-            if not bus.connect():
-                logger.warning("DamiaoMotorBus connect failed (may be due to existing open channel), proceeding to register connected driver directly")
+            bus.connect()
 
             # Use the already-connected driver ("driver") or create a separate one if needed
             try:
@@ -66,6 +66,7 @@ def main(interface: str, send_id: int, recv_id: int, baud: int = 1000000) -> Non
                     mdrv = driver
                 mdrv.motor_id = motor_tuple
                 from leropilot.models.hardware import MotorModelInfo
+
                 # Create a minimal MotorModelInfo for demonstration (real code should look up proper model table entries)
                 mi = MotorModelInfo(model=model or "Unknown", model_ids=[0], limits={}, brand=MotorBrand.DAMIAO)
                 bus.register_motor(mdrv.motor_id, mdrv, mi)
@@ -75,17 +76,22 @@ def main(interface: str, send_id: int, recv_id: int, baud: int = 1000000) -> Non
                 print(f"Telemetry via bus: {tel2}")
             finally:
                 # Disconnect the extra driver if we created one and it's not the primary driver
-                if 'mdrv' in locals() and mdrv is not driver:
+                if "mdrv" in locals() and mdrv is not driver:
                     try:
                         mdrv.disconnect()
                     except Exception:
                         pass
+
+        except OperationalError:
+            # pass through OperationalError for better user messages
+            raise
+        except Exception as e:
+            logger.error(f"Error registering motor on bus: {e}")
+        finally:
             try:
                 bus.disconnect()
             except Exception:
                 pass
-        except Exception as e:
-            logger.error(f"Error registering motor on bus: {e}")
 
         driver.disconnect()
 

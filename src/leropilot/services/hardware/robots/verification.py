@@ -6,18 +6,17 @@ and checking robot status.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
-
-from leropilot.exceptions import ResourceConflictError, ValidationError
+from leropilot.exceptions import OperationalError, ResourceConflictError, ValidationError
 from leropilot.models.hardware import (
     DeviceStatus,
     MotorBusDefinition,
+    MotorID,
     MotorModelInfo,
     Robot,
 )
+from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class RobotVerificationService:
     def __init__(self) -> None:
         pass
 
-    def verify_motor_bus(self, bus: "MotorBus", motorbus_def: MotorBusDefinition) -> bool:
+    def verify_motor_bus(self, bus: MotorBus, motorbus_def: MotorBusDefinition) -> bool:
         """Verify whether a MotorBus instance matches a given MotorBusDefinition.
 
         Checks performed:
@@ -57,22 +56,18 @@ class RobotVerificationService:
 
             from typing import cast
 
-            from leropilot.services.hardware.motor_drivers.base import BaseMotorDriver
-
             # Build bus dict keyed by the raw motor keys (coerce list keys to tuples)
-            bus_by_id: dict[object, tuple[BaseMotorDriver[Any], MotorModelInfo | None]] = {}
-            for k, entry in bus.motors.items():
+            # Note: bus.motors now directly stores MotorModelInfo | None (not tuple)
+            bus_by_id: dict[object, MotorModelInfo | None] = {}
+            for k, minfo in bus.motors.items():
                 # Normalize list keys to tuples
                 key_norm = tuple(k) if isinstance(k, list) else k
-                if not entry:
-                    return False
-                _, minfo = entry
                 if minfo is None:
                     return False
                 # Duplicate keys are ambiguous
                 if key_norm in bus_by_id:
                     return False
-                bus_by_id[key_norm] = cast(tuple[BaseMotorDriver[Any], MotorModelInfo | None], entry)
+                bus_by_id[key_norm] = minfo
 
             # Counts must match
             if len(bus_by_id) != len(req_by_id):
@@ -80,11 +75,8 @@ class RobotVerificationService:
 
             # Compare each required motor against discovered motor info using exact-key matching
             for rk, req in req_by_id.items():
-                req_key = cast(int | tuple[int, int], rk)
-                entry_val = bus_by_id.get(req_key)
-                if entry_val is None:
-                    return False
-                driver, minfo = cast(tuple[BaseMotorDriver[Any], MotorModelInfo | None], entry_val)
+                req_key = cast(MotorID, rk)
+                minfo = bus_by_id.get(req_key)
                 if minfo is None:
                     return False
 
@@ -106,7 +98,7 @@ class RobotVerificationService:
             return False
 
     def check_robot_status(
-        self, robot: Robot, discovered: list[tuple["MotorBus", str | None, str | None]]
+        self, robot: Robot, discovered: list[tuple[MotorBus, str | None, str | None]]
     ) -> tuple[DeviceStatus, bool]:
         """Compare a persisted `robot` against `discovered` motorbuses and return
         the computed DeviceStatus and a boolean indicating whether the robot should
@@ -182,7 +174,6 @@ class RobotVerificationService:
         Returns:
             True on successful verification (AVAILABLE).
         """
-        from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
         if not robot.motor_bus_connections:
             raise ValueError("Robot has no motor bus connections to verify")
@@ -205,19 +196,14 @@ class RobotVerificationService:
                 # Create and probe the motorbus
                 try:
                     bus = MotorBus.create(cls, conn.interface, conn.baudrate or 0)
-                    if not bus.connect():
-                        try:
-                            bus.disconnect()
-                        except Exception:
-                            pass
-                        raise ValidationError("hardware.robot_device.connect_failed", interface=conn.interface)
+                    bus.connect()
 
                     buses_to_close.append(bus)
                     # scan_motors should populate bus.motors
                     bus.scan_motors()
                     discovered.append((bus, conn.serial_number, None))
-                except ValueError:
-                    # pass through ValueError for better user messages
+                except OperationalError:
+                    # pass through OperationalError for better user messages
                     raise
                 except Exception as e:
                     try:

@@ -8,11 +8,9 @@ sys.path.append(os.path.join(os.getcwd(), "src"))
 from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
 
 # Configure logging to see the details
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("DamiaoTest")
+
 
 def main():
     # Use the interface known from previous conversation
@@ -44,6 +42,7 @@ def main():
     finally:
         print("Disconnecting...")
         driver.disconnect()
+
 
 if __name__ == "__main__":
     main()

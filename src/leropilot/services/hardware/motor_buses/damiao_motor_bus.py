@@ -2,6 +2,7 @@
 
 import logging
 
+from leropilot.exceptions import OperationalError
 from leropilot.models.hardware import MotorModelInfo
 
 from ..motor_drivers.damiao.drivers import DamiaoCAN_Driver
@@ -24,7 +25,7 @@ class DamiaoMotorBus(MotorBus[tuple[int, int]]):
         """Initialize DamiaoMotorBus.
 
         Args:
-            interface: CAN interface (e.g., "can0", "can1")
+            interface: CAN interface in format "type:channel" (e.g., "socketcan:can0", "pcan:PCAN_USBBUS1")
             bitrate: CAN bitrate (default: 1000000)
         """
         super().__init__(interface, bitrate)
@@ -35,64 +36,91 @@ class DamiaoMotorBus(MotorBus[tuple[int, int]]):
         """CAN bitrates commonly used for Damiao motors (in suggested order)."""
         return [1000000, 500000, 250000, 2000000]
 
-    def connect(self) -> bool:
-        """Connect to Damiao CAN motor bus."""
-        # For CAN-based buses, we don't need a persistent "test" connection
-        # because the actual communication happens during scan_motors or
-        # when individual motor drivers are used.
-        self._connected = True
-        return True
+    def connect(self) -> None:
+        """Connect to Damiao CAN motor bus and create shared driver.
 
-    def disconnect(self) -> bool:
-        """Disconnect from Damiao CAN motor bus."""
+        Raises:
+            OperationalError: If connection fails.
+        """
+        if self._connected and self.driver:
+            return
+
         try:
-            # Disconnect all motor drivers
-            for driver, _ in self.motors.values():
-                try:
-                    driver.disconnect()
-                except Exception:
-                    pass
+            # Create shared driver instance for all motors on this CAN bus
+            self.driver = DamiaoCAN_Driver(self.interface, self.baud_rate)
+            # driver.connect() will raise OperationalError on failure
+            self.driver.connect()
+            self._connected = True
+            logger.info(f"Connected to Damiao CAN motor bus on {self.interface}")
+        except OperationalError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to connect to Damiao CAN motor bus: {e}")
+            self.driver = None
+            raise OperationalError(
+                i18n_key="hardware.robot_device.connect_failed",
+                retriable=True,
+                interface=self.interface,
+            ) from e
+
+    def disconnect(self) -> None:
+        """Disconnect from Damiao CAN motor bus.
+
+        Raises:
+            OperationalError: If disconnection fails.
+        """
+        try:
+            # Disconnect shared driver
+            if self.driver:
+                self.driver.disconnect()
+                self.driver = None
 
             self._connected = False
-            logger.debug("Disconnected from Damiao CAN motor bus")
-            return True
+            logger.info("Disconnected from Damiao CAN motor bus")
         except Exception as e:
             logger.error(f"Error disconnecting Damiao CAN motor bus: {e}")
-            return False
+            raise OperationalError(
+                i18n_key="hardware.robot_device.disconnect_failed",
+                retriable=False,
+                interface=self.interface,
+            ) from e
 
     def scan_motors(self, id_range: list[int] | None = None) -> dict[tuple[int, int], MotorModelInfo]:
-        """Scan for Damiao motors on the CAN bus. Returns mapping (send,recv) -> MotorModelInfo."""
-        if not self._connected:
-            return {}
+        """Scan for Damiao motors on the CAN bus. Returns mapping (send,recv) -> MotorModelInfo.
+
+        Raises:
+            OperationalError: If the bus is not connected.
+        """
+        if not self._connected or not self.driver:
+            raise OperationalError(
+                i18n_key="hardware.motor_device.scan_failed",
+                retriable=False,
+                interface=self.interface,
+            )
 
         if id_range is None:
             id_range = list(range(1, 128))  # CAN typically uses smaller ID range
 
         discovered: dict[tuple[int, int], MotorModelInfo] = {}
 
-        # Create a temporary driver instance for scanning
-        temp_driver = DamiaoCAN_Driver(self.interface, self.baud_rate)
-
         try:
-            with temp_driver:
-                motor_map = temp_driver.scan_motors(id_range)
+            # Use shared driver for scanning
+            motor_map = self.driver.scan_motors(id_range)
 
-                # Register discovered motors
-                for motor_id, model_info in motor_map.items():
-                    # Create driver instance for this motor
-                    motor_driver = DamiaoCAN_Driver(self.interface, self.baud_rate)
-
-                    # Normalize to tuple send/recv
-                    if isinstance(motor_id, (list, tuple)):
-                        mid = (int(motor_id[0]), int(motor_id[1]))
-                    else:
-                        mid = (int(motor_id), int(motor_id))
-
-                    self.register_motor(mid, motor_driver, model_info)
-                    discovered[mid] = model_info
+            # Register discovered motors (only store motor_info, driver is shared)
+            for motor_id, model_info in motor_map.items():
+                self.register_motor(motor_id, model_info)
+                discovered[motor_id] = model_info
 
         except Exception as e:
+            # Wrap any exception into an operation-level OperationalError and preserve
+            # cause information in `data` for debugging.
             logger.error(f"Error scanning Damiao CAN motors: {e}")
+            raise OperationalError(
+                i18n_key="hardware.motor_device.scan_failed",
+                retriable=True,
+                interface=self.interface,
+            ) from e
 
         logger.info(f"Damiao CAN motor scan complete: found {len(discovered)} motors")
         return discovered

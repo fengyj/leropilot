@@ -2442,50 +2442,21 @@ Create example/test scripts to validate service layer functionality **before** b
 
 2. **`example_probe_connection.py`** - Probe baud rate and scan motors
    ```python
-   """
-   Test motor-discover flow: auto-detect baud rate and scan motors
-   Usage: python -m src.leropilot.examples.example_probe_connection --interface COM11
-   """
-   from leropilot.services.hardware.motors import MotorService
-   
-   service = MotorService()
-   result = service.probe_connection(interface="COM11", probe_baud_list=[115200, 1000000])
-   print(f"Selected baud: {result['selected_baud']}")
-   print(f"Found {len(result['motor_discovery'])} motors")
-   print(f"Suggested robot: {result['suggested_robot']}")
+   # DEPRECATED: MotorService has been removed and this example is no longer valid.
+   # The motor discovery API was removed; consult the migration notes for alternatives.
    ```
 
 3. **`example_motor_scan.py`** - Scan motor bus
    ```python
-   """
-   Test motor bus scanning with explicit baud rate
-   Usage: python -m src.leropilot.examples.example_motor_scan --interface COM11 --baud 1000000 --brand dynamixel
-   """
-   from leropilot.services.hardware.motors import MotorService
-   
-   service = MotorService()
-   motors = service.scan_motors(interface="COM11", brand="dynamixel", baud_rate=1000000)
-   for motor in motors['motors']:
-       print(f"Motor {motor['id']}: {motor['model']} (FW: {motor['firmware_version']})")
+   # DEPRECATED: MotorService has been removed and this example is no longer valid.
+   # The motor scanning API was removed; consult the migration notes for alternatives.
    ```
 
 4. **`example_motor_telemetry.py`** - Read motor telemetry
    ```python
-   """
-   Test real-time motor telemetry reading
-   Usage: python -m src.leropilot.examples.example_motor_telemetry --interface COM11 --baud 1000000
-   """
-   import time
-   from leropilot.services.hardware.motors import MotorService
-   
-   service = MotorService()
-   driver = service.create_driver(interface="COM11", brand="dynamixel", baud_rate=1000000)
-   
-   try:
-       for _ in range(10):
-           telemetry = service.read_telemetry(driver, motor_ids=[1,2,3,4,5,6])
-           for motor in telemetry['motors']:
-               print(f"Motor {motor['id']}: {motor['position']:.3f} rad, {motor['temperature']}°C")
+   # DEPRECATED: MotorService has been removed and this example is no longer valid.
+   # The motor telemetry API was removed; consult the migration notes for alternatives.
+   ```
            time.sleep(0.1)
    finally:
        driver.disconnect()

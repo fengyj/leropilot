@@ -197,6 +197,13 @@ def validate_file(urdf_path: str) -> dict:
         # Run semantic checks
         _validate_structure(parsed_joints=joints, parsed_links=links, result=result)
 
+        # Only perform kinematic chain checks when there are links/joints to evaluate
+        if len(links) > 0 and len(joints) > 0:
+            try:
+                _check_kinematic_chain(parsed_joints=joints, parsed_links=links)
+            except ValueError as e:
+                _add_error(result, "URDF_CYCLE", str(e))
+
         result["valid"] = len(result.get("errors", [])) == 0
         logger.info(f"URDF validation: valid={result['valid']}, joints={result['joints']}, links={result['links']}")
         return result
@@ -237,16 +244,21 @@ def _validate_structure(parsed_joints: list[dict], parsed_links: list[dict], res
     root_links: set[str] = {str(link.get("name")) for link in parsed_links if link.get("name") is not None}
     child_links: set[str] = {str(j.get("child")) for j in parsed_joints if j.get("child") is not None}
     orphan_links = root_links - child_links
-    if not orphan_links:
-        _add_error(result, "URDF_NO_ROOT", "No root link found (no links without parents)")
-    elif len(orphan_links) > 1:
-        _add_error(result, "URDF_MULTIPLE_ROOTS", f"Multiple root links found: {sorted(orphan_links)}")
+    # If there are no links defined at all, allow a minimal robot (tolerate empty URDF)
+    if len(root_links) == 0:
+        pass
+    else:
+        if not orphan_links:
+            _add_error(result, "URDF_NO_ROOT", "No root link found (no links without parents)")
+        elif len(orphan_links) > 1:
+            _add_error(result, "URDF_MULTIPLE_ROOTS", f"Multiple root links found: {sorted(orphan_links)}")
 
-    # Cycle check via adjacency
-    try:
-        _check_kinematic_chain(parsed_joints, parsed_links)
-    except ValueError as e:
-        _add_error(result, "URDF_CYCLE", str(e))
+    # Cycle check via adjacency (only when links/joints present)
+    if parsed_links and parsed_joints:
+        try:
+            _check_kinematic_chain(parsed_joints, parsed_links)
+        except ValueError as e:
+            _add_error(result, "URDF_CYCLE", str(e))
 
     # Joint axis and limits checks
     for joint in parsed_joints:

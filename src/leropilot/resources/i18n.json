@@ -424,6 +424,10 @@
         "en": "Unable to connect to motorbus on interface '{interface}'",
         "zh": "无法连接到接口 '{interface}' 上的电机总线"
       },
+      "disconnect_failed": {
+        "en": "Unable to disconnect from motorbus on interface '{interface}'",
+        "zh": "无法断开接口 '{interface}' 上的电机总线连接"
+      },
       "offline": {
         "en": "Robot verification failed: robot is offline",
         "zh": "机器人验证失败: 机器人离线"
@@ -524,6 +528,30 @@
       "scan_failed": {
         "en": "Failed to scan motors on {interface}",
         "zh": "在接口 {interface} 上扫描电机失败"
+      },
+      "not_registered": {
+        "en": "Motor {motor_id} is not registered on this bus",
+        "zh": "电机 {motor_id} 未在此总线上注册"
+      },
+      "read_failed": {
+        "en": "Failed to read telemetry from motor {motor_id}",
+        "zh": "从电机 {motor_id} 读取遥测数据失败"
+      },
+      "operation_failed": {
+        "en": "Motor {motor_id} operation {operation} failed",
+        "zh": "电机 {motor_id} 操作 {operation} 失败"
+      },
+      "bulk_operation_failed": {
+        "en": "Bulk operation failed for some motors",
+        "zh": "部分电机的批量操作失败"
+      },
+      "normalization_failed": {
+        "en": "Failed to normalize position for motor {motor_id}: {reason}",
+        "zh": "电机 {motor_id} 位置归一化失败: {reason}"
+      },
+      "denormalization_failed": {
+        "en": "Failed to denormalize position for motor {motor_id}: {reason}",
+        "zh": "电机 {motor_id} 位置反归一化失败: {reason}"
       }
     }
   }

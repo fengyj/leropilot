@@ -6,7 +6,7 @@ MotorService table-based lookups and to retire `motor_specs.json`.
 
 from __future__ import annotations
 
-from leropilot.models.hardware import MotorBrand, MotorLimit, MotorLimitTypes, MotorModelInfo
+from leropilot.models.hardware import MotorBrand, MotorModelInfo
 
 
 class DamiaoConstants:
@@ -28,7 +28,7 @@ class DamiaoConstants:
 
     # Default CAN settings
     DEFAULT_BAUDRATE = 1000000  # 1 Mbps
-    AVAILABLE_BAUDRATES = [500000, 1000000, 2000000, 5000000]  # CAN FD supported
+    AVAILABLE_BAUDRATES = [1000000, 2000000, 5000000]  # CAN FD supported
     DEFAULT_TIMEOUT_MS = 1000
 
     # Motor type specific limits for MIT control (pmax, vmax, tmax)
@@ -45,104 +45,23 @@ class DamiaoConstants:
     }
 
 
+# Common feature set for Damiao models (used to avoid future duplication)
+DAMIAO_DEFAULT_FEATURES = frozenset({"position", "velocity", "voltage", "temperature", "current", "goal_position"})
+
 DAMAIO_MODELS_LIST: list[MotorModelInfo] = [
     MotorModelInfo(
-        model="DM4310",
-        model_ids=[17168],  # 0x4310
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=12.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=30.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=4000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-        },
-        variant="DM4310",
-        description="Damiao DM4310 servo motor (base variant)",
-        encoder_resolution=16384,  # 14-bit encoder
-        brand=MotorBrand.DAMIAO,
-    ),
-    MotorModelInfo(
-        model="DM4340",
-        model_ids=[17216, 28672],  # 0x4340, 0x7000 (Integrated J-series)
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=12.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=30.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=8000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-            MotorLimitTypes.TORQUE_MAX_NM: MotorLimit(type=MotorLimitTypes.TORQUE_MAX_NM, value=28.0),
-        },
-        variant="DM4340P",
-        description="Damiao DM4340P servo motor (P variant with cross-roller bearings)",
-        encoder_resolution=16384,  # 14-bit encoder
-        brand=MotorBrand.DAMIAO,
-    ),
-    MotorModelInfo(
-        model="DM8009",
-        model_ids=[32777],  # 0x8009
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=24.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=48.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=9000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-        },
-        variant="DM8009",
-        description="Damiao DM8009 servo motor (base variant)",
-        encoder_resolution=16384,  # 14-bit encoder
-        brand=MotorBrand.DAMIAO,
-    ),
-    MotorModelInfo(
-        model="DM8009",
-        model_ids=[32777],  # 0x8009
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=24.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=48.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=9000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-        },
-        variant="DM8009P",
-        description="Damiao DM8009P servo motor (P variant with cross-roller bearings)",
-        encoder_resolution=16384,  # 14-bit encoder
-        brand=MotorBrand.DAMIAO,
-    ),
-    MotorModelInfo(
-        model="DM6006",
-        model_ids=[24582],  # 0x6006
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=24.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=48.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=6000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-        },
+        model="DM",
+        model_ids=[],
+        limits={},
         variant=None,
-        description="Damiao DM6006 servo motor",
-        encoder_resolution=16384,  # 14-bit encoder
-        brand=MotorBrand.DAMIAO,
-    ),
-    MotorModelInfo(
-        model="DM8006",
-        model_ids=[32774],  # 0x8006
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=24.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=48.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=8000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-        },
-        variant=None,
-        description="Damiao DM8006 servo motor",
-        encoder_resolution=16384,  # 14-bit encoder
-        brand=MotorBrand.DAMIAO,
-    ),
-    MotorModelInfo(
-        model="DM10054",
-        model_ids=[41042],  # 0xA046
-        limits={
-            MotorLimitTypes.VOLTAGE_MIN: MotorLimit(type=MotorLimitTypes.VOLTAGE_MIN, value=24.0),
-            MotorLimitTypes.VOLTAGE_MAX: MotorLimit(type=MotorLimitTypes.VOLTAGE_MAX, value=48.0),
-            MotorLimitTypes.CURRENT_MAX_MA: MotorLimit(type=MotorLimitTypes.CURRENT_MAX_MA, value=54000.0),
-            MotorLimitTypes.TEMPERATURE_MAX_C: MotorLimit(type=MotorLimitTypes.TEMPERATURE_MAX_C, value=100.0),
-        },
-        variant=None,
-        description="Damiao DM10054 servo motor",
-        encoder_resolution=16384,  # 14-bit encoder
+        description="Damiao servo motor",
+        encoder_resolution=65536.0,
+        position_to_radian_ratio=1.0,
+        velocity_ratio=1.0,
+        current_unit_ma_per_bit=1000.0,
+        voltage_unit_v_per_bit=1.0,
+        temperature_unit_c_per_bit=1.0,
+        acceleration_unit_rad_s2_per_bit=None,
         brand=MotorBrand.DAMIAO,
     ),
 ]
@@ -176,3 +95,177 @@ def select_model_for_number(
         if c.variant is None:
             return c
     return candidates[0]
+
+
+class DamiaoRegisters:
+    """Common parameter addresses for Damiao motors.
+
+    Each register is expressed as a (address, length_in_bytes) tuple and is
+    intended to be used with Damiao parameter access commands (see
+    :pyattr:`DamiaoConstants.PARAM_ID`). Values are taken from the
+    "DM-J4310-2EC V1.2" draft manual (linked in project issues); verify
+    against your specific motor firmware before writing EEPROM-critical
+    locations.
+
+    Source: https://github.com/dmBots/DM-J4310-2EC/blob/a3705a7124.../DM-J4310-2EC%20V1.2%E5%87%8F%E9%80%9F%E7%94%B5%E6%9C%BA%E8%AF%B4%E6%98%8E%E4%B9%A6%20%E5%88%9D%E7%A8%BF%E6%9C%80%E6%96%B0.pdf
+    """
+
+    # Identification / protection (access: RW/RO)
+    # Format: (address, is_rw (True if RW), is_float)
+    UV_VALUE = (0x00, True, True)  # under-voltage protection value (float)
+    KT_VALUE = (0x01, True, True)  # torque constant (float)
+
+    # Note: there is no stable 'model number' register in the official DM-J4310
+    # documentation. Address 0x01 is the KT_VALUE parameter (torque constant) and
+    # should not be treated as a model identifier. Older community code sometimes
+    # returned identifying values at 0x00 or 0x100 on particular firmwares; those
+    # addresses are *heuristics* only and are handled in driver logic as a fallback.
+    # (Do not introduce a MODEL_NUMBER alias that would imply a documented register.)
+    # MODEL_NUMBER aliases intentionally omitted to avoid confusion.
+
+    OT_VALUE = (0x02, True, True)  # over-temperature protection value (float)
+    OC_VALUE = (0x03, True, True)  # over-current protection value (float)
+
+    # Motion configuration
+    ACC = (0x04, True, True)  # acceleration (float)
+    DEC = (0x05, True, True)  # deceleration (float)
+    MAX_SPD = (0x06, True, True)  # maximum speed (float)
+
+    # CAN / IDs / timeouts
+    MST_ID = (0x07, True, False)  # master id (uint32)
+    ESC_ID = (0x08, True, False)  # receiver id (uint32)
+    TIMEOUT = (0x09, True, False)  # timeout (uint32)
+
+    # Control mode (stored as uint32 in registers; values range small, e.g., 0-4)
+    CTRL_MODE = (0x0A, True, False)  # control mode (uint32)
+
+    # Read-only mechanical / hardware info
+    DAMP = (0x0B, False, True)
+    INERTIA = (0x0C, False, True)
+    HW_VER = (0x0D, False, False)
+    SW_VER = (0x0E, False, False)
+    SN = (0x0F, False, False)
+
+    # Motor params
+    NPP = (0x10, False, False)
+    Rs = (0x11, False, True)
+    Ls = (0x12, False, True)
+    Flux = (0x13, False, True)
+    Gr = (0x14, False, True)
+
+    # Mapping / limits (position/velocity/torque mapping ranges)
+    PMAX = (0x15, True, True)  # position mapping max (float)
+    VMAX = (0x16, True, True)  # velocity mapping max (float)
+    TMAX = (0x17, True, True)  # torque mapping max (float)
+
+    # Current control / PID (speed & position loops)
+    I_BW = (0x18, True, True)
+    KP_ASR = (0x19, True, True)  # speed loop Kp
+    KI_ASR = (0x1A, True, True)  # speed loop Ki
+    KP_APR = (0x1B, True, True)  # position loop Kp
+    KI_APR = (0x1C, True, True)  # position loop Ki
+
+    OV_VALUE = (0x1D, True, True)
+    GREF = (0x1E, True, True)
+    DETA = (0x1F, True, True)
+
+    # Additional control params
+    V_BW = (0x20, True, True)
+    IQ_C1 = (0x21, True, True)
+    VL_C1 = (0x22, True, True)
+    CAN_BR = (0x23, True, False)  # CAN baudrate code
+
+    # Sub/boot versions
+    SUB_VER = (0x24, False, False)
+    BOOT_VER = (0x25, False, False)
+
+    # Misc / diagnostics
+    DIR = (0x37, False, True)
+    M_OFF = (0x38, False, True)
+    IMAX = (0x3B, False, True)
+    VBUS = (0x3C, False, True)
+    TPCB = (0x3D, False, True)
+    TMTR = (0x3E, False, True)
+    IU_OFF = (0x3F, False, True)
+    IV_OFF = (0x40, False, True)
+    IW_OFF = (0x41, False, True)
+
+    # Live position outputs
+    P_M = (0x50, False, True)  # motor current position (rad)
+    XOUT = (0x51, False, True)  # output shaft position (rad)
+
+    @classmethod
+    def get_register_info(cls, address: int) -> tuple[int, bool, bool]:
+        """Return (addr, is_rw, is_float) for the given register address.
+
+        This method accepts both the new 3-tuple format and the legacy 2-tuple
+        format for backward compatibility.
+        """
+        for name in dir(cls):
+            if not name.isupper():
+                continue
+            val = getattr(cls, name)
+            if not isinstance(val, tuple) or len(val) == 0:
+                continue
+            try:
+                addr = int(val[0])
+            except Exception:
+                continue
+            if addr != address:
+                continue
+            if len(val) >= 3:
+                # New format: (addr, is_rw, is_float)
+                return (addr, bool(val[1]), bool(val[2]))
+            # Legacy format: (addr, is_read_only)
+            is_read_only = bool(val[1]) if len(val) >= 2 else False
+            is_rw = not is_read_only
+            # Best-effort default: assume float for legacy entries unless name contains 'ID' or 'VER' or 'SN' etc.
+            name_lower = name.lower()
+            is_float = not any(k in name_lower for k in ("id", "ver", "sn", "boot", "can_br", "timeout"))
+            return (addr, is_rw, is_float)
+        raise ValueError(f"Unknown Damiao register address: 0x{address:02X}")
+
+
+# Per-model supported parameter/register sets
+# Each tuple: (set of model base names), set of supported register addresses (int)
+DAMAIO_REGISTER_SUPPORT: list[tuple[set[str], set[int]]] = [
+    (
+        {"dm4310", "dm4340", "dm4340p", "dm6006", "dm8006", "dm8009", "dm8009p", "dm10054"},
+        {
+            # Identification
+            0x00,  # UV_VALUE / alt model read
+            0x01,  # KT_VALUE / model number in some firmwares
+            0x100,  # fallback model number
+            # Motion / control
+            DamiaoRegisters.ACC[0],
+            DamiaoRegisters.DEC[0],
+            DamiaoRegisters.MAX_SPD[0],
+            DamiaoRegisters.CTRL_MODE[0],
+            # Mapping / limits
+            DamiaoRegisters.PMAX[0],
+            DamiaoRegisters.VMAX[0],
+            DamiaoRegisters.TMAX[0],
+            # PID gains
+            DamiaoRegisters.KP_ASR[0],
+            DamiaoRegisters.KI_ASR[0],
+            DamiaoRegisters.KP_APR[0],
+            DamiaoRegisters.KI_APR[0],
+            # Diagnostics / outputs
+            DamiaoRegisters.P_M[0],
+            DamiaoRegisters.XOUT[0],
+        },
+    ),
+]
+
+
+def damiao_supports_register(model_name: str, register_addr: int) -> bool:
+    """Return True if the given Damiao `register_addr` is supported for `model_name`.
+
+    Matching is case-insensitive against known base model names. Unknown models
+    return False.
+    """
+    m = model_name.lower()
+    for models_set, addrs in DAMAIO_REGISTER_SUPPORT:
+        if m in models_set:
+            return register_addr in addrs
+    return False

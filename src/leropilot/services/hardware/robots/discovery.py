@@ -7,11 +7,8 @@ from discovered hardware.
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import uuid4
-
-if TYPE_CHECKING:
-    from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
 from leropilot.models.hardware import (
     DeviceStatus,
@@ -21,6 +18,7 @@ from leropilot.models.hardware import (
     RobotMotorBusConnection,
     RobotMotorDefinition,
 )
+from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 from leropilot.services.hardware.platform_adapter import PlatformAdapter
 from leropilot.services.i18n import get_i18n_service
 
@@ -35,7 +33,7 @@ class MotorBusDiscovery:
 
     def discover_motor_buses(
         self, filters: list[tuple[str, int | None]] | None = None
-    ) -> list[tuple["MotorBus", str | None, str | None]]:
+    ) -> list[tuple[MotorBus, str | None, str | None]]:
         """Discover motor bus instances that have motors attached.
 
         The returned ``bus`` objects are lightweight proxies (disconnected) that
@@ -50,7 +48,6 @@ class MotorBusDiscovery:
                          motorbus where motors were successfully found. `serial_number` and
                          `manufacturer` may be None when not available.
         """
-        from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
         # Build allowed map from filters: class -> set(baudrates)
         allowed: dict[type, set[int] | None] = {}
@@ -108,9 +105,8 @@ class MotorBusDiscovery:
 
     def _discover_serial_buses(
         self, allowed: dict[type, set[int] | None], filters: list | None
-    ) -> list[tuple["MotorBus", str | None, str | None]]:
+    ) -> list[tuple[MotorBus, str | None, str | None]]:
         """Discover serial-based motor buses."""
-        from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
         results: list = []
         serial_ports = self._adapter.discover_serial_ports()
@@ -140,9 +136,8 @@ class MotorBusDiscovery:
 
     def _discover_can_buses(
         self, allowed: dict[type, set[int] | None], filters: list | None
-    ) -> list[tuple["MotorBus", str | None, str | None]]:
+    ) -> list[tuple[MotorBus, str | None, str | None]]:
         """Discover CAN-based motor buses."""
-        from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
         results: list = []
         can_interfaces = self._adapter.discover_can_interfaces()
@@ -172,19 +167,18 @@ class MotorBusDiscovery:
 
     def _try_probe_bus(
         self, cls: type, interface: str, baudrates: list[int], serial_number: str | None, manufacturer: str | None
-    ) -> tuple["MotorBus", str | None, str | None] | None:
+    ) -> tuple[MotorBus, str | None, str | None] | None:
         """Try to probe a motor bus at different baudrates."""
-        from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 
         for baud in baudrates:
             bus = None
             try:
                 bus = MotorBus.create(cls, interface, baud)
-                if not bus.connect():
-                    try:
-                        bus.disconnect()
-                    except Exception:
-                        pass
+                # connect() raises OperationalError on failure, returns None on success
+                try:
+                    bus.connect()
+                except Exception:
+                    bus.disconnect()
                     continue
 
                 motors = bus.scan_motors()
@@ -192,10 +186,7 @@ class MotorBusDiscovery:
                     logger.info(f"Found motors on {interface} using {cls.__name__} @ {baud}")
                     # Snapshot motors and disconnect to avoid leaving hardware open
                     motors_snapshot = dict(getattr(bus, "motors", {}))
-                    try:
-                        bus.disconnect()
-                    except Exception:
-                        pass
+                    bus.disconnect()
 
                     # Create lightweight proxy class so callers can inspect .motors, .interface, .baud_rate
                     BusProxy = type(cls.__name__, (), {})
@@ -205,18 +196,12 @@ class MotorBusDiscovery:
                     bus_proxy.motors = motors_snapshot
                     return (bus_proxy, serial_number, manufacturer)  # type: ignore[return-value]
                 else:
-                    try:
-                        bus.disconnect()
-                    except Exception:
-                        pass
+                    bus.disconnect()
 
             except Exception as e:
                 logger.debug(f"Error probing {cls} on {interface} @ {baud}: {e}")
                 if bus is not None:
-                    try:
-                        bus.disconnect()
-                    except Exception:
-                        pass
+                    bus.disconnect()
 
         return None
 
@@ -228,7 +213,7 @@ class PendingDeviceBuilder:
         self._i18n = get_i18n_service()
 
     def build_pending_robots(
-        self, discovered_buses: list[tuple["MotorBus", str | None, str | None]], lang: str = "en"
+        self, discovered_buses: list[tuple[MotorBus, str | None, str | None]], lang: str = "en"
     ) -> list[Robot]:
         """Build a list of pending Robot objects from discovered motor buses.
 
@@ -247,14 +232,15 @@ class PendingDeviceBuilder:
 
         return pending
 
-    def _build_robot_from_bus(self, bus: "MotorBus", serial_number: str | None, lang: str) -> Robot:
+    def _build_robot_from_bus(self, bus: MotorBus, serial_number: str | None, lang: str) -> Robot:
         """Build a single Robot object from a motor bus."""
         robot_id = uuid4().hex
 
         # Localized device name
-        name = self._i18n.translate(
-            "hardware.robot_device.unknown_device_on", lang=lang, port=bus.interface
-        ) or f"Unknown device on {bus.interface}"
+        name = (
+            self._i18n.translate("hardware.robot_device.unknown_device_on", lang=lang, port=bus.interface)
+            or f"Unknown device on {bus.interface}"
+        )
 
         status = DeviceStatus.AVAILABLE
         is_transient = not bool(serial_number)
@@ -300,6 +286,7 @@ class PendingDeviceBuilder:
             manufacturer=None,
             labels={},
             created_at=datetime.now(),
+            is_calibrated=False,
             is_transient=is_transient,
             definition=rdef,
             calibration_settings={},
@@ -309,14 +296,14 @@ class PendingDeviceBuilder:
 
         return robot
 
-    def _build_motor_definitions(self, bus: "MotorBus") -> tuple[dict[str, RobotMotorDefinition], dict[str, int]]:
+    def _build_motor_definitions(self, bus: MotorBus) -> tuple[dict[str, RobotMotorDefinition], dict[str, int]]:
         """Build motor definitions and type counts from a bus."""
         motor_defs: dict[str, RobotMotorDefinition] = {}
         type_counts: dict[str, int] = {}
         idx = 1
 
-        for motor_key, entry in bus.motors.items():
-            _, minfo = entry  # type: ignore[assignment]
+        for motor_key, minfo in bus.motors.items():
+            # minfo is directly MotorModelInfo|None (new architecture)
             name_idx = str(idx)
             idx += 1
 
@@ -334,7 +321,7 @@ class PendingDeviceBuilder:
                 brand=str(brand),
                 model=str(model),
                 variant=variant,
-                need_calibration=True,
+                is_full_turn=False,
                 drive_mode=0,
             )
             motor_defs[name_idx] = motor_def

@@ -69,6 +69,7 @@ async def app_base_error_handler(request: Request, exc: AppBaseError) -> JSONRes
     lang = request.query_params.get("lang")
     if not lang:
         from leropilot.services.config import get_config
+
         config = get_config()
         lang = config.ui.preferred_language
 

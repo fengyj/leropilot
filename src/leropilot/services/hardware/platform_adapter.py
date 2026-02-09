@@ -343,7 +343,7 @@ class LinuxCANBackend(CANBackend):
                     state = "UP" if "UP" in line else "DOWN"
                     discovered.append(
                         PlatformCANInterface(
-                            interface=interface,
+                            interface=f"socketcan:{interface}",
                             state=state,
                         )
                     )

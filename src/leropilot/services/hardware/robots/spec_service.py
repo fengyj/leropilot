@@ -71,6 +71,7 @@ class RobotSpecService:
 
             robots_data = (data or {}).get("robots", [])
             robots = [RobotDefinition(**r) for r in robots_data]
+
             # Sort robots by display_name for consistent UI presentation
             def _get_sort_key(r: RobotDefinition) -> str:
                 if isinstance(r.display_name, str):
