@@ -2,6 +2,7 @@
 
 import os
 import platform
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -74,7 +75,16 @@ class TerminalService:
     def _open_macos_terminal(env_dir: Path, venv_path: Path) -> None:
         """Open Terminal.app on macOS using AppleScript."""
         activate_script = venv_path / "bin" / "activate"
-        script = f'tell application "Terminal" to do script "cd {env_dir} && source {activate_script}"'
+        # Build the shell command with proper POSIX quoting via shlex.quote().
+        # shlex.quote() wraps paths containing spaces in single quotes, and paths
+        # containing single quotes in double quotes — both are safe inside an
+        # AppleScript double-quoted string literal because:
+        #   - single quotes have no special meaning inside AppleScript strings.
+        #   - any double quotes produced by shlex.quote() are escaped for
+        #     AppleScript in the next step (replace '"' with '\\"').
+        shell_cmd = f"cd {shlex.quote(str(env_dir))} && source {shlex.quote(str(activate_script))}"
+        applescript_safe_cmd = shell_cmd.replace("\\", "\\\\").replace('"', '\\"')
+        script = f'tell application "Terminal" to do script "{applescript_safe_cmd}"'
 
         subprocess.Popen(
             ["osascript", "-e", script],
@@ -89,9 +99,9 @@ class TerminalService:
         if not terminal:
             raise RuntimeError("No terminal emulator found. Please set $TERMINAL environment variable.")
 
-        # Construct command to activate venv
+        # Construct command to activate venv using properly quoted paths
         activate_script = venv_path / "bin" / "activate"
-        shell_cmd = f'cd "{env_dir}" && source "{activate_script}" && exec bash'
+        shell_cmd = f"cd {shlex.quote(str(env_dir))} && source {shlex.quote(str(activate_script))} && exec bash"
 
         # Most terminals support -e flag for command execution
         # Use -e instead of -- for better compatibility
@@ -131,7 +141,7 @@ class TerminalService:
 
         # Convert WSL path to Windows path for wt.exe
         # wt.exe expects the command to run in WSL
-        shell_cmd = f'cd "{env_dir}" && source "{activate_script}" && exec bash'
+        shell_cmd = f"cd {shlex.quote(str(env_dir))} && source {shlex.quote(str(activate_script))} && exec bash"
 
         # Try to use wt.exe (Windows Terminal)
         wt_path = shutil.which("wt.exe")
