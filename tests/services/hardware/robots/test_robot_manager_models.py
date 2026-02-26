@@ -5,6 +5,7 @@ from leropilot.models.hardware import (
     RobotDefinition,
     RobotMotorDefinition,
     MotorBusDefinition,
+    MotorNormMode,
     RobotMotorBusConnection,
 )
 
@@ -59,3 +60,64 @@ def test_get_robot_motor_models_info_missing_robot():
         assert False, "Expected ValueError on missing robot"
     except ValueError:
         pass
+
+
+def test_add_robot_initializes_default_calibration_settings(monkeypatch):
+    """Ensure service layer creates default calibration entries for all definition motors."""
+    manager = RobotManager()
+    manager._robots.clear()
+
+    monkeypatch.setattr(manager, "verify_robot", lambda robot: True)
+    monkeypatch.setattr(manager, "_save_robots", lambda: None)
+
+    rdef = RobotDefinition(
+        id="demo",
+        lerobot_name=None,
+        display_name="demo",
+        description="demo",
+        support_version_from=None,
+        support_version_end=None,
+        urdf=None,
+        motor_buses={
+            "motorbus": MotorBusDefinition(
+                type="FeetechMotorBus",
+                motors={
+                    "joint_1": RobotMotorDefinition(
+                        name="joint_1",
+                        id=1,
+                        brand="feetech",
+                        model="STS3215",
+                        variant=None,
+                        drive_mode=0,
+                        norm_mode=MotorNormMode.RANGE_M100_100,
+                    )
+                },
+                baud_rate=1000000,
+            )
+        },
+    )
+
+    robot = Robot(
+        id="R_CAL_INIT",
+        name="R_CAL_INIT",
+        definition=rdef,
+        motor_bus_connections={
+            "motorbus": RobotMotorBusConnection(
+                motor_bus_type="FeetechMotorBus",
+                interface="COM9",
+                baudrate=1000000,
+                serial_number=None,
+            )
+        },
+        calibration_settings={},
+        is_calibrated=False,
+    )
+
+    added = manager.add_robot(robot)
+
+    assert "motorbus" in added.calibration_settings
+    assert len(added.calibration_settings["motorbus"]) == 1
+    cal = added.calibration_settings["motorbus"][0]
+    assert cal.id == 1
+    assert cal.name == "joint_1"
+    assert cal.range_max > 0

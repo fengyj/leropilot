@@ -483,6 +483,50 @@
         "driveReversed": "驱动反转",
         "needCalibration": "需要标定"
       }
+    },
+    "calibration": {
+      "title": "机器人校准",
+      "monitoring": "实时监控",
+      "history": "历史数据",
+      "urdf": "URDF 查看器",
+      "info": "校准信息",
+      "noUrdf": "该机器人未定义 URDF。",
+      "placeholderInfo": "校准详情即将推出。",
+      "sections": {
+        "telemetry": "电机遥测",
+        "history": "历史数据",
+        "urdf": "3D 可视化"
+      },
+      "method": {
+        "select": "选择校准方式"
+      },
+      "steps": {
+        "label": "校准步骤",
+        "completed": "已完成"
+      },
+      "table": {
+        "busTitle": "电机位置",
+        "motorId": "电机 ID",
+        "name": "电机名称",
+        "minPosition": "最小值（rad）",
+        "maxPosition": "最大值（rad）",
+        "notRecorded": "—",
+        "trackingNote": "在记录步骤中，最小/最大值从遥测数据实时追踪"
+      },
+      "buttons": {
+        "start": "开始校准",
+        "nextStep": "下一步",
+        "save": "保存",
+        "done": "完成",
+        "cancel": "取消"
+      },
+      "status": {
+        "notCalibrated": "未校准",
+        "calibrated": "已校准",
+        "saving": "保存中..."
+      },
+      "loadingMethods": "加载校准方式中...",
+      "noMethods": "该机器人没有可用的校准方式。"
     }
   }
 }

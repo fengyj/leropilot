@@ -128,7 +128,8 @@ def main() -> int:
 
     # 创建 MotorBus 实例并 connect（使用上下文管理器确保退出时 disconnect）
     try:
-        mb = MotorBus.create(conn.motor_bus_type, conn.interface, conn.baudrate)
+        mb = MotorBus.create(conn.motor_bus_type)
+        mb.connect(conn.interface, conn.baudrate)
     except Exception as e:
         print(f"无法创建 MotorBus: {e}")
         return 1

@@ -18,6 +18,7 @@ from leropilot.exceptions import (
 )
 from leropilot.models.hardware import (
     DeviceStatus,
+    MotorCalibration,
     MotorLimit,
     MotorModelInfo,
     Robot,
@@ -280,6 +281,51 @@ class RobotManager:
                 raise ResourceNotFoundError("hardware.robot_device.unknown_definition", id=robot.definition)
             robot.definition = defn
 
+    def _ensure_default_calibrations(self, robot: Robot) -> None:
+        """Ensure calibration entries exist for all motors declared in robot definition.
+
+        This runs at service layer (load/add/update) so runtime telecontrol does not need
+        to synthesize calibration data on the fly.
+        """
+        definition = robot.definition
+        if not isinstance(definition, RobotDefinition):
+            return
+
+        try:
+            from leropilot.services.hardware.motor_drivers.base import MotorUtil
+        except Exception:
+            MotorUtil = None  # type: ignore
+
+        for bus_name, bus_def in definition.motor_buses.items():
+            bus_cals = robot.calibration_settings.get(bus_name, [])
+            cal_by_id = {cal.id: cal for cal in bus_cals if cal.id is not None}
+
+            for motor_name, motor_def in bus_def.motors.items():
+                motor_id = motor_def.id
+                if motor_id in cal_by_id:
+                    continue
+
+                encoder_resolution = 4096.0
+                if MotorUtil is not None:
+                    model_info = MotorUtil.find_motor(motor_def.brand, motor_def.model, motor_def.variant)
+                    if model_info is not None and model_info.encoder_resolution:
+                        encoder_resolution = float(model_info.encoder_resolution)
+
+                default_cal = MotorCalibration(
+                    name=motor_name,
+                    id=motor_id,
+                    drive_mode=int(motor_def.drive_mode),
+                    norm_mode=motor_def.norm_mode,
+                    homing_offset=0.0,
+                    range_min=0.0,
+                    range_max=float(encoder_resolution - 1.0),
+                    soft_homing_offset=False,
+                )
+                bus_cals.append(default_cal)
+
+            if bus_cals:
+                robot.calibration_settings[bus_name] = bus_cals
+
     def add_robot(self, robot: Robot) -> Robot:
         """Add a new robot to the manager."""
         with self._lock:
@@ -287,6 +333,7 @@ class RobotManager:
                 robot.id = uuid.uuid4().hex
 
             self._normalize_robot(robot)
+            self._ensure_default_calibrations(robot)
 
             # Ensure newly-added robots are marked uncalibrated by default
             robot.is_calibrated = False
@@ -333,7 +380,6 @@ class RobotManager:
             # Construct a new Robot object (runs pydantic validation & normalization)
             robot = Robot(**merged)
             self._normalize_robot(robot)
-
             # If requested, verify hardware now
             if verify:
                 self.verify_robot(robot)

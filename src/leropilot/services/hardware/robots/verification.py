@@ -195,8 +195,8 @@ class RobotVerificationService:
 
                 # Create and probe the motorbus
                 try:
-                    bus = MotorBus.create(cls, conn.interface, conn.baudrate or 0)
-                    bus.connect()
+                    bus = MotorBus.create(cls)
+                    bus.connect(conn.interface, conn.baudrate or 0)
 
                     buses_to_close.append(bus)
                     # scan_motors should populate bus.motors

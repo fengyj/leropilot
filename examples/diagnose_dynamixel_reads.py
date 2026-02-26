@@ -57,7 +57,8 @@ def main() -> int:
     print(f"Using motor bus connection: name={conn_name} interface={conn.interface} baud={conn.baudrate}")
 
     try:
-        mb = MotorBus.create(conn.motor_bus_type, conn.interface, conn.baudrate)
+        mb = MotorBus.create(conn.motor_bus_type)
+        mb.connect(conn.interface, conn.baudrate)
     except Exception as e:
         print(f"Failed to create motor bus: {e}")
         return 1

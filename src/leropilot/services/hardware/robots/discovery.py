@@ -173,10 +173,10 @@ class MotorBusDiscovery:
         for baud in baudrates:
             bus = None
             try:
-                bus = MotorBus.create(cls, interface, baud)
-                # connect() raises OperationalError on failure, returns None on success
+                bus = MotorBus.create(cls)
+                # connect() raises OperationalError on failure
                 try:
-                    bus.connect()
+                    bus.connect(interface, baud)
                 except Exception:
                     bus.disconnect()
                     continue

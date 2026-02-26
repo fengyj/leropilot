@@ -392,8 +392,7 @@ export function DesignSystemPreview() {
                                     speed={130.9} // 1250 RPM * (2PI/60)
                                     angle={Math.PI / 4} // 45 degrees
                                     limitMax={3000} // RPM
-                                    rangeMin={-261.8} // -2500 RPM
-                                    rangeMax={261.8} // 2500 RPM
+                                    rangeMax={261.8} // ±2500 RPM (symmetric)
                                     limitAngleMin={-2.356} // -135 degrees
                                     limitAngleMax={2.356} // 135 degrees
                                     size={200}

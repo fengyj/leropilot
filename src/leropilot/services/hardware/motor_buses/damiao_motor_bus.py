@@ -1,6 +1,7 @@
 """DamiaoMotorBus implementation specifically for Damiao CAN motors."""
 
 import logging
+import math
 
 from leropilot.exceptions import OperationalError
 from leropilot.models.hardware import MotorModelInfo
@@ -17,18 +18,13 @@ class DamiaoMotorBus(MotorBus[tuple[int, int]]):
     Uses DamiaoCAN_Driver for CAN communication with Damiao motors.
     """
 
-    def __init__(
-        self,
-        interface: str,
-        bitrate: int = 1000000,
-    ) -> None:
+    def __init__(self) -> None:
         """Initialize DamiaoMotorBus.
 
-        Args:
-            interface: CAN interface in format "type:channel" (e.g., "socketcan:can0", "pcan:PCAN_USBBUS1")
-            bitrate: CAN bitrate (default: 1000000)
+        Call :meth:`connect` with ``interface`` and ``bitrate`` to establish
+        a physical connection.
         """
-        super().__init__(interface, bitrate)
+        super().__init__()
         self.driver_class = DamiaoCAN_Driver
 
     @classmethod
@@ -36,8 +32,12 @@ class DamiaoMotorBus(MotorBus[tuple[int, int]]):
         """CAN bitrates commonly used for Damiao motors (in suggested order)."""
         return [1000000, 500000, 250000, 2000000]
 
-    def connect(self) -> None:
+    def connect(self, interface: str, baud_rate: int = 1000000) -> None:
         """Connect to Damiao CAN motor bus and create shared driver.
+
+        Args:
+            interface: CAN interface in format "type:channel" (e.g., "socketcan:can0", "pcan:PCAN_USBBUS1")
+            baud_rate: CAN bitrate (default: 1000000)
 
         Raises:
             OperationalError: If connection fails.
@@ -45,6 +45,8 @@ class DamiaoMotorBus(MotorBus[tuple[int, int]]):
         if self._connected and self.driver:
             return
 
+        self.interface = interface
+        self.baud_rate = baud_rate
         try:
             # Create shared driver instance for all motors on this CAN bus
             self.driver = DamiaoCAN_Driver(self.interface, self.baud_rate)
@@ -124,3 +126,35 @@ class DamiaoMotorBus(MotorBus[tuple[int, int]]):
 
         logger.info(f"Damiao CAN motor scan complete: found {len(discovered)} motors")
         return discovered
+
+    def set_zero_position(self, motor_id: tuple[int, int]) -> None:
+        """Set the current position of a motor as its zero reference.
+
+        Instructs the Damiao driver to zero the motor at its current position.  The
+        matching ``MotorCalibration.homing_offset`` is reset to ``0.0`` in memory;
+        the caller (``ZeroPositionCalibrator``) is responsible for persisting the
+        updated calibration via ``RobotManager.update_robot``.
+
+        Args:
+            motor_id: The ``(send_id, recv_id)`` tuple identifying the motor.
+
+        Raises:
+            OperationalError: If the bus is not connected or the driver fails.
+            NotImplementedError: If the underlying Damiao driver does not support
+                the zero-position command (set when hardware support is added).
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+            if not hasattr(driver, "send_save_zero_position"):
+                raise NotImplementedError(
+                    "DamiaoCAN_Driver does not implement send_save_zero_position. "
+                    "Add hardware-level zero-position command support to the driver first."
+                )
+            driver.send_save_zero_position(motor_id)  # type: ignore[attr-defined]
+
+            cal = self.calibrations.get(motor_id)
+            if cal is not None:
+                cal.homing_offset = 0.0
+                cal.range_min = math.pi / -2
+                cal.range_max = math.pi / 2
+            logger.info(f"set_zero_position: motor {motor_id} zeroed")

@@ -679,8 +679,13 @@ class FeetechDriver(BaseMotorDriver[int]):
 
         # Determine register length
         reg_len = 2  # Default
-        for reg_name, (reg_addr, length) in vars(SCS_STS_Registers).items():
-            if not reg_name.startswith("_") and reg_addr == register_addr:
+        for reg_name, reg_val in vars(SCS_STS_Registers).items():
+            if reg_name.startswith("_"):
+                continue
+            if not isinstance(reg_val, tuple) or len(reg_val) != 2:
+                continue
+            reg_addr, length = reg_val
+            if reg_addr == register_addr:
                 reg_len = length
                 break
 
@@ -725,8 +730,13 @@ class FeetechDriver(BaseMotorDriver[int]):
 
         # Determine register length
         reg_len = 2  # Default
-        for reg_name, (reg_addr, length) in vars(SCS_STS_Registers).items():
-            if not reg_name.startswith("_") and reg_addr == register_addr:
+        for reg_name, reg_val in vars(SCS_STS_Registers).items():
+            if reg_name.startswith("_"):
+                continue
+            if not isinstance(reg_val, tuple) or len(reg_val) != 2:
+                continue
+            reg_addr, length = reg_val
+            if reg_addr == register_addr:
                 reg_len = length
                 break
 

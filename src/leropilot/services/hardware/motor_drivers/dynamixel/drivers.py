@@ -70,9 +70,15 @@ class DynamixelDriver(BaseMotorDriver[int]):
 
         # Build register address -> (address, length) mapping for fast lookup
         self._register_map: dict[int, tuple[int, int]] = {}
-        for reg_name, (reg_addr, reg_len) in vars(DynamixelRegisters).items():
-            if not reg_name.startswith("_"):
-                self._register_map[reg_addr] = (reg_addr, reg_len)
+        # Only include attributes that are (address, length) tuples and skip dunder/other attrs.
+        for reg_name, reg_val in vars(DynamixelRegisters).items():
+            if reg_name.startswith("_"):
+                continue
+            # Expect control-table entries as 2-tuple (address, length).
+            if not isinstance(reg_val, tuple) or len(reg_val) != 2:
+                continue
+            reg_addr, reg_len = reg_val
+            self._register_map[reg_addr] = (reg_addr, reg_len)
 
     def _get_register_length(self, address: int) -> int:
         """Get register length (in bytes) for a given address.
@@ -387,6 +393,10 @@ class DynamixelDriver(BaseMotorDriver[int]):
         else:
             raise ValueError(f"Unsupported register length {reg_len} for address {address}")
 
+        # Mask to register width to avoid sign-extension artifacts from SDK values
+        mask = (1 << (reg_len * 8)) - 1
+        raw_value &= mask
+
         # Decode two's complement if applicable
         signed_value = self._decode_signed_register(address, raw_value)
         return float(signed_value)
@@ -441,6 +451,9 @@ class DynamixelDriver(BaseMotorDriver[int]):
         for motor_id in motor_ids:
             if group_sync_read.isAvailable(motor_id, register_addr, reg_len):
                 raw_value = group_sync_read.getData(motor_id, register_addr, reg_len)
+                # Mask to register width to avoid sign-extension artifacts
+                mask = (1 << (reg_len * 8)) - 1
+                raw_value &= mask
                 signed_value = self._decode_signed_register(register_addr, raw_value)
                 results[motor_id] = float(signed_value)
 

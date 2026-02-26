@@ -23,48 +23,49 @@
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002",
+                            "model": "Feetech",
+                            "variant": null,
                             "norm_mode": "range_0_100"
                         }
                     }
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "so100-leader",
@@ -89,48 +90,49 @@
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C002",
+                            "model": "Feetech",
+                            "variant": null,
                             "norm_mode": "range_0_100"
                         }
                     }
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "so101-follower-high-voltage",
@@ -154,49 +156,50 @@
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C018"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C018"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C018"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C018"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C018"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C018",
+                            "model": "Feetech",
+                            "variant": null,
                             "norm_mode": "range_0_100"
                         }
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "so101-follower-low-voltage",
@@ -220,49 +223,50 @@
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001",
+                            "model": "Feetech",
+                            "variant": null,
                             "norm_mode": "range_0_100"
                         }
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "so101-leader",
@@ -286,49 +290,50 @@
                             "id": 1,
                             "name": "shoulder_pan",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "shoulder_lift": {
                             "id": 2,
                             "name": "shoulder_lift",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C044"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "elbow_flex": {
                             "id": 3,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C044"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_flex": {
                             "id": 4,
                             "name": "wrist_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "gripper": {
                             "id": 6,
                             "name": "gripper",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046",
+                            "model": "Feetech",
+                            "variant": null,
                             "norm_mode": "range_0_100"
                         }
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "koch-follower",
@@ -394,7 +399,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "koch-leader",
@@ -461,7 +467,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "aloha-follower",
@@ -533,7 +540,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "aloha-leader",
@@ -605,7 +613,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "lekiwi-base-3wheel",
@@ -629,73 +638,74 @@
                             "id": 17,
                             "name": "base_left_wheel",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046",
+                            "model": "Feetech",
+                            "variant": null,
                             "is_full_turn": true
                         },
                         "base_back_wheel": {
                             "id": 18,
                             "name": "base_back_wheel",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046",
+                            "model": "Feetech",
+                            "variant": null,
                             "is_full_turn": true
                         },
                         "base_right_wheel": {
                             "id": 19,
                             "name": "base_right_wheel",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046",
+                            "model": "Feetech",
+                            "variant": null,
                             "is_full_turn": true
                         },
                         "arm_shoulder_pan": {
                             "id": 1,
                             "name": "arm_shoulder_pan",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C001"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "arm_shoulder_lift": {
                             "id": 2,
                             "name": "arm_shoulder_lift",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "arm_elbow_flex": {
                             "id": 3,
                             "name": "arm_elbow_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "arm_wrist_flex": {
                             "id": 4,
                             "name": "arm_wrist_flex",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "arm_wrist_roll": {
                             "id": 5,
                             "name": "arm_wrist_roll",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046"
+                            "model": "Feetech",
+                            "variant": null
                         },
                         "arm_gripper": {
                             "id": 6,
                             "name": "arm_gripper",
                             "brand": "feetech",
-                            "model": "STS3215",
-                            "variant": "STS3215-C046",
+                            "model": "Feetech",
+                            "variant": null,
                             "norm_mode": "range_0_100"
                         }
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "omx-follower",
@@ -760,7 +770,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "omx-leader",
@@ -826,7 +837,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "hope-jr-arm",
@@ -850,55 +862,56 @@
                             "id": 1,
                             "name": "shoulder_pitch",
                             "brand": "feetech",
-                            "model": "SM8512BL",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "shoulder_yaw": {
                             "id": 2,
                             "name": "shoulder_yaw",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "shoulder_roll": {
                             "id": 3,
                             "name": "shoulder_roll",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "elbow_flex": {
                             "id": 4,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_yaw": {
                             "id": 6,
                             "name": "wrist_yaw",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_pitch": {
                             "id": 7,
                             "name": "wrist_pitch",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         }
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "hope-jr-hand",
@@ -922,7 +935,7 @@
                             "id": 1,
                             "name": "thumb_cmc",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -931,7 +944,7 @@
                             "id": 2,
                             "name": "thumb_mcp",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -940,7 +953,7 @@
                             "id": 3,
                             "name": "thumb_pip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -948,7 +961,7 @@
                             "id": 4,
                             "name": "thumb_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -957,7 +970,7 @@
                             "id": 5,
                             "name": "index_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -966,7 +979,7 @@
                             "id": 6,
                             "name": "index_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -975,7 +988,7 @@
                             "id": 7,
                             "name": "index_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -984,7 +997,7 @@
                             "id": 8,
                             "name": "middle_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -993,7 +1006,7 @@
                             "id": 9,
                             "name": "middle_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1002,7 +1015,7 @@
                             "id": 10,
                             "name": "middle_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1011,7 +1024,7 @@
                             "id": 11,
                             "name": "ring_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1020,7 +1033,7 @@
                             "id": 12,
                             "name": "ring_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1029,7 +1042,7 @@
                             "id": 13,
                             "name": "ring_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1038,7 +1051,7 @@
                             "id": 14,
                             "name": "pinky_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1047,7 +1060,7 @@
                             "id": 15,
                             "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1056,7 +1069,7 @@
                             "id": 16,
                             "name": "pinky_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1064,7 +1077,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "hope-jr",
@@ -1088,49 +1102,49 @@
                             "id": 1,
                             "name": "shoulder_pitch",
                             "brand": "feetech",
-                            "model": "SM8512BL",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "shoulder_yaw": {
                             "id": 2,
                             "name": "shoulder_yaw",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "shoulder_roll": {
                             "id": 3,
                             "name": "shoulder_roll",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "elbow_flex": {
                             "id": 4,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_yaw": {
                             "id": 6,
                             "name": "wrist_yaw",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_pitch": {
                             "id": 7,
                             "name": "wrist_pitch",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         }
                     },
@@ -1143,49 +1157,49 @@
                             "id": 1,
                             "name": "shoulder_pitch",
                             "brand": "feetech",
-                            "model": "SM8512BL",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "shoulder_yaw": {
                             "id": 2,
                             "name": "shoulder_yaw",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "shoulder_roll": {
                             "id": 3,
                             "name": "shoulder_roll",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "elbow_flex": {
                             "id": 4,
                             "name": "elbow_flex",
                             "brand": "feetech",
-                            "model": "ST3215-C018",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_roll": {
                             "id": 5,
                             "name": "wrist_roll",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_yaw": {
                             "id": 6,
                             "name": "wrist_yaw",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         },
                         "wrist_pitch": {
                             "id": 7,
                             "name": "wrist_pitch",
                             "brand": "feetech",
-                            "model": "ST3250-C001",
+                            "model": "Feetech",
                             "variant": null
                         }
                     },
@@ -1198,7 +1212,7 @@
                             "id": 1,
                             "name": "thumb_cmc",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1207,7 +1221,7 @@
                             "id": 2,
                             "name": "thumb_mcp",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1216,7 +1230,7 @@
                             "id": 3,
                             "name": "thumb_pip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1224,7 +1238,7 @@
                             "id": 4,
                             "name": "thumb_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1233,7 +1247,7 @@
                             "id": 5,
                             "name": "index_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1242,7 +1256,7 @@
                             "id": 6,
                             "name": "index_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1250,7 +1264,7 @@
                             "id": 7,
                             "name": "index_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1259,7 +1273,7 @@
                             "id": 8,
                             "name": "middle_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1268,7 +1282,7 @@
                             "id": 9,
                             "name": "middle_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1276,7 +1290,7 @@
                             "id": 10,
                             "name": "middle_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1285,7 +1299,7 @@
                             "id": 11,
                             "name": "ring_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1294,7 +1308,7 @@
                             "id": 12,
                             "name": "ring_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1302,7 +1316,7 @@
                             "id": 13,
                             "name": "ring_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1311,7 +1325,7 @@
                             "id": 14,
                             "name": "pinky_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1320,7 +1334,7 @@
                             "id": 15,
                             "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1328,7 +1342,7 @@
                             "id": 16,
                             "name": "pinky_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         }
@@ -1342,7 +1356,7 @@
                             "id": 1,
                             "name": "thumb_cmc",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1350,7 +1364,7 @@
                             "id": 2,
                             "name": "thumb_mcp",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1359,7 +1373,7 @@
                             "id": 3,
                             "name": "thumb_pip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1367,7 +1381,7 @@
                             "id": 4,
                             "name": "thumb_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1376,7 +1390,7 @@
                             "id": 5,
                             "name": "index_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1384,7 +1398,7 @@
                             "id": 6,
                             "name": "index_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1393,7 +1407,7 @@
                             "id": 7,
                             "name": "index_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1401,7 +1415,7 @@
                             "id": 8,
                             "name": "middle_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1409,7 +1423,7 @@
                             "id": 9,
                             "name": "middle_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1418,7 +1432,7 @@
                             "id": 10,
                             "name": "middle_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1426,7 +1440,7 @@
                             "id": 11,
                             "name": "ring_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1434,7 +1448,7 @@
                             "id": 12,
                             "name": "ring_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1443,7 +1457,7 @@
                             "id": 13,
                             "name": "ring_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1452,7 +1466,7 @@
                             "id": 14,
                             "name": "pinky_radial_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "norm_mode": "range_0_100"
                         },
@@ -1460,7 +1474,7 @@
                             "id": 15,
                             "name": "pinky_ulnar_flexor",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1469,7 +1483,7 @@
                             "id": 16,
                             "name": "pinky_pip_dip",
                             "brand": "feetech",
-                            "model": "SCS0009",
+                            "model": "Feetech",
                             "variant": null,
                             "drive_mode": 1,
                             "norm_mode": "range_0_100"
@@ -1477,7 +1491,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "halfway"
         },
         {
             "id": "openarm-dual-arm",
@@ -1682,7 +1697,8 @@
                     },
                     "baud_rate": 1000000
                 }
-            }
+            },
+            "calibration_method": "zero_position"
         }
     ]
 }

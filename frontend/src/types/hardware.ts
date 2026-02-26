@@ -56,6 +56,7 @@ export interface Robot {
   motor_bus_connections: Record<string, RobotMotorBusConnection> | null;
   custom_protection_settings?: Record<string, { type: string; value: number }[]>;
   calibration_settings?: Record<string, MotorCalibration[]>;
+  is_calibrated?: boolean;
 }
 
 export interface CameraSummary {
@@ -83,57 +84,80 @@ export interface MotorInfo {
   protection?: MotorProtectionParams;
 }
 
+export interface ProtectionViolation {
+  type: string;
+  value: number;
+  limit: number;
+}
+
+export interface ProtectionStatus {
+  status: 'ok' | 'warning' | 'critical';
+  violations: ProtectionViolation[];
+}
+
 export interface MotorTelemetry {
-  id: number;
-  present_position: number;
-  present_velocity: number;
-  present_current: number;
-  present_voltage: number;
-  present_temperature: number;
-  error?: number;
-  moving?: boolean;
+  motor_id: number | [number, number];
+  position: number | null;
+  position_type: 'raw' | 'calibrated' | 'normalized' | 'raw_in_radian' | 'calibrated_in_radian';
+  goal_position: number | null;
+  velocity: number;
+  torque: number | null;
+  current: number | null;
+  temperature: number | null;
+  voltage: number | null;
+  moving: boolean;
+  error: number;
+  protection_status: ProtectionStatus;
 }
 
-// WebSocket Types
-export type WebSocketMessageType = 
-  | 'telemetry' 
-  | 'event' 
-  | 'ack' 
-  | 'start_telemetry' 
-  | 'stop_telemetry' 
-  | 'command' 
-  | 'emergency_stop';
-
-export interface WebSocketMessage {
-  type: WebSocketMessageType;
-  timestamp?: number;
-  payload?: any;
+export interface MotorBusData {
+  bus_name: string;
+  motors: Record<string, MotorTelemetry>;
 }
 
-export interface TelemetryMessage extends WebSocketMessage {
+export interface RobotTelemetryFrame {
+  timestamp: number;
+  motor_buses: Record<string, MotorBusData>;
+  actual_fps: number;
+  normalized: boolean;
+}
+
+// WebSocket Message Types
+export interface TelemetryMessage {
   type: 'telemetry';
-  payload: {
-    motors: MotorTelemetry[];
-  };
+  frame: RobotTelemetryFrame;
 }
 
-export interface EventMessage extends WebSocketMessage {
-  type: 'event';
-  payload: {
-    code: string;
-    severity: 'info' | 'warning' | 'critical';
-    message: string;
-    details?: any;
-  };
+export interface SessionInitMessage {
+  type: 'session_init';
+  robot_id: string;
+  normalized: boolean;
+  fps: number;
 }
 
-export interface MotorCommand {
-  id: number;
-  goal_position?: number;
-  goal_velocity?: number;
-  torque_enabled?: boolean;
+export interface ErrorMessage {
+  type: 'error';
+  code: string;
+  message: string;
 }
 
-export interface BulkMotorCommand {
-  commands: MotorCommand[];
+export interface CommandAckMessage {
+  type: 'ack';
+  command_type: string;
+  success: boolean;
+  message?: string;
+}
+
+export interface CalibrationStateMessage {
+  type: 'calibration_state';
+  step_index: number;
+  step_count: number;
+  is_complete: boolean;
+  method_id: string;
+  step_descriptions: string[];
+}
+
+export interface CalibrationMethod {
+  method_id: string;
+  steps: string[];
 }

@@ -174,7 +174,6 @@
       "noSteps": "No installation steps were generated for the selected repository/version. Check repository and version, or fall back to defaults.",
       "failedToLoadSteps": "Failed to load installation steps. Please try again later."
     },
-
     "installation": {
       "title": "Installing Environment",
       "subtitle": "Setting up {{envName}}. Please do not close this window.",
@@ -425,7 +424,6 @@
       "error": "An error occurred during operation",
       "addFailed": "Add failed: {{error}}",
       "invalidComponentName": "Invalid component name \"{{name}}\" (letters, numbers, underscores only)",
-
       "duplicateComponentName": "Component names must be unique",
       "networkError": "Network error, please try again later",
       "duplicateDeviceError": "A device cannot be reused across multiple components.",
@@ -486,6 +484,50 @@
         "driveReversed": "Drive Reversed",
         "needCalibration": "Need Calibration"
       }
+    },
+    "calibration": {
+      "title": "Robot Calibration",
+      "monitoring": "Real-time Monitoring",
+      "history": "History Data",
+      "urdf": "URDF Viewer",
+      "info": "Calibration Information",
+      "noUrdf": "No URDF defined for this robot.",
+      "placeholderInfo": "Calibration details will be available here soon.",
+      "sections": {
+        "telemetry": "Motor Telemetry",
+        "history": "Historical Data",
+        "urdf": "3D Visualizer"
+      },
+      "method": {
+        "select": "Select Calibration Method"
+      },
+      "steps": {
+        "label": "Calibration Steps",
+        "completed": "Completed"
+      },
+      "table": {
+        "busTitle": "Motor Positions",
+        "motorId": "Motor ID",
+        "name": "Motor Name",
+        "minPosition": "Min (rad)",
+        "maxPosition": "Max (rad)",
+        "notRecorded": "—",
+        "trackingNote": "Min/Max are tracked live from telemetry during recording step"
+      },
+      "buttons": {
+        "start": "Start Calibration",
+        "nextStep": "Next Step",
+        "save": "Save",
+        "done": "Done",
+        "cancel": "Cancel"
+      },
+      "status": {
+        "notCalibrated": "Not Calibrated",
+        "calibrated": "Calibrated",
+        "saving": "Saving..."
+      },
+      "loadingMethods": "Loading calibration methods...",
+      "noMethods": "No calibration methods available for this robot."
     }
   }
 }

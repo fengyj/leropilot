@@ -17,21 +17,21 @@ class TestMotorBusArchitecture:
     def test_abstract_motor_bus(self) -> None:
         """Test that MotorBus is abstract and cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            MotorBus("test", 1000000)
+            MotorBus()
 
     def test_serial_motor_bus_creation(self) -> None:
-        """Test SerialMotorBus can be created."""
-        bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
-        assert bus.interface == "/dev/ttyUSB0"
-        assert bus.baud_rate == 1000000
+        """Test SerialMotorBus can be created without connection params."""
+        bus = FeetechMotorBus()
+        assert bus.interface is None
+        assert bus.baud_rate is None
         assert bus.driver_class == FeetechDriver
         assert not bus.is_connected()
 
     def test_can_motor_bus_creation(self) -> None:
-        """Test CANMotorBus can be created."""
-        bus = DamiaoMotorBus("socketcan:can0", 1000000)
-        assert bus.interface == "socketcan:can0"
-        assert bus.baud_rate == 1000000
+        """Test CANMotorBus can be created without connection params."""
+        bus = DamiaoMotorBus()
+        assert bus.interface is None
+        assert bus.baud_rate is None
         assert not bus.is_connected()
 
     def test_serial_motor_bus_scan(self) -> None:
@@ -40,7 +40,7 @@ class TestMotorBusArchitecture:
 
         from leropilot.exceptions import OperationalError
 
-        bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+        bus = FeetechMotorBus()
 
         # Test that scan raises OperationalError when not connected
         assert not bus.is_connected()
@@ -54,13 +54,13 @@ class TestMotorBusArchitecture:
             mock_instance.scan_motors.return_value = {}  # Empty scan result
             MockDriver.return_value = mock_instance
 
-            bus.connect()
+            bus.connect("/dev/ttyUSB0", 1000000)
             assert bus.is_connected()
             results = bus.scan_motors([1])
             assert len(results) == 0
 
     def test_motor_bus_context_manager(self) -> None:
-        """Test MotorBus context manager."""
+        """Test MotorBus context manager auto-disconnects on exit."""
         from unittest.mock import patch
 
         with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver") as MockDriver:
@@ -69,7 +69,8 @@ class TestMotorBusArchitecture:
             mock_instance.disconnect.return_value = True
             MockDriver.return_value = mock_instance
 
-            bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+            bus = FeetechMotorBus()
+            bus.connect("/dev/ttyUSB0", 1000000)
 
             with bus:
                 assert bus.is_connected()
@@ -78,24 +79,24 @@ class TestMotorBusArchitecture:
 
     def test_motorbus_factory(self) -> None:
         """Factory should construct the appropriate subclass from a string."""
-        m1 = MotorBus.create("feetech", "/dev/ttyUSB0", 1000000)
+        m1 = MotorBus.create("feetech")
         assert isinstance(m1, FeetechMotorBus)
 
-        m2 = MotorBus.create("dynamixel", "/dev/ttyUSB0", 1000000)
+        m2 = MotorBus.create("dynamixel")
         assert isinstance(m2, DynamixelMotorBus)
 
-        m3 = MotorBus.create("damiao", "can0", 1000000)
+        m3 = MotorBus.create("damiao")
         assert isinstance(m3, DamiaoMotorBus)
 
         # Accept class input too
-        m4 = MotorBus.create(FeetechMotorBus, "/dev/ttyUSB0", 1000000)
+        m4 = MotorBus.create(FeetechMotorBus)
         assert isinstance(m4, FeetechMotorBus)
 
     def test_motor_bus_motor_registration(self):
         """Test motor registration with MotorBus."""
         from unittest.mock import patch
 
-        bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+        bus = FeetechMotorBus()
 
         # Mock driver and connect to create shared driver
         from leropilot.models.hardware import MotorBrand, MotorModelInfo
@@ -105,11 +106,20 @@ class TestMotorBusArchitecture:
             mock_instance.connect.return_value = True
             MockDriver.return_value = mock_instance
 
-            bus.connect()
+            bus.connect("/dev/ttyUSB0", 1000000)
 
             # Register using only motor_info (driver is shared)
             mi = MotorModelInfo(
-                model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0
+                model="X",
+                model_ids=[0],
+                limits={},
+                brand=MotorBrand.FEETECH,
+                encoder_resolution=4096.0,
+                position_to_radian_ratio=1.0,
+                velocity_ratio=1.0,
+                current_unit_ma_per_bit=1.0,
+                voltage_unit_v_per_bit=1.0,
+                temperature_unit_c_per_bit=1.0,
             )
             bus.register_motor(1, mi)
 

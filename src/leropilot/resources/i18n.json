@@ -554,5 +554,23 @@
         "zh": "电机 {motor_id} 位置反归一化失败: {reason}"
       }
     }
+  },
+  "calibration": {
+    "halfway": {
+      "step_move_to_halfway": {
+        "en": "Move all joints to their middle (halfway) position, then confirm.",
+        "zh": "将所有关节移动到中间位置，然后点击确认。"
+      },
+      "step_move_to_min_max": {
+        "en": "Slowly move all joints through their full range — first to the minimum, then to the maximum position. The system records the range automatically. Confirm when done.",
+        "zh": "缓慢移动所有关节经过完整活动范围——先到最小位置，再到最大位置。系统将自动记录范围，完成后点击确认。"
+      }
+    },
+    "zero_position": {
+      "step_move_to_zero": {
+        "en": "Move all joints to the desired zero (home) position, then confirm.",
+        "zh": "将所有关节移动到期望的零位（Home 位），然后点击确认。"
+      }
+    }
   }
 }

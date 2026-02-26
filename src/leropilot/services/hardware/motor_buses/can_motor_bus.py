@@ -19,22 +19,25 @@ class CANMotorBus(MotorBus):
 
     def __init__(
         self,
-        interface: str,
-        bitrate: int = 1000000,
         driver_class: type[BaseMotorDriver] | None = None,
     ) -> None:
         """Initialize CANMotorBus.
 
         Args:
-            interface: CAN interface (e.g., "can0", "can1")
-            bitrate: CAN bitrate
             driver_class: Motor driver class to use (DamiaoDriver, etc.)
+
+        Call :meth:`connect` with ``interface`` and ``bitrate`` to establish
+        a physical connection.
         """
-        super().__init__(interface, bitrate)
+        super().__init__()
         self.driver_class = driver_class
 
-    def connect(self) -> None:
+    def connect(self, interface: str, baud_rate: int = 1000000) -> None:
         """Connect to CAN motor bus.
+
+        Args:
+            interface: CAN interface (e.g., "can0", "can1")
+            baud_rate: CAN bitrate
 
         Raises:
             OperationalError: If connection fails.
@@ -42,6 +45,8 @@ class CANMotorBus(MotorBus):
         if self._connected:
             return
 
+        self.interface = interface
+        self.baud_rate = baud_rate
         try:
             # For CAN buses, we don't need to pre-connect since drivers handle their own connections
             self._connected = True

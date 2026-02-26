@@ -6,6 +6,7 @@ communication protocols and use appropriate drivers directly.
 """
 
 import logging
+import math
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -13,7 +14,9 @@ from typing import Generic
 
 from leropilot.exceptions import OperationalError, ValidationError
 from leropilot.models.hardware import (
+    MotorBusDefinition,
     MotorCalibration,
+    MotorID,
     MotorModelInfo,
     MotorNormMode,
     MotorTelemetry,
@@ -159,17 +162,22 @@ class PositionConvertCache(Generic[MotorIDVar]):
             raw_from_radian = x / pos_ratio
             return raw_from_radian + homing_offset if soft_homing else raw_from_radian
 
+        def raw_to_raw_in_degree(x: float) -> float:
+            return x * pos_ratio * (180.0 / math.pi)
+
         # Build mapping of supported converters
         mapping: dict[tuple[PositionType, PositionType], Callable[[float], float]] = {
             (PositionType.RAW, PositionType.CALIBRATED): raw_to_cal,
             (PositionType.RAW, PositionType.NORMALIZED): raw_to_norm,
             (PositionType.RAW, PositionType.RAW_IN_RADIAN): raw_to_raw_in_radian,
             (PositionType.RAW, PositionType.CALIBRATED_IN_RADIAN): raw_to_cal_radian,
+            (PositionType.RAW, PositionType.RAW_IN_DEGREE): raw_to_raw_in_degree,
             (PositionType.CALIBRATED, PositionType.RAW): cal_to_raw,
             (PositionType.CALIBRATED, PositionType.NORMALIZED): cal_to_norm,
             (PositionType.CALIBRATED, PositionType.RAW_IN_RADIAN): cal_to_raw_in_radian,
             (PositionType.NORMALIZED, PositionType.RAW): norm_to_raw,
             (PositionType.RAW_IN_RADIAN, PositionType.RAW): (lambda x: x / pos_ratio),
+            (PositionType.RAW_IN_DEGREE, PositionType.RAW): (lambda x: x * math.pi / (180.0 * pos_ratio)),
             (PositionType.CALIBRATED_IN_RADIAN, PositionType.RAW): calibrated_in_radian_to_raw,
         }
 
@@ -257,19 +265,16 @@ class MotorBus(ABC, Generic[MotorIDVar]):
         All public methods that access the driver are wrapped in this lock.
     """
 
-    def __init__(
-        self,
-        interface: str,
-        baud_rate: int | None = None,
-    ) -> None:
+    def __init__(self) -> None:
         """Initialize MotorBus.
 
-        Args:
-            interface: Communication interface (serial port, CAN interface, etc.)
-            baud_rate: Communication baudrate/bitrate
+        Interface and baud rate are provided to :meth:`connect` when establishing
+        a physical connection, not at construction time. This allows creating an
+        offline bus instance (e.g., for calibration unit conversion) without any
+        hardware-specific parameters.
         """
-        self.interface = interface
-        self.baud_rate = baud_rate
+        self.interface: str | None = None
+        self.baud_rate: int | None = None
         # Shared driver instance for all motors on this bus
         self.driver: BaseMotorDriver[MotorIDVar] | None = None
         # Map motor_id -> MotorModelInfo (driver is shared). MotorModelInfo is required
@@ -283,15 +288,22 @@ class MotorBus(ABC, Generic[MotorIDVar]):
         self._position_converter_cache = PositionConvertCache(self)
         # Velocity converter cache per MotorBus instance
         self._velocity_converter_cache = VelocityConverterCache(self)
-
+        
     @abstractmethod
-    def connect(self) -> None:
+    def connect(self, interface: str, baud_rate: int | None = None) -> None:
         """Connect to the motor bus.
+
+        Stores ``interface`` and ``baud_rate`` on ``self`` and establishes the
+        physical connection. Subclasses must call ``super()`` or assign these
+        attributes themselves before creating the driver.
+
+        Args:
+            interface: Communication interface (serial port, CAN interface, etc.)
+            baud_rate: Communication baudrate/bitrate
 
         Raises:
             OperationalError: If connection fails.
         """
-        pass
 
     @abstractmethod
     def disconnect(self) -> None:
@@ -326,6 +338,29 @@ class MotorBus(ABC, Generic[MotorIDVar]):
             raise ValueError("motor_id must be provided when registering a motor")
         self.motors[motor_id] = motor_info.model_copy(deep=True)  # store a copy because needs to change the limits data
 
+    def register_motors_from_definition(self, bus_def: MotorBusDefinition) -> None:
+        """Register all motors from a MotorBusDefinition without requiring hardware.
+
+        Looks up each motor's MotorModelInfo from the motor table by brand/model/variant
+        and calls :meth:`register_motor`. Motors not found in the table are skipped with
+        a warning. This is the preferred way to populate motor info for a known robot,
+        avoiding a hardware scan.
+
+        Args:
+            bus_def: MotorBusDefinition whose motors should be registered.
+        """
+        from ..motor_drivers.base import MotorUtil
+
+        for motor_name, motor_def in bus_def.motors.items():
+            model_info = MotorUtil.find_motor(motor_def.brand, motor_def.model, motor_def.variant)
+            if model_info is not None:
+                self.register_motor(motor_def.id, model_info)
+            else:
+                logger.warning(
+                    f"Motor '{motor_name}' ({motor_def.brand}/{motor_def.model}/{motor_def.variant})"
+                    " not found in motor table; skipping registration"
+                )
+
     def register_calibration(
         self,
         motor_id: MotorIDVar,
@@ -333,6 +368,25 @@ class MotorBus(ABC, Generic[MotorIDVar]):
     ) -> None:
         """Register calibration data for a motor to enable normalization."""
         self.calibrations[motor_id] = calibration
+
+    def register_calibrations_from_list(
+        self,
+        cal_list: list[MotorCalibration],
+        name_to_id: dict[str, MotorID] | None = None,
+    ) -> None:
+        """Register calibrations from a list, resolving motor IDs by name when needed.
+
+        Args:
+            cal_list: List of MotorCalibration entries to register.
+            name_to_id: Optional mapping from motor name to motor ID. Used to resolve
+                entries where :attr:`MotorCalibration.id` is ``None``.
+        """
+        for cal in cal_list:
+            motor_id: MotorID | None = cal.id
+            if motor_id is None and name_to_id and cal.name in name_to_id:
+                motor_id = name_to_id[cal.name]
+            if motor_id is not None:
+                self.register_calibration(motor_id, cal)
 
     def _ensure_driver(self) -> BaseMotorDriver[MotorIDVar]:
         """Ensure driver is available, raising exception if not.
@@ -354,6 +408,47 @@ class MotorBus(ABC, Generic[MotorIDVar]):
     def get_motor_info(self, motor_id: MotorIDVar) -> MotorModelInfo | None:
         """Return the MotorModelInfo object associated with a registered motor, if any."""
         return self.motors.get(motor_id)
+
+    def convert_calibration_units(
+        self,
+        motor_id: MotorIDVar,
+        target_type: PositionType = PositionType.RAW,
+    ) -> MotorCalibration:
+        """Return a calibration snapshot converted to the requested unit.
+
+        Args:
+            motor_id: Motor id whose calibration should be converted.
+            target_type: Target PositionType for position fields (default: RAW).
+
+        Returns:
+            A copy of the motor calibration with homing_offset/range values converted.
+
+        Raises:
+            ValidationError: If motor_id is not registered or calibration is missing.
+        """
+        if motor_id not in self.motors:
+            raise ValidationError(
+                i18n_key="hardware.motor_device.not_registered",
+                motor_id=str(motor_id),
+            )
+        cal = self.calibrations.get(motor_id)
+        if cal is None:
+            raise ValueError(f"Missing calibration for motor {motor_id}")
+
+        if target_type == PositionType.RAW:
+            return cal.model_copy()
+
+        converted = cal.model_copy()
+        converted.homing_offset = self._position_converter_cache.convert(
+            motor_id, PositionType.RAW, target_type, cal.homing_offset
+        )
+        converted.range_min = self._position_converter_cache.convert(
+            motor_id, PositionType.RAW, target_type, cal.range_min
+        )
+        converted.range_max = self._position_converter_cache.convert(
+            motor_id, PositionType.RAW, target_type, cal.range_max
+        )
+        return converted
 
     def read_telemetry(self, motor_id: MotorIDVar, position_type: PositionType = PositionType.RAW) -> MotorTelemetry:
         """Read telemetry from a single motor.
@@ -378,6 +473,11 @@ class MotorBus(ABC, Generic[MotorIDVar]):
             # motor_id must be registered and contain a MotorModelInfo per contract
             model_info = self.motors[motor_id]
             telemetry = driver.read_telemetry(motor_id, model_info)
+            if telemetry is None:
+                raise OperationalError(
+                    i18n_key="hardware.motor_device.read_failed",
+                    motor_id=str(motor_id),
+                )
 
             # Convert velocity from raw hardware units to rad/s via cached converter
             telemetry.velocity = self._velocity_converter_cache.raw_to_rad(motor_id, telemetry.velocity)
@@ -883,22 +983,22 @@ class MotorBus(ABC, Generic[MotorIDVar]):
 
     # Context manager support
     def __enter__(self) -> "MotorBus[MotorIDVar]":
-        self.connect()
+        """Return self. :meth:`connect` must be called explicitly before entering."""
         return self
 
     def __exit__(self, exc_type: type | None, exc_val: BaseException | None, exc_tb: object | None) -> None:
         self.disconnect()
 
     @staticmethod
-    def create(motorbus_type: str | type["MotorBus[MotorIDVar]"], interface: str, baud_rate: int | None = None) -> "MotorBus[MotorIDVar]":
-        """
-        Factory method to create a MotorBus instance based on type name.
+    def create(motorbus_type: str | type["MotorBus[MotorIDVar]"]) -> "MotorBus[MotorIDVar]":
+        """Factory method to create an offline MotorBus instance by type name.
+
+        The returned instance is not yet connected. Call :meth:`connect` with the
+        interface and baud rate when a physical connection is needed.
 
         Args:
             motorbus_type: Either a string identifier (e.g., "feetech", "dynamixel", "damiao")
                           or a MotorBus subclass reference.
-            interface: Interface identifier (serial port or CAN interface)
-            baud_rate: Optional baud/bit rate (passes through to the constructor)
 
         Returns:
             An instance of a MotorBus subclass.
@@ -906,6 +1006,5 @@ class MotorBus(ABC, Generic[MotorIDVar]):
         Raises:
             ValueError: If the motorbus_type is unknown.
         """
-        # Resolve class and instantiate
         cls = MotorBus.resolve_bus_class(motorbus_type) if not isinstance(motorbus_type, type) else motorbus_type
-        return cls(interface, baud_rate)
+        return cls()

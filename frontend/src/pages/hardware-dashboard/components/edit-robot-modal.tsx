@@ -402,7 +402,7 @@ export const EditRobotModal: React.FC<EditRobotModalProps> = ({
                                                       </div>
                                                    </td>
                                                    <td className="py-2.5 px-4 text-right text-xs text-content-primary w-[10%]">
-                                                      {motor.is_full_turn ? (
+                                                      {!motor.is_full_turn ? (
                                                          <span role="img" aria-label={t('common.yes')} className="text-success-icon text-xs font-bold">✓</span>
                                                       ) : (
                                                          <span role="img" aria-label={t('common.no')} className="text-status-danger text-xs font-bold">✕</span>

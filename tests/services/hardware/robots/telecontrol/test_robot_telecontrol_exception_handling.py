@@ -297,6 +297,9 @@ async def test_read_loop_fatal_exception_stops_gracefully(test_robot, caplog):
         assert not service._running
         assert service._read_task is None or service._read_task.done()
 
+        # Ensure motor bus disconnect was attempted during fatal cleanup
+        assert mock_bus_instance.disconnect.called, "Expected bus.disconnect() to be called during fatal cleanup"
+
 
 @pytest.mark.asyncio
 async def test_consecutive_errors_trigger_shutdown(test_robot, caplog):

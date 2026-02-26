@@ -3,30 +3,34 @@ from leropilot.services.hardware.motor_buses.damiao_motor_bus import DamiaoMotor
 
 
 def test_damiao_motor_bus_builds_tuple_ids():
-    bus = DamiaoMotorBus(interface="PCAN_USBBUS1", bitrate=1000000)
+    bus = DamiaoMotorBus()
     # Register known motor ids preserving tuple entries and integers
-    bus.register_motor(
-        (3, 0x13),
-        MotorModelInfo(
-            model="DM4310", model_ids=[17168], limits={}, brand=MotorBrand.DAMIAO, encoder_resolution=65536.0
-        ),
+    _mi = MotorModelInfo(
+        model="DM4310",
+        model_ids=[17168],
+        limits={},
+        brand=MotorBrand.DAMIAO,
+        encoder_resolution=65536.0,
+        position_to_radian_ratio=1.0,
+        velocity_ratio=1.0,
+        current_unit_ma_per_bit=1.0,
+        voltage_unit_v_per_bit=1.0,
+        temperature_unit_c_per_bit=1.0,
     )
-    bus.register_motor(
-        4,
-        MotorModelInfo(
-            model="DM4310", model_ids=[17168], limits={}, brand=MotorBrand.DAMIAO, encoder_resolution=65536.0
-        ),
-    )
+    bus.register_motor((3, 0x13), _mi)
+    bus.register_motor(4, _mi)
     assert (3, 0x13) in bus.motors
     assert 4 in bus.motors
 
 
 def test_scan_registers_driver_with_tuple():
-    bus = DamiaoMotorBus(interface="PCAN_USBBUS1", bitrate=1000000)
+    bus = DamiaoMotorBus()
+
+    from unittest.mock import Mock
 
     # Register known motor ids preserving tuple entries and integers
-    bus.register_motor((3, 0x13))
-    bus.register_motor(4)
+    bus.register_motor((3, 0x13), Mock())
+    bus.register_motor(4, Mock())
 
     # Create fake motor info with detected id 3 (send-only)
     # Simulate discovery data: send-only id and tuple (send, recv)
@@ -36,7 +40,7 @@ def test_scan_registers_driver_with_tuple():
     # Simulate registration path for tuple-style discovery
     from leropilot.services.hardware.motor_drivers.damiao.drivers import DamiaoCAN_Driver
 
-    motor_driver = DamiaoCAN_Driver(bus.interface, bus.baud_rate)
+    motor_driver = DamiaoCAN_Driver("PCAN_USBBUS1", 1000000)
     send_id = m_tuple_id[0]
     matched = next(
         (

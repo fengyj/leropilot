@@ -17,18 +17,13 @@ class DynamixelMotorBus(MotorBus[int]):
     Uses DynamixelDriver for serial communication with Dynamixel Protocol 2.0 motors.
     """
 
-    def __init__(
-        self,
-        interface: str,
-        baud_rate: int = 1000000,
-    ) -> None:
+    def __init__(self) -> None:
         """Initialize DynamixelMotorBus.
 
-        Args:
-            interface: Serial port (e.g., "COM1", "/dev/ttyUSB0")
-            baud_rate: Serial baudrate (default: 1000000)
+        Call :meth:`connect` with ``interface`` and ``baud_rate`` to establish
+        a physical connection.
         """
-        super().__init__(interface, baud_rate)
+        super().__init__()
         self.driver_class = DynamixelDriver
 
     @classmethod
@@ -36,8 +31,12 @@ class DynamixelMotorBus(MotorBus[int]):
         """Dynamixel preferred baud rates (descending order)."""
         return [1000000, 115200]
 
-    def connect(self) -> None:
+    def connect(self, interface: str, baud_rate: int = 1000000) -> None:
         """Connect to Dynamixel motor bus and create shared driver.
+
+        Args:
+            interface: Serial port (e.g., "COM1", "/dev/ttyUSB0")
+            baud_rate: Serial baudrate (default: 1000000)
 
         Raises:
             OperationalError: If connection fails.
@@ -45,6 +44,8 @@ class DynamixelMotorBus(MotorBus[int]):
         if self._connected and self.driver:
             return
 
+        self.interface = interface
+        self.baud_rate = baud_rate
         try:
             # Create shared driver instance for all motors on this bus
             self.driver = DynamixelDriver(self.interface, self.baud_rate)
@@ -122,3 +123,50 @@ class DynamixelMotorBus(MotorBus[int]):
 
         logger.info(f"Dynamixel motor scan complete: found {len(discovered)} motors")
         return discovered
+
+    def set_half_turn_homings(self, motor_ids: list[int]) -> None:
+        """Set the current position of each motor as its halfway home reference.
+
+        Identical algorithm to ``FeetechMotorBus.set_half_turn_homings``:
+        computes ``homing_offset = (encoder_resolution - 1) / 2 - current_position``
+        and updates the registered calibration entry.
+
+        Args:
+            motor_ids: List of motor IDs whose homing offsets should be updated.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+            for motor_id in motor_ids:
+                motor_info = self.motors.get(motor_id)
+                if motor_info is None:
+                    logger.warning(f"set_half_turn_homings: motor {motor_id} not registered, skipping")
+                    continue
+
+                cal = self.calibrations.get(motor_id)
+                if cal is not None:
+                    cal.homing_offset = 0.0  # reset before reading
+
+                resolution = motor_info.encoder_resolution
+                max_res = resolution - 1
+
+                write_homing_offset = getattr(driver, "write_homing_offset", None)
+                if write_homing_offset is None or not callable(write_homing_offset):
+                    logger.error("DynamixelDriver does not support write_homing_offset, cannot set zero position")
+                    raise NotImplementedError(
+                        "DynamixelDriver does not implement write_homing_offset. "
+                        "Add hardware-level homing offset support to the driver first."
+                    )
+                
+                write_homing_offset(motor_id, 0.0)
+                current_position = int(driver.get_position(motor_id=motor_id))
+                homing_offset = float(int(max_res / 2) - current_position)
+                write_homing_offset(motor_id, homing_offset)
+
+                if cal is not None:
+                    cal.homing_offset = homing_offset
+                    cal.range_min = 0.0
+                    cal.range_max = float(max_res)
+                    logger.info(
+                        f"set_half_turn_homings: motor {motor_id}, "
+                        f"raw_pos={current_position}, homing_offset={homing_offset:.1f}"
+                    )

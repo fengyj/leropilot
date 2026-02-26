@@ -44,9 +44,14 @@ class FeetechDriver(BaseMotorDriver[int]):
 
         # Build register address -> (address, length) mapping for fast lookup
         self._register_map: dict[int, tuple[int, int]] = {}
-        for reg_name, (reg_addr, reg_len) in vars(SCS_STS_Registers).items():
-            if not reg_name.startswith("_"):
-                self._register_map[reg_addr] = (reg_addr, reg_len)
+        # Only include attributes that are (address, length) tuples and skip dunder/other attrs.
+        for reg_name, reg_val in vars(SCS_STS_Registers).items():
+            if reg_name.startswith("_"):
+                continue
+            if not isinstance(reg_val, tuple) or len(reg_val) != 2:
+                continue
+            reg_addr, reg_len = reg_val
+            self._register_map[reg_addr] = (reg_addr, reg_len)
 
     def _get_register_length(self, address: int) -> int:
         """Get register length (in bytes) for a given address.
@@ -131,13 +136,31 @@ class FeetechDriver(BaseMotorDriver[int]):
     def _check_sdk_result(
         self, result: int, error: int, operation: str, motor_id: int, addr: int | None = None
     ) -> None:
-        """Check SDK operation result and raise OperationalError if failed."""
+        """Check SDK operation result and raise OperationalError if failed.
+
+        Enhances logs with the SDK constant name (e.g., COMM_RX_TIMEOUT) when available
+        to make diagnostics easier.
+        """
         if result != scs.COMM_SUCCESS or error != 0:
+            # Try to map result code to friendly name from scservo_sdk (COMM_* constants)
+            result_name = None
+            for name in dir(scs):
+                if name.startswith("COMM_"):
+                    try:
+                        if getattr(scs, name) == result:
+                            result_name = name
+                            break
+                    except Exception:
+                        continue
+
             error_msg = f"{operation} failed for motor {motor_id}"
             if addr is not None:
                 error_msg += f" at address {addr}"
-            error_msg += f": result={result}, error={error}"
-            logger.error(error_msg)
+            if result_name:
+                error_msg += f": result={result} ({result_name}), error={error}"
+            else:
+                error_msg += f": result={result}, error={error}"
+
             raise OperationalError(error_msg)
 
     def _feetech_read_byte(self, motor_id: int, addr: int) -> int:
@@ -354,26 +377,13 @@ class FeetechDriver(BaseMotorDriver[int]):
         if not candidates:
             raise ValueError(f"Unknown motor model number {model_number} (0x{model_number:04X}) for motor {motor_id}")
 
-        # Firmware-based variant detection for SO-101 family
-        if fw_major == 0xC0 and fw_minor is not None:
-            variant_map = {0x24: "W", 0x44: "M", 0x64: "L"}
-            if fw_minor in variant_map:
-                result = candidates[0].model_copy()
-                result.variant = variant_map[fw_minor]
-                return result
-
         # Prefer base model (no variant)
         for c in candidates:
             if c.variant is None:
                 return c
 
-        # Ambiguous case
-        if raise_on_ambiguous:
-            raise ValueError(f"Motor {motor_id} matched multiple candidates, no base model found")
-
-        result = candidates[0].model_copy()
-        result.variant = None
-        return result
+        # Return first candidate if no base model found
+        return candidates[0].model_copy()
 
     def supported_models(self) -> list[MotorModelInfo]:
         """Return list of supported motor models."""
@@ -389,27 +399,10 @@ class FeetechDriver(BaseMotorDriver[int]):
 
         for motor_id in scan_range:
             try:
-                # Try to read model number using read_register
-                addr, _ = SCS_STS_Registers.MODEL_NUMBER
-                model_number = int(self.read_register(motor_id, addr))
-
-                # Read firmware
-                fw_major = None
-                fw_minor = None
-                try:
-                    addr_fw, _ = SCS_STS_Registers.FIRMWARE_MAJOR
-                    fw_word = int(self.read_register(motor_id, addr_fw))
-                    fw_major = (fw_word >> 8) & 0xFF
-                    fw_minor = fw_word & 0xFF
-                except OperationalError:
-                    pass
 
                 # Identify model
                 model_info = self.identify_model(
                     motor_id,
-                    model_number=model_number,
-                    fw_major=fw_major,
-                    fw_minor=fw_minor,
                 )
                 discovered[motor_id] = model_info
                 logger.info(f"Found motor {motor_id}: {model_info.model}")
@@ -439,6 +432,10 @@ class FeetechDriver(BaseMotorDriver[int]):
             raw_value = self._feetech_read_dword(motor_id, address)
         else:
             raise ValueError(f"Unsupported register length {reg_len} for address {address}")
+
+        # Mask to register width to avoid sign-extension artifacts from SDK values
+        mask = (1 << (reg_len * 8)) - 1
+        raw_value &= mask
 
         # Decode sign-magnitude if applicable
         signed_value = self._decode_signed_register(raw_value, address)
@@ -494,6 +491,9 @@ class FeetechDriver(BaseMotorDriver[int]):
         for motor_id in motor_ids:
             if group_sync_read.isAvailable(motor_id, register_addr, reg_len):
                 raw_value = group_sync_read.getData(motor_id, register_addr, reg_len)
+                # Mask to register width to avoid sign-extension artifacts
+                mask = (1 << (reg_len * 8)) - 1
+                raw_value &= mask
                 signed_value = self._decode_signed_register(raw_value, register_addr)
                 results[motor_id] = float(signed_value)
 

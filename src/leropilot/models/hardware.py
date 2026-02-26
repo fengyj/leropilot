@@ -53,6 +53,7 @@ class PositionType(str, Enum):
     NORMALIZED = "normalized"  # Scaled to [-1, 1] range based on range_min/range_max
     RAW_IN_RADIAN = "raw_in_radian"  # Raw position converted to standardized radians using position_to_radian_ratio
     CALIBRATED_IN_RADIAN = "calibrated_in_radian"  # Calibrated position converted to standardized radians
+    RAW_IN_DEGREE = "raw_in_degree"  # Raw position converted to standardized degrees using position_to_radian_ratio
 
 
 class MotorNormMode(str, Enum):
@@ -556,7 +557,7 @@ class RobotMotorDefinition(BaseModel):
     model: str
     variant: str | None = None
     is_full_turn: bool = Field(False, description="Whether the motor has no range limits (full turn, e.g., wheels)")
-    drive_mode: int = Field(0, description="0 = normal, 1 = inverted direction")  # default to 0 when missing from JSON
+    drive_mode: int = Field(0, description="0 = normal, 1 = inverted direction")  # default to 0 when missing from JSON. Only used for the motors don't support reverse direction (e.g., Feetech). For reversible motors (e.g., Damiao) the service layer should set this to 0 and handle inversion in software based on the motor's capabilities.
     norm_mode: "MotorNormMode" = Field(
         MotorNormMode.RANGE_M100_100,
         description=(
@@ -633,6 +634,14 @@ class RobotDefinition(BaseModel):
     support_version_end: str | None = None
     device_category: DeviceCategory = Field(DeviceCategory.ROBOT, description="Device category (robot|controller)")
     motor_buses: dict[str, MotorBusDefinition]
+    calibration_method: str | None = Field(
+        None,
+        description=(
+            "Preferred calibration method ID (e.g. 'halfway', 'zero_position'). "
+            "When set, the available_calibration_methods API returns only this method "
+            "if it is supported by the robot's motor buses."
+        ),
+    )
 
     class Config:
         use_enum_values = True
@@ -840,7 +849,24 @@ class SessionInitMessage(BaseModel):
     fps: int = Field(..., description="Configured frames per second")
 
 
-class WebSocketMessage(RootModel[SessionInitMessage | TelemetryMessage | CommandAckMessage | ErrorMessage]):
+class CalibrationStateMessage(BaseModel):
+    """Calibration state message sent after calibration_start / calibration_next commands."""
+
+    type: Literal["calibration_state"] = "calibration_state"
+    step_index: int = Field(..., description="Current step index (0-based). -1 when complete.")
+    step_count: int = Field(..., description="Total number of calibration steps")
+    is_complete: bool = Field(..., description="Whether calibration has finished")
+    method_id: str = Field(..., description="Calibration method identifier (e.g. 'halfway')")
+    step_descriptions: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Localised descriptions for every step in order. "
+            "Empty when calibration is complete."
+        ),
+    )
+
+
+class WebSocketMessage(RootModel[SessionInitMessage | TelemetryMessage | CommandAckMessage | ErrorMessage | CalibrationStateMessage]):
     """Union of all possible WebSocket messages from server.
 
     Pydantic v2 uses RootModel for discriminated unions where the discriminator

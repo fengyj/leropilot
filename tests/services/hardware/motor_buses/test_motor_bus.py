@@ -12,6 +12,34 @@ from leropilot.services.hardware.motor_drivers.base import BaseMotorDriver
 from leropilot.services.hardware.motor_drivers.feetech.drivers import FeetechDriver
 
 
+def _make_mi(
+    model: str = "X",
+    model_ids: list = None,
+    brand: MotorBrand = MotorBrand.FEETECH,
+    encoder_resolution: float = 4096.0,
+    position_to_radian_ratio: float = 1.0,
+    velocity_ratio: float = 1.0,
+    current_unit_ma_per_bit: float = 1.0,
+    voltage_unit_v_per_bit: float = 1.0,
+    temperature_unit_c_per_bit: float = 1.0,
+    **kwargs,
+) -> MotorModelInfo:
+    """Create a MotorModelInfo with sensible test defaults."""
+    return MotorModelInfo(
+        model=model,
+        model_ids=model_ids or [0],
+        limits={},
+        brand=brand,
+        encoder_resolution=encoder_resolution,
+        position_to_radian_ratio=position_to_radian_ratio,
+        velocity_ratio=velocity_ratio,
+        current_unit_ma_per_bit=current_unit_ma_per_bit,
+        voltage_unit_v_per_bit=voltage_unit_v_per_bit,
+        temperature_unit_c_per_bit=temperature_unit_c_per_bit,
+        **kwargs,
+    )
+
+
 class MockDriver(BaseMotorDriver):
     """Mock driver for testing."""
 
@@ -76,14 +104,10 @@ class MockDriver(BaseMotorDriver):
         return True
 
     def identify_model(self, motor_id: int, model_number=None, fw_major=None, fw_minor=None, raise_on_ambiguous=False):
-        return MotorModelInfo(
-            model="Mock", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0
-        )
+        return _make_mi(model="Mock")
 
     def supported_models(self):
-        return [
-            MotorModelInfo(model="Mock", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0)
-        ]
+        return [_make_mi(model="Mock")]
 
     def is_connected(self) -> bool:
         return self.connected
@@ -92,31 +116,31 @@ class MockDriver(BaseMotorDriver):
 def test_abstract_motor_bus() -> None:
     """Test that MotorBus is abstract and cannot be instantiated directly."""
     with pytest.raises(TypeError):
-        MotorBus("test", 1000000)
+        MotorBus()
 
 
 def test_feetech_motor_bus_initialization() -> None:
-    """Test FeetechMotorBus can be initialized."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    """Test FeetechMotorBus can be initialized without connection params."""
+    bus = FeetechMotorBus()
 
-    assert bus.interface == "/dev/ttyUSB0"
-    assert bus.baud_rate == 1000000
+    assert bus.interface is None
+    assert bus.baud_rate is None
     assert bus.driver_class == FeetechDriver
     assert not bus.is_connected()
 
 
 def test_damiao_motor_bus_initialization() -> None:
-    """Test DamiaoMotorBus can be initialized."""
-    bus = DamiaoMotorBus("socketcan:can0", 1000000)
+    """Test DamiaoMotorBus can be initialized without connection params."""
+    bus = DamiaoMotorBus()
 
-    assert bus.interface == "socketcan:can0"
-    assert bus.baud_rate == 1000000
+    assert bus.interface is None
+    assert bus.baud_rate is None
     assert not bus.is_connected()
 
 
 def test_feetech_motor_bus_connect_disconnect() -> None:
     """Test FeetechMotorBus connect/disconnect lifecycle."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    bus = FeetechMotorBus()
 
     # Initially disconnected
     assert not bus.is_connected()
@@ -129,7 +153,7 @@ def test_feetech_motor_bus_connect_disconnect() -> None:
         MockDriver.return_value = mock_instance
 
         # Connect
-        bus.connect()
+        bus.connect("/dev/ttyUSB0", 1000000)
         assert bus.is_connected()
         assert bus.driver is not None
 
@@ -140,13 +164,14 @@ def test_feetech_motor_bus_connect_disconnect() -> None:
 
 
 def test_motor_bus_context_manager() -> None:
-    """Test MotorBus context manager."""
+    """Test MotorBus context manager auto-disconnects on exit."""
     mock_instance = Mock()
     mock_instance.connect.return_value = True
     mock_instance.disconnect.return_value = True
 
     with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver", return_value=mock_instance):
-        bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+        bus = FeetechMotorBus()
+        bus.connect("/dev/ttyUSB0", 1000000)
 
         with bus:
             assert bus.is_connected()
@@ -158,7 +183,7 @@ def test_motor_bus_context_manager() -> None:
 
 def test_motor_bus_motor_registration() -> None:
     """Test motor registration with MotorBus."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    bus = FeetechMotorBus()
 
     # Mock driver and connect
     with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver") as MockDriver:
@@ -166,10 +191,21 @@ def test_motor_bus_motor_registration() -> None:
         mock_instance.connect.return_value = True
         MockDriver.return_value = mock_instance
 
-        bus.connect()  # Need to connect first to create shared driver
+        bus.connect("/dev/ttyUSB0", 1000000)  # Need to connect first to create shared driver
 
         # Register motors with motor_info only (driver is shared)
-        mi = MotorModelInfo(model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0)
+        mi = MotorModelInfo(
+            model="X",
+            model_ids=[0],
+            limits={},
+            brand=MotorBrand.FEETECH,
+            encoder_resolution=4096.0,
+            position_to_radian_ratio=1.0,
+            velocity_ratio=1.0,
+            current_unit_ma_per_bit=1.0,
+            voltage_unit_v_per_bit=1.0,
+            temperature_unit_c_per_bit=1.0,
+        )
         bus.register_motor(1, mi)
 
         # Verify motor info is stored
@@ -179,7 +215,7 @@ def test_motor_bus_motor_registration() -> None:
 
 def test_feetech_motor_bus_scan() -> None:
     """Test FeetechMotorBus scanning functionality."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    bus = FeetechMotorBus()
 
     # Test that scan raises OperationalError when not connected
     assert not bus.is_connected()
@@ -195,7 +231,7 @@ def test_feetech_motor_bus_scan() -> None:
         mock_instance.scan_motors.return_value = {}  # Empty scan result
         MockDriver.return_value = mock_instance
 
-        bus.connect()
+        bus.connect("/dev/ttyUSB0", 1000000)
         assert bus.is_connected()
         results = bus.scan_motors([1])
         assert len(results) == 0
@@ -206,7 +242,7 @@ def test_feetech_motor_bus_scan() -> None:
 
 def test_batch_operations() -> None:
     """Test batch operations on MotorBus."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    bus = FeetechMotorBus()
 
     # Mock driver class during connect
     with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver") as MockDriver:
@@ -216,15 +252,14 @@ def test_batch_operations() -> None:
             1: Mock(position=100, velocity=0, current=51),
             2: Mock(position=200, velocity=0, current=52),
         }
-        mock_driver.set_position.return_value = True
         MockDriver.return_value = mock_driver
 
         # Connect
-        bus.connect()
+        bus.connect("/dev/ttyUSB0", 1000000)
 
         # Register motors
-        mi1 = MotorModelInfo(model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0)
-        mi2 = MotorModelInfo(model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0)
+        mi1 = _make_mi()
+        mi2 = _make_mi()
         bus.register_motor(1, mi1)
         bus.register_motor(2, mi2)
 
@@ -237,54 +272,47 @@ def test_batch_operations() -> None:
         # Verify it called the driver's bulk method (not individual reads)
         mock_driver.bulk_read_telemetry.assert_called_once_with({1: mi1, 2: mi2})
 
-        # Test individual set position
-        bus.set_position(1, 150)
-        mock_driver.set_position.assert_called_with(1, 150, None)
+        # Test individual set goal position (raw, identity conversion)
+        bus.set_goal_position(1, 150)
+        mock_driver.set_goal_position.assert_called_with(motor_id=1, position=150)
 
 
-def test_bulk_set_position() -> None:
-    """Test bulk_set_position API."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+def test_bulk_set_goal_positions() -> None:
+    """Test bulk_set_goal_positions API."""
+    bus = FeetechMotorBus()
 
     # Mock driver class during connect
     with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver") as MockDriver:
         mock_driver = Mock()
         mock_driver.connect.return_value = True
-        mock_driver.bulk_set_position.return_value = {1: True, 2: True}
         MockDriver.return_value = mock_driver
 
         # Connect
-        bus.connect()
+        bus.connect("/dev/ttyUSB0", 1000000)
 
-        # Register motors (include velocity_ratio so velocity conversions succeed)
-        mi1 = MotorModelInfo(
-            model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0, velocity_ratio=1.0
-        )
-        mi2 = MotorModelInfo(
-            model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0, velocity_ratio=1.0
-        )
+        # Register motors
+        mi1 = _make_mi()
+        mi2 = _make_mi()
         bus.register_motor(1, mi1)
         bus.register_motor(2, mi2)
 
-        # Test bulk set position
+        # Test bulk set goal positions (RAW input -> identity conversion -> driver)
         positions = {1: 1024.0, 2: 2048.0}
-        result = bus.bulk_set_position(positions, velocity=100)
-        assert result[1] is True
-        assert result[2] is True
+        bus.bulk_set_goal_positions(positions)
 
-        # Verify driver method was called
-        mock_driver.bulk_set_position.assert_called_once_with({1: 1024.0, 2: 2048.0}, 100)
+        # Verify driver method was called with unchanged raw values
+        mock_driver.bulk_set_goal_positions.assert_called_once_with(motor_positions={1: 1024.0, 2: 2048.0})
 
 
 def _make_connected_feetech_bus():
     from unittest.mock import Mock, patch
 
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    bus = FeetechMotorBus()
     with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver") as MockDriver:
         mock_driver = Mock()
         mock_driver.connect.return_value = True
         MockDriver.return_value = mock_driver
-        bus.connect()
+        bus.connect("/dev/ttyUSB0", 1000000)
     return bus
 
 
@@ -292,14 +320,7 @@ def test_normalized_to_calibrated_range_m100_100():
     bus = _make_connected_feetech_bus()
 
     # Register motor and calibration
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(1, mi)
 
     # Normal range 0..4095
@@ -330,14 +351,7 @@ def test_normalized_to_calibrated_range_m100_100():
 def test_converter_cache_reuse_and_conversion():
     bus = _make_connected_feetech_bus()
 
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(10, mi)
 
     cal = MotorCalibration(
@@ -370,9 +384,7 @@ def test_velocity_converter_cache_reuse_and_conversion():
     bus = _make_connected_feetech_bus()
 
     # velocity_ratio = 2.0 -> raw 10 -> rad/s 20.0
-    mi = MotorModelInfo(
-        model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0, velocity_ratio=2.0
-    )
+    mi = _make_mi(velocity_ratio=2.0)
     bus.register_motor(20, mi)
 
     cal = MotorCalibration(
@@ -401,9 +413,7 @@ def test_velocity_converter_respects_drive_mode_inversion():
     bus = _make_connected_feetech_bus()
 
     # velocity_ratio = 2.0 -> raw 10 -> rad/s 20.0 normally
-    mi = MotorModelInfo(
-        model="X", model_ids=[0], limits={}, brand=MotorBrand.FEETECH, encoder_resolution=4096.0, velocity_ratio=2.0
-    )
+    mi = _make_mi(velocity_ratio=2.0)
     bus.register_motor(21, mi)
 
     # drive_mode=1 should invert the sign on conversions
@@ -428,14 +438,7 @@ def test_velocity_converter_respects_drive_mode_inversion():
 def test_normalized_to_calibrated_range_0_100_with_drive_mode_inversion():
     bus = _make_connected_feetech_bus()
 
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(2, mi)
 
     # drive_mode=1 should invert mapping
@@ -464,14 +467,7 @@ def test_normalized_to_calibrated_range_0_100_with_drive_mode_inversion():
 def test_normalized_to_calibrated_degrees_mode():
     bus = _make_connected_feetech_bus()
 
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(3, mi)
 
     cal = MotorCalibration(
@@ -498,14 +494,7 @@ def test_radian_to_raw_and_calibrated_conversion_with_soft_offset():
     bus = _make_connected_feetech_bus()
 
     # position_to_radian_ratio = 1.0 for simplicity
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(4, mi)
 
     cal = MotorCalibration(
@@ -533,14 +522,7 @@ def test_radian_to_raw_and_calibrated_conversion_with_soft_offset():
 def test_conversion_lookup_table_routes_via_raw():
     bus = _make_connected_feetech_bus()
 
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(6, mi)
 
     cal = MotorCalibration(
@@ -564,14 +546,7 @@ def test_conversion_lookup_table_routes_via_raw():
 def test_radian_to_raw_and_calibrated_conversion_no_soft_offset():
     bus = _make_connected_feetech_bus()
 
-    mi = MotorModelInfo(
-        model="X",
-        model_ids=[0],
-        limits={},
-        brand=MotorBrand.FEETECH,
-        encoder_resolution=4096.0,
-        position_to_radian_ratio=1.0,
-    )
+    mi = _make_mi()
     bus.register_motor(5, mi)
 
     cal = MotorCalibration(
@@ -598,36 +573,21 @@ def test_radian_to_raw_and_calibrated_conversion_no_soft_offset():
 
 def test_motor_bus_errors_on_failure() -> None:
     """Test that MotorBus handles driver failures appropriately."""
-    bus = FeetechMotorBus("/dev/ttyUSB0", 1000000)
+    bus = FeetechMotorBus()
     from leropilot.exceptions import OperationalError
 
     with patch("leropilot.services.hardware.motor_buses.feetech_motor_bus.FeetechDriver") as MockDriver:
         mock_driver = Mock()
         mock_driver.connect.return_value = True
-        mock_driver.set_position.return_value = False
         mock_driver.read_telemetry.return_value = None
-        mock_driver.bulk_set_position.return_value = {1: True, 2: False}
         MockDriver.return_value = mock_driver
 
-        bus.connect()
+        bus.connect("/dev/ttyUSB0", 1000000)
         bus.register_motor(1, Mock(brand=MotorBrand.FEETECH))
         bus.register_motor(2, Mock(brand=MotorBrand.FEETECH))
-
-        # Test individual set_position failure raises exception
-        with pytest.raises(OperationalError) as excinfo:
-            bus.set_position(1, 100)
-        assert excinfo.value.i18n_key == "hardware.motor_device.operation_failed"
-        assert excinfo.value.params["motor_id"] == "1"
-        assert excinfo.value.params["operation"] == "set_position"
 
         # Test individual read_telemetry failure raises exception
         with pytest.raises(OperationalError) as excinfo:
             bus.read_telemetry(1)
         assert excinfo.value.i18n_key == "hardware.motor_device.read_failed"
         assert excinfo.value.params["motor_id"] == "1"
-
-        # Test bulk operations return partial results instead of raising
-        results = bus.bulk_set_position({1: 100.0, 2: 200.0})
-        assert results == {1: True, 2: False}
-        # Caller can check for failures
-        assert not all(results.values())

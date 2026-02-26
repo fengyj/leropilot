@@ -17,30 +17,27 @@ class FeetechMotorBus(MotorBus[int]):
     Uses FeetechDriver for serial communication with Feetech SCS/ST servos.
     """
 
-    def __init__(
-        self,
-        interface: str,
-        baud_rate: int = 1000000,
-    ) -> None:
+    def __init__(self) -> None:
         """Initialize FeetechMotorBus.
 
-        Args:
-            interface: Serial port (e.g., "COM1", "/dev/ttyUSB0")
-            baud_rate: Serial baudrate (default: 1000000)
-
-        Default baud preference order is defined in :meth:`supported_baudrates`.
+        Call :meth:`connect` with ``interface`` and ``baud_rate`` to establish
+        a physical connection.
         """
-        super().__init__(interface, baud_rate)
+        super().__init__()
         self.driver_class = FeetechDriver
-
+        
     @classmethod
     def supported_baudrates(cls) -> list[int]:
         """Feetech preferred baud rates (descending order of likelihood)."""
         # Common Feetech baudrates (try 1_000_000 first, then common serial rates)
         return [1000000, 115200]
 
-    def connect(self) -> None:
+    def connect(self, interface: str, baud_rate: int = 1000000) -> None:
         """Connect to Feetech motor bus and create shared driver.
+
+        Args:
+            interface: Serial port (e.g., "COM1", "/dev/ttyUSB0")
+            baud_rate: Serial baudrate (default: 1000000)
 
         Raises:
             OperationalError: If connection fails.
@@ -48,6 +45,8 @@ class FeetechMotorBus(MotorBus[int]):
         if self._connected and self.driver:
             return
 
+        self.interface = interface
+        self.baud_rate = baud_rate
         try:
             # Create shared driver instance for all motors on this bus
             self.driver = FeetechDriver(self.interface, self.baud_rate)
@@ -127,3 +126,111 @@ class FeetechMotorBus(MotorBus[int]):
 
         logger.info(f"Feetech motor scan complete: found {len(discovered)} motors")
         return discovered
+
+    def set_half_turn_homings(self, motor_ids: list[int]) -> None:
+        """Set the current position of each motor as its halfway home reference.
+
+        For each motor this method:
+        1. Temporarily resets the calibration homing offset and range to defaults.
+        2. Reads the current raw encoder position.
+        3. Computes ``homing_offset = (encoder_resolution - 1) / 2 - current_position``
+           so that mid-range becomes position 0 after offset application.
+        4. Writes the computed offset back into the registered calibration.
+
+        This is intended to be called by :class:`HalfwayCalibrator` after the user
+        has physically positioned all joints at their midpoint.
+
+        Args:
+            motor_ids: List of motor IDs whose homing offsets should be updated.
+        """
+        from leropilot.services.hardware.motor_drivers.feetech.drivers import FeetechDriver  # type: ignore[import]
+        with self._lock:
+            driver = self._ensure_driver()
+            assert isinstance(driver, FeetechDriver), "Driver must be FeetechDriver"
+            for motor_id in motor_ids:
+                motor_info = self.motors.get(motor_id)
+                if motor_info is None:
+                    logger.warning(f"set_half_turn_homings: motor {motor_id} not registered, skipping")
+                    continue
+
+                cal = self.calibrations.get(motor_id)
+                if cal is not None:
+                    cal.homing_offset = 0.0  # reset before reading
+
+                resolution = motor_info.encoder_resolution
+                max_res = resolution - 1
+
+                write_homing_offset = getattr(driver, "write_homing_offset", None)
+                if write_homing_offset is None or not callable(write_homing_offset):
+                    logger.error("FeetechDriver does not support write_homing_offset, cannot set zero position")
+                    raise NotImplementedError(
+                        "FeetechDriver does not implement write_homing_offset. "
+                        "Add hardware-level homing offset support to the driver first."
+                    )
+                
+                write_homing_offset(motor_id, 0.0)
+                current_position = int(driver.get_position(motor_id=motor_id))
+                homing_offset = float(int(max_res / 2) - current_position)
+                
+                write_homing_offset(motor_id, homing_offset)
+
+                if cal is not None:
+                    cal.homing_offset = homing_offset
+                    cal.range_min = 0.0
+                    cal.range_max = float(max_res)
+                    logger.info(
+                        f"set_half_turn_homings: motor {motor_id}, "
+                        f"raw_pos={current_position}, homing_offset={homing_offset:.1f}"
+                    )
+
+    def set_zero_position(self, motor_id: int) -> None:
+        """Set the current position of a motor as its software zero reference.
+
+        Feetech motors do not have a hardware "set zero" command, so this method
+        implements zero-position via a software homing offset:
+
+        1. Temporarily resets the calibration homing offset to ``0.0``.
+        2. Reads the current raw encoder position.
+        3. Computes ``homing_offset = -current_position`` so the motor reports
+           position ``0`` at the current physical location after offset application.
+
+        The caller (:class:`ZeroPositionCalibrator`) is responsible for setting
+        ``range_min``/``range_max`` (typically ±π/2) and persisting the updated
+        calibration via ``RobotManager.update_robot``.
+
+        Args:
+            motor_id: Protocol ID of the motor whose zero point should be updated.
+        """
+        with self._lock:
+            driver = self._ensure_driver()
+            motor_info = self.motors.get(motor_id)
+            if motor_info is None:
+                logger.warning(f"set_zero_position: motor {motor_id} not registered, skipping")
+                return
+
+            cal = self.calibrations.get(motor_id)
+            if cal is not None:
+                cal.homing_offset = 0.0  # reset before reading actual position
+
+            write_homing_offset = getattr(driver, "write_homing_offset", None)
+            if write_homing_offset is None or not callable(write_homing_offset):
+                logger.error("FeetechDriver does not support write_homing_offset, cannot set zero position")
+                raise NotImplementedError(
+                    "FeetechDriver does not implement write_homing_offset. "
+                    "Add hardware-level homing offset support to the driver first."
+                )
+            
+            write_homing_offset(motor_id, 0.0)
+            current_position = int(driver.get_position(motor_id=motor_id))
+            # effective = raw + homing_offset; want effective = 0 at current_position
+            homing_offset = 0.0
+            write_homing_offset(motor_id, current_position)
+
+            if cal is not None:
+                cal.homing_offset = homing_offset
+                cal.range_min = float(-motor_info.encoder_resolution // 4)  # default ±1/4 turn range
+                cal.range_max = float(motor_info.encoder_resolution // 4)
+                logger.info(
+                    f"set_zero_position: motor {motor_id}, "
+                    f"raw_pos={current_position}, homing_offset={homing_offset:.1f}"
+                )

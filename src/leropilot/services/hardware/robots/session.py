@@ -9,6 +9,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from leropilot.exceptions import ResourceNotFoundError
 from leropilot.models.hardware import (
+    CalibrationStateMessage,
     CommandAckMessage,
     ErrorMessage,
     RobotTelemetryFrame,
@@ -159,6 +160,12 @@ class RobotTelecontrolSession:
                         await self._handle_set_homing_offsets()
                     elif cmd_type == "set_ranges":
                         await self._handle_set_ranges(cmd_data)
+                    elif cmd_type == "calibration_start":
+                        await self._handle_calibration_start(cmd_data)
+                    elif cmd_type == "calibration_next":
+                        await self._handle_calibration_next()
+                    elif cmd_type == "calibration_save":
+                        await self._handle_calibration_save()
                     else:
                         error_msg = ErrorMessage(
                             code="UNKNOWN_COMMAND",
@@ -368,6 +375,94 @@ class RobotTelecontrolSession:
                 await self._websocket.send_text(msg.model_dump_json())
         except Exception as e:
             logger.exception(f"Error sending telemetry frame: {e}")
+
+    async def _handle_calibration_start(self, cmd_data: dict) -> None:
+        """Handle calibration_start command.
+
+        Expects ``method_id`` in the command payload specifying which calibration
+        method to use (e.g. ``'halfway'``, ``'zero_position'``).
+
+        Sends a :class:`CalibrationStateMessage` with the initial step information
+        on success, or an :class:`ErrorMessage` on failure.
+        """
+        method_id = cmd_data.get("method_id", "")
+        lang = cmd_data.get("lang", "en")
+        if not method_id:
+            error_msg = ErrorMessage(
+                code="INVALID_COMMAND",
+                message="calibration_start requires 'method_id' field",
+            )
+            await self._websocket.send_text(error_msg.model_dump_json())
+            return
+
+        try:
+            if self._service is None:
+                raise RuntimeError("Telecontrol service not initialized")
+            state = await self._service.calibration_start(method_id, lang=lang)
+            msg = CalibrationStateMessage(
+                step_index=state.step_index,
+                step_count=state.step_count,
+                is_complete=state.is_complete,
+                method_id=state.method_id,
+                step_descriptions=state.step_descriptions,
+            )
+            await self._websocket.send_text(msg.model_dump_json())
+        except Exception as e:
+            logger.exception(f"Error in calibration_start for robot {self._robot_id}: {e}")
+            error_msg = ErrorMessage(
+                code="CALIBRATION_START_FAILED",
+                message=str(e),
+            )
+            await self._websocket.send_text(error_msg.model_dump_json())
+
+    async def _handle_calibration_next(self) -> None:
+        """Handle calibration_next command.
+
+        Advances the active calibration session by one step.  Sends a
+        :class:`CalibrationStateMessage` with updated progress on success,
+        or an :class:`ErrorMessage` on failure.
+        """
+        try:
+            if self._service is None:
+                raise RuntimeError("Telecontrol service not initialized")
+            state = await self._service.calibration_next()
+            msg = CalibrationStateMessage(
+                step_index=state.step_index,
+                step_count=state.step_count,
+                is_complete=state.is_complete,
+                method_id=state.method_id,
+                step_descriptions=state.step_descriptions,
+            )
+            await self._websocket.send_text(msg.model_dump_json())
+        except Exception as e:
+            logger.exception(f"Error in calibration_next for robot {self._robot_id}: {e}")
+            error_msg = ErrorMessage(
+                code="CALIBRATION_NEXT_FAILED",
+                message=str(e),
+            )
+            await self._websocket.send_text(error_msg.model_dump_json())
+
+    async def _handle_calibration_save(self) -> None:
+        """Handle calibration_save command.
+
+        Persists calibration data accumulated during the active session and
+        ends the calibration state machine.  Sends a
+        :class:`CommandAckMessage` on success or an :class:`ErrorMessage`
+        on failure.
+        """
+        try:
+            if self._service is None:
+                raise RuntimeError("Telecontrol service not initialized")
+            await self._service.calibration_save()
+            ack = CommandAckMessage(command_type="calibration_save", success=True)
+            await self._websocket.send_text(ack.model_dump_json())
+        except Exception as e:
+            logger.exception(f"Error in calibration_save for robot {self._robot_id}: {e}")
+            error_msg = ErrorMessage(
+                code="CALIBRATION_SAVE_FAILED",
+                message=str(e),
+            )
+            await self._websocket.send_text(error_msg.model_dump_json())
 
     async def stop(self) -> None:
         """Stop the session and clean up resources.

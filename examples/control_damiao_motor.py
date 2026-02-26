@@ -74,7 +74,7 @@ def main() -> int:
 
     # Create MotorBus for Damiao
     try:
-        mb = MotorBus.create("damiao", "pcan:PCAN_USBBUS2", 1000000)
+        mb = MotorBus.create("damiao")
     except Exception as e:
         print(f"Failed to create MotorBus: {e}")
         return 2
@@ -82,7 +82,7 @@ def main() -> int:
     try:
         with mb:
             # print(f"Connected to motor bus {args.interface} @ {args.baud}")
-            mb.connect()
+            mb.connect("pcan:PCAN_USBBUS2", 1000000)
             discovered = mb.scan_motors()
             if not discovered:
                 print("未发现任何 Damiao 电机，请检查接口与接线。")

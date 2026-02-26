@@ -137,7 +137,7 @@ async def robot_websocket(
     websocket: WebSocket,
     device_id: str,
     normalized: bool = Query(False, description="Return normalized telemetry/positions"),
-    fps: int = Query(30, description="Telemetry FPS"),
+    fps: int = Query(10, description="Telemetry FPS"),
 ) -> None:
     """
     Robot teleoperation WebSocket endpoint.
@@ -151,15 +151,24 @@ async def robot_websocket(
     # 1. Validation
     if not device:
         # Must accept before closing to avoid 500 error
+        logger.warning(f"WS rejected: Device {device_id} not found")
         await websocket.accept()
         await websocket.close(code=4004, reason="Device not found")
         return
 
-    if device.status != DeviceStatus.AVAILABLE:
-        # Must accept before closing to avoid 500 error
+    # Note: We allow OFFLINE devices to attempt connection. The status may be stale
+    # from a previous failed refresh, and the actual telecontrol service will determine
+    # if the device is truly accessible. Only reject INVALID devices (hardware mismatch).
+    if device.status == DeviceStatus.INVALID:
+        logger.warning(f"WS rejected: Device {device_id} status is INVALID (hardware mismatch)")
         await websocket.accept()
-        await websocket.close(code=4009, reason="Device occupied")
+        await websocket.close(code=4009, reason="Device has invalid hardware configuration")
         return
+    
+    # Log warning for OFFLINE devices but allow connection attempt
+    if device.status == DeviceStatus.OFFLINE:
+        logger.info(f"WS: Allowing connection attempt for OFFLINE device {device_id} (status may be stale)")
+
 
     # Delegate to session object which encapsulates telecontrol logic
     from leropilot.services.hardware.robots.session import RobotTelecontrolSession

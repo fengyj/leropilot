@@ -101,6 +101,7 @@ export const RobotCard: React.FC<{
                         variant="secondary"
                         size="sm"
                         className="flex-1"
+                        disabled={robot.status !== 'available'}
                         onClick={() => navigate(`/hardware/${robot.id}/calibrate`)}
                     >
                         <Settings className="mr-2 h-3 w-3" />

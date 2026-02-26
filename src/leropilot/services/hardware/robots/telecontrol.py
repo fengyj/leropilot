@@ -10,7 +10,6 @@ from types import TracebackType
 from leropilot.exceptions import OperationalError
 from leropilot.models.hardware import (
     DeviceStatus,
-    MotorBrand,
     MotorBusData,
     MotorCalibration,
     MotorID,
@@ -24,6 +23,7 @@ from leropilot.models.hardware import (
     RobotDefinition,
     RobotTelemetryFrame,
 )
+from leropilot.services.hardware.calibration import Calibrator, CalibrationState
 from leropilot.services.hardware.motor_buses.motor_bus import MotorBus
 from leropilot.services.hardware.robots.manager import get_robot_manager
 
@@ -60,12 +60,16 @@ class RobotTelecontrolService:
         Raises:
             OperationalError: If robot is not AVAILABLE or motor_bus interfaces are None.
         """
-        if robot.status != DeviceStatus.AVAILABLE:
+        # Only reject INVALID devices (hardware mismatch); allow OFFLINE to attempt connection
+        if robot.status == DeviceStatus.INVALID:
             raise OperationalError(
                 i18n_key="hardware.robot_device.not_available",
                 device_id=robot.id,
-                reason=f"Robot status is {robot.status}, expected AVAILABLE",
+                reason=f"Robot status is INVALID (hardware configuration mismatch)",
             )
+        
+        if robot.status == DeviceStatus.OFFLINE:
+            logger.info(f"Allowing OFFLINE robot {robot.id} to attempt motor bus connection")
 
         if not robot.motor_bus_connections:
             raise OperationalError(
@@ -74,9 +78,9 @@ class RobotTelecontrolService:
                 reason="No motor bus connections configured",
             )
 
-        # Validate motor_bus_connections: each interface must not be None
+        # Validate motor_bus_connections: each interface must not be None (except for OFFLINE devices)
         for bus_name, conn in robot.motor_bus_connections.items():
-            if conn.interface is None:
+            if conn.interface is None and robot.status != DeviceStatus.OFFLINE:
                 raise OperationalError(
                     i18n_key="hardware.robot_device.not_available",
                     device_id=robot.id,
@@ -100,6 +104,9 @@ class RobotTelecontrolService:
         self._consecutive_errors = 0
         self._max_consecutive_errors = _DEFAULT_MAX_CONSECUTIVE_ERRORS
 
+        # Active calibrator (set by calibration_start, cleared on completion/error)
+        self._calibrator: Calibrator | None = None
+
     async def __aenter__(self) -> "RobotTelecontrolService":
         """Async context manager entry."""
         return self
@@ -113,7 +120,7 @@ class RobotTelecontrolService:
         """Async context manager exit - ensures cleanup."""
         await self.stop()
 
-    def _get_motor_bus_motor_ids(self, bus_name: str) -> list[MotorID]:
+    def _get_motor_bus_motor_ids(self, bus_name: str) -> list[int]:
         """Get all motor IDs for a motor bus from robot definition.
 
         Returns:
@@ -125,7 +132,7 @@ class RobotTelecontrolService:
             return []
 
         # Find motors on this specific bus
-        motor_ids = []
+        motor_ids: list[int] = []
         bus_def = definition.motor_buses.get(bus_name)
         if not bus_def:
             return []
@@ -179,11 +186,9 @@ class RobotTelecontrolService:
             bus: MotorBus instance with populated motors dict.
         """
         for motor_id, motor_info in bus.motors.items():
-            if motor_info is None:
-                continue
 
             # Look for custom limits matching this motor's brand/model/variant
-            brand = motor_info.brand.value if isinstance(motor_info.brand, MotorBrand) else motor_info.brand
+            brand = motor_info.brand.value
             model = motor_info.model
             variant = motor_info.variant
 
@@ -240,7 +245,7 @@ class RobotTelecontrolService:
                         limit=temp_max,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: temperature CRITICAL {current_temp}°C / {temp_max}°C")
+                logger.warning(f"Motor {telemetry.motor_id}: temperature CRITICAL {current_temp}°C / {temp_max}°C")
             elif current_temp > temp_max * 0.85:
                 if max_status != "critical":
                     max_status = "warning"
@@ -251,7 +256,7 @@ class RobotTelecontrolService:
                         limit=temp_max,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: temperature WARNING {current_temp}°C / {temp_max}°C")
+                logger.warning(f"Motor {telemetry.motor_id}: temperature WARNING {current_temp}°C / {temp_max}°C")
 
         # Check current limits
         if MotorLimit.LIMIT_CURRENT_MAX_MA in motor_info.limits and telemetry.current is not None:
@@ -268,7 +273,7 @@ class RobotTelecontrolService:
                         limit=current_max,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: current CRITICAL {current_value}mA / {current_max}mA")
+                logger.warning(f"Motor {telemetry.motor_id}: current CRITICAL {current_value}mA / {current_max}mA")
             elif current_value > current_max * 0.85:
                 if max_status != "critical":
                     max_status = "warning"
@@ -279,7 +284,7 @@ class RobotTelecontrolService:
                         limit=current_max,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: current WARNING {current_value}mA / {current_max}mA")
+                logger.warning(f"Motor {telemetry.motor_id}: current WARNING {current_value}mA / {current_max}mA")
 
         # Check voltage limits
         if MotorLimit.LIMIT_VOLTAGE_MIN in motor_info.limits and telemetry.voltage is not None:
@@ -296,7 +301,7 @@ class RobotTelecontrolService:
                         limit=voltage_min,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: voltage LOW CRITICAL {current_voltage}V / {voltage_min}V")
+                logger.warning(f"Motor {telemetry.motor_id}: voltage LOW CRITICAL {current_voltage}V / {voltage_min}V")
             elif current_voltage < voltage_min * 1.10:  # Within 10% above minimum
                 if max_status != "critical":
                     max_status = "warning"
@@ -307,7 +312,7 @@ class RobotTelecontrolService:
                         limit=voltage_min,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: voltage LOW WARNING {current_voltage}V / {voltage_min}V")
+                logger.warning(f"Motor {telemetry.motor_id}: voltage LOW WARNING {current_voltage}V / {voltage_min}V")
 
         if MotorLimit.LIMIT_VOLTAGE_MAX in motor_info.limits and telemetry.voltage is not None:
             voltage_max_obj = motor_info.limits[MotorLimit.LIMIT_VOLTAGE_MAX]
@@ -323,7 +328,7 @@ class RobotTelecontrolService:
                         limit=voltage_max,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: voltage HIGH CRITICAL {current_voltage}V / {voltage_max}V")
+                logger.warning(f"Motor {telemetry.motor_id}: voltage HIGH CRITICAL {current_voltage}V / {voltage_max}V")
             elif current_voltage > voltage_max * 0.85:
                 if max_status != "critical":
                     max_status = "warning"
@@ -334,7 +339,7 @@ class RobotTelecontrolService:
                         limit=voltage_max,
                     )
                 )
-                logger.warning(f"Motor {telemetry.id}: voltage HIGH WARNING {current_voltage}V / {voltage_max}V")
+                logger.warning(f"Motor {telemetry.motor_id}: voltage HIGH WARNING {current_voltage}V / {voltage_max}V")
 
         return ProtectionStatus(status=max_status, violations=violations)
 
@@ -365,44 +370,80 @@ class RobotTelecontrolService:
         self._target_fps = fps
         self._frame_interval = 1.0 / fps
 
+        assert self._robot.motor_bus_connections is not None  # For type checker
+        
         try:
+            # If any interface is None (OFFLINE device), refresh status via RobotManager
+            needs_refresh = any(conn.interface is None for conn in self._robot.motor_bus_connections.values())
+            if needs_refresh:
+                logger.info(f"Device has missing interface info, refreshing status via RobotManager")
+                robot_manager = get_robot_manager()
+                refreshed_robot = robot_manager.get_robot(self._robot.id, refresh_status=True)
+                
+                if refreshed_robot is None:
+                    raise OperationalError(
+                        i18n_key="hardware.robot_device.connect_failed",
+                        device_id=self._robot.id,
+                        retriable=True,
+                        reason="Failed to refresh device status",
+                    )
+                
+                # Update our robot reference with refreshed data
+                self._robot = refreshed_robot
+                logger.info(f"Refreshed device status: {self._robot.status}")
+            
             # Initialize motor buses
             for bus_name, conn in self._robot.motor_bus_connections.items():
                 logger.info(f"Initializing motor bus: {bus_name}")
 
-                # Create motor bus
+                # After refresh, interface is still None → device is genuinely offline
+                if conn.interface is None:
+                    raise OperationalError(
+                        i18n_key="hardware.robot_device.offline",
+                        retriable=True,
+                    )
+                
+                # Create motor bus (offline, no connection params needed here)
                 bus = MotorBus.create(
                     motorbus_type=conn.motor_bus_type,
-                    interface=conn.interface,
-                    baud_rate=conn.baudrate,
                 )
 
-                # Connect to bus
-                bus.connect()
+                # Connect to bus with interface and baud rate
+                bus.connect(conn.interface, conn.baudrate)
                 logger.info(f"Connected to motor bus: {bus_name}")
 
-                # Get motor IDs from robot definition
-                motor_ids = self._get_motor_bus_motor_ids(bus_name)
-                logger.debug(f"Motor bus '{bus_name}' has motors: {motor_ids}")
-
-                # Scan and register motors
-                if motor_ids:
-                    bus.scan_motors()
-                    # the motors have been registered during scan_motors
-                    # for motor_id in motor_ids:
-                    #     if motor_id in scanned:
-                    #         motor_info = scanned[motor_id]
-                    #         bus.register_motor(motor_id, motor_info)
-                    #         logger.debug(f"Registered motor {motor_id} on bus {bus_name}")
-
-                    # Merge custom protection limits from robot.custom_protection_settings
-                    self._merge_custom_protection_limits(bus)
+                # Register motors from robot definition (no hardware scan needed)
+                if isinstance(self._robot.definition, RobotDefinition):
+                    bus_def = self._robot.definition.motor_buses.get(bus_name)
+                    if bus_def:
+                        bus.register_motors_from_definition(bus_def)
+                        self._merge_custom_protection_limits(bus)
+                    else:
+                        # Bus not in definition — fall back to scan
+                        motor_ids = self._get_motor_bus_motor_ids(bus_name)
+                        if motor_ids:
+                            bus.scan_motors(motor_ids)
+                            self._merge_custom_protection_limits(bus)
+                else:
+                    # No definition — fall back to scan
+                    motor_ids = self._get_motor_bus_motor_ids(bus_name)
+                    if motor_ids:
+                        bus.scan_motors(motor_ids)
+                        self._merge_custom_protection_limits(bus)
 
                 # Register calibrations
                 cal_list = self._robot.calibration_settings.get(bus_name, [])
+
+                name_to_id: dict[str, MotorID] = {}
+                if isinstance(self._robot.definition, RobotDefinition):
+                    bus_def = self._robot.definition.motor_buses.get(bus_name)
+                    if bus_def:
+                        for motor_name, motor_def in bus_def.motors.items():
+                            name_to_id[motor_name] = motor_def.id
+
+                bus.register_calibrations_from_list(cal_list, name_to_id)
                 for cal in cal_list:
                     if cal.id is not None:
-                        bus.register_calibration(cal.id, cal)
                         logger.debug(f"Registered calibration for motor {cal.id} on bus {bus_name}")
 
                 self._motor_buses[bus_name] = bus
@@ -421,11 +462,7 @@ class RobotTelecontrolService:
                     pass
             self._motor_buses.clear()
             logger.error(f"Failed to start RobotTelecontrolService: {e}")
-            raise OperationalError(
-                i18n_key="hardware.robot_device.connect_failed",
-                device_id=self._robot.id,
-                retriable=False,
-            ) from e
+            raise
 
     async def stop(self) -> None:
         """Stop motor data reading loop and disconnect all buses.
@@ -619,9 +656,16 @@ class RobotTelecontrolService:
                 # Read all motor buses concurrently (with exception handling)
                 try:
                     current_time = time.time()
-                    read_tasks = [
-                        bus.bulk_read_telemetry(list(bus.motors.keys())) for bus in self._motor_buses.values()
-                    ]
+                    loop = asyncio.get_running_loop()
+                    read_tasks = []
+                    # Support both sync and async implementations of bulk_read_telemetry.
+                    for bus in self._motor_buses.values():
+                        motor_ids = list(bus.motors.keys())
+                        # If bus.bulk_read_telemetry is async, call it directly; otherwise run in executor
+                        if asyncio.iscoroutinefunction(getattr(bus, 'bulk_read_telemetry')):
+                            read_tasks.append(bus.bulk_read_telemetry(motor_ids, position_type=PositionType.RAW_IN_RADIAN))
+                        else:
+                            read_tasks.append(loop.run_in_executor(None, bus.bulk_read_telemetry, motor_ids, PositionType.RAW_IN_RADIAN))
 
                     bus_results = await asyncio.gather(*read_tasks, return_exceptions=True)
 
@@ -630,6 +674,10 @@ class RobotTelecontrolService:
                     for (bus_name, _), result in zip(self._motor_buses.items(), bus_results, strict=True):
                         if isinstance(result, Exception):
                             has_error = True
+                            logger.error(
+                                f"Read error from bus {bus_name} (type: {type(result).__name__}): {result}",
+                                exc_info=result,
+                            )
                             if self._is_fatal_error(result):
                                 # Fatal error from a bus - stop immediately
                                 logger.critical(
@@ -638,9 +686,16 @@ class RobotTelecontrolService:
                                     exc_info=result,
                                 )
                                 self._running = False
-                                raise result  # Re-raise to exit the loop
-                            # Non-fatal error - log and continue
-                            logger.warning(f"Error reading bus {bus_name}: {result}")
+                                # Attempt to disconnect all buses gracefully to free resources
+                                try:
+                                    for bname, b in self._motor_buses.items():
+                                        try:
+                                            b.disconnect()
+                                        except Exception:
+                                            logger.debug(f"Error disconnecting bus {bname} during fatal error cleanup", exc_info=True)
+                                except Exception:
+                                    logger.debug("Error during fatal error cleanup", exc_info=True)
+                                raise result
 
                     # Update consecutive error counter
                     if has_error:
@@ -673,6 +728,16 @@ class RobotTelecontrolService:
                         except Exception as e:
                             logger.warning(
                                 f"Callback error (non-fatal, continuing loop): {type(e).__name__}: {e}", exc_info=True
+                            )
+
+                    # Forward frame to active calibrator for min/max position tracking
+                    if self._calibrator is not None:
+                        try:
+                            self._calibrator.on_telemetry_frame(frame)
+                        except Exception as e:
+                            logger.warning(
+                                f"Calibrator frame error (non-fatal): {type(e).__name__}: {e}",
+                                exc_info=True,
                             )
 
                     last_read_time = time.time()
@@ -721,6 +786,18 @@ class RobotTelecontrolService:
             self._running = False
         finally:
             logger.info("Exited motor telemetry read loop")
+            
+            # CRITICAL: If loop exited due to errors (not normal stop), immediately disconnect
+            # all buses to release hardware resources (e.g., serial ports). This prevents
+            # port-in-use conflicts when clients reconnect.
+            if not self._running:
+                logger.info("Read loop exited abnormally, releasing motor bus resources immediately")
+                for bus_name, bus in list(self._motor_buses.items()):
+                    try:
+                        bus.disconnect()
+                        logger.info(f"Released motor bus: {bus_name}")
+                    except Exception as disconnect_err:
+                        logger.error(f"Error releasing motor bus {bus_name}: {disconnect_err}", exc_info=True)
 
     async def emergency_stop(self) -> None:
         """Disable all motors immediately (set torque to off).
@@ -822,7 +899,7 @@ class RobotTelecontrolService:
         """Helper to set position for a single motor."""
         try:
             position_type = PositionType.NORMALIZED if self._normalized else PositionType.RAW
-            bus.set_position(motor_id, position, position_type=position_type)
+            bus.set_goal_position(motor_id, position, position_type)
         except Exception as e:
             logger.error(f"Failed to set position for motor {motor_id}: {e}")
 
@@ -1107,3 +1184,127 @@ class RobotTelecontrolService:
         finally:
             # Resume polling
             await self.polling(True)
+
+    async def calibration_start(self, method_id: str, lang: str = "en") -> CalibrationState:
+        """Start a calibration session using the specified method.
+
+        Looks up the requested calibration method by ``method_id``, instantiates
+        the corresponding :class:`~leropilot.services.hardware.calibration.Calibrator`
+        subclass, marks the robot as *uncalibrated* (persisted immediately), and
+        enters the first calibration step.
+
+        Telemetry polling continues unchanged while the calibration session is
+        active.  The calibrator's :meth:`on_telemetry_frame` is invoked
+        automatically by the read loop so that recording steps can accumulate
+        running min/max position data.
+
+        Args:
+            method_id: Calibration method identifier (e.g. ``"halfway"``).
+            lang: Language code for localising step descriptions (e.g. ``"en"``, ``"zh"``).
+
+        Returns:
+            :class:`~leropilot.services.hardware.calibration.CalibrationState`
+            describing step 0.
+
+        Raises:
+            ValueError: If ``method_id`` does not match any registered calibrator.
+            RuntimeError: If a calibration session is already in progress.
+        """
+        if self._calibrator is not None:
+            raise RuntimeError(
+                "A calibration session is already in progress. "
+                "Call calibration_next() until is_complete, or restart the session."
+            )
+
+        calibrator_cls = next(
+            (c for c in Calibrator.all_calibrators() if c.METHOD_ID == method_id),
+            None,
+        )
+        if calibrator_cls is None:
+            raise ValueError(
+                f"Unknown calibration method: {method_id!r}. "
+                f"Available: {[c.METHOD_ID for c in Calibrator.all_calibrators()]}"
+            )
+
+        # Mark robot as uncalibrated and persist
+        self._robot.is_calibrated = False
+        robot_manager = get_robot_manager()
+        robot_manager.update_robot(self._robot.id, verify=False, is_calibrated=False)
+
+        # Instantiate calibrator and start state machine
+        self._calibrator = calibrator_cls(self._robot)
+        state = self._calibrator.start(self._motor_buses, lang=lang)
+        logger.info(
+            f"Calibration session started: method={method_id!r}, "
+            f"robot={self._robot.id!r}, step_count={state.step_count}"
+        )
+        return state
+
+    async def calibration_next(self) -> CalibrationState:
+        """Advance the active calibration session to the next step.
+
+        Executes the hardware action associated with the current step (e.g.
+        setting homing offsets, snapshotting min/max positions), then advances
+        the internal state machine.
+
+        Telemetry polling is paused for the duration of the step execution and
+        resumed immediately afterwards, regardless of success or failure.
+
+        Returns:
+            Updated :class:`~leropilot.services.hardware.calibration.CalibrationState`.
+            When ``is_complete`` is ``True`` the calibration session is automatically
+            cleared (``_calibrator`` is set to ``None``).
+
+        Raises:
+            RuntimeError: If no calibration session is active.
+        """
+        if self._calibrator is None:
+            raise RuntimeError(
+                "No active calibration session. Call calibration_start() first."
+            )
+
+        # Pause telemetry polling to avoid conflicts during blocking motor operations.
+        await self.polling(False)
+        try:
+            loop = asyncio.get_running_loop()
+            state = await loop.run_in_executor(None, self._calibrator.next)
+        finally:
+            await self.polling(True)
+
+        if state.is_complete:
+            logger.info(
+                f"Calibration complete: method={state.method_id!r}, "
+                f"robot={self._robot.id!r} — awaiting explicit calibration_save()"
+            )
+            # NOTE: _calibrator is intentionally kept alive here.
+            # It will be cleared by calibration_save() when the frontend
+            # confirms the save action, allowing deferred persistence.
+
+        return state
+
+    async def calibration_save(self) -> None:
+        """Persist calibration data and end the active calibration session.
+
+        Must be called after ``calibration_next()`` returns a state with
+        ``is_complete=True``.  Pauses telemetry polling while writing, then
+        clears the active calibrator reference.
+
+        Raises:
+            RuntimeError: If no calibration session is active.
+        """
+        if self._calibrator is None:
+            raise RuntimeError(
+                "No active calibration session. Call calibration_start() first."
+            )
+
+        await self.polling(False)
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, self._calibrator.save)
+        finally:
+            await self.polling(True)
+            self._calibrator = None
+
+        logger.info(
+            f"Calibration saved and session ended for robot {self._robot.id!r}"
+        )

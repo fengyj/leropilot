@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, Literal
 
 import cv2
 from fastapi import APIRouter, Body, File, Query, Request, Response, UploadFile
@@ -13,6 +13,7 @@ from leropilot.models.api.hardware import UpdateRobotBody
 from leropilot.models.hardware import (
     CameraSummary,
     MotorModelInfo,
+    PositionType,
     Robot,
     RobotDefinition,
 )
@@ -71,13 +72,74 @@ def resolve_robot_definition(definition: RobotDefinition, lang: str) -> RobotDef
     return resolved
 
 
-def resolve_robot(robot: Robot, lang: str) -> Robot:
-    """Resolve localized fields in a Robot's definition for a specific language."""
+CalibrationUnit = Literal["raw", "radian", "degree"]
+
+_UNIT_TO_POSITION_TYPE: dict[CalibrationUnit, PositionType] = {
+    "raw": PositionType.RAW,
+    "radian": PositionType.RAW_IN_RADIAN,
+    "degree": PositionType.RAW_IN_DEGREE,
+}
+
+
+def _resolve_calibration_value_units(resolved: Robot, calibration_unit: CalibrationUnit) -> None:
+    """Convert calibration field values in-place on a deep-copied Robot.
+
+    Uses an offline MotorBus (no hardware connection) populated from the robot definition
+    to perform unit conversion via the shared PositionConvertCache infrastructure.
+    """
+    if calibration_unit == "raw":
+        return
+
+    if not isinstance(resolved.definition, RobotDefinition):
+        return
+
+    try:
+        from leropilot.services.hardware.motor_buses.motor_bus import MotorBus as _MotorBus
+    except Exception:
+        return
+
+    for bus_name, bus_def in resolved.definition.motor_buses.items():
+        cal_list = resolved.calibration_settings.get(bus_name)
+        if not cal_list:
+            continue
+
+        # Build an offline bus populated from the definition (no hardware needed)
+        try:
+            bus = _MotorBus.create(bus_def.type)
+        except ValueError:
+            continue
+
+        name_to_id = {n: m.id for n, m in bus_def.motors.items()}
+        bus.register_motors_from_definition(bus_def)
+        bus.register_calibrations_from_list(cal_list, name_to_id)
+
+        # Convert each calibration entry's position fields
+        for cal in cal_list:
+            motor_id = cal.id
+            if motor_id is None and cal.name in name_to_id:
+                motor_id = name_to_id[cal.name]
+            if motor_id is None or motor_id not in bus.motors:
+                continue
+            try:
+                converted = bus.convert_calibration_units(motor_id, _UNIT_TO_POSITION_TYPE[calibration_unit])
+                cal.homing_offset = converted.homing_offset
+                cal.range_min = converted.range_min
+                cal.range_max = converted.range_max
+            except Exception:
+                pass  # Skip motors where conversion fails (e.g., position_to_radian_ratio == 0)
+
+
+def resolve_robot(robot: Robot, lang: str, calibration_unit: CalibrationUnit = "raw") -> Robot:
+    """Resolve localized fields in a Robot's definition for a specific language.
+
+    Optionally converts calibration settings to the requested unit.
+    """
     if not robot.definition or isinstance(robot.definition, str):
         return robot
 
-    resolved = robot.model_copy()
+    resolved = robot.model_copy(deep=True)
     resolved.definition = resolve_robot_definition(robot.definition, lang)
+    _resolve_calibration_value_units(resolved, calibration_unit)
     return resolved
 
 
@@ -140,6 +202,10 @@ async def discover_robots(lang: str = Query("en", description="Language code")) 
 async def list_robots(
     refresh_status: bool = Query(False, description="Refresh online status from hardware"),
     lang: str = Query("en", description="Language code"),
+    calibration_unit: CalibrationUnit = Query(
+        "raw",
+        description="Calibration unit: raw, radian, or degree",
+    ),
 ) -> list[Robot]:
     """List all managed robots.
 
@@ -148,7 +214,7 @@ async def list_robots(
     """
     manager = get_robot_manager()
     robots = manager.list_robots(refresh_status=refresh_status)
-    return [resolve_robot(r, lang) for r in robots]
+    return [resolve_robot(r, lang, calibration_unit) for r in robots]
 
 
 @router.get("/robots/{robot_id}", response_model=Robot, operation_id="hardware_get_robot")
@@ -156,13 +222,17 @@ async def get_robot(
     robot_id: str,
     refresh_status: bool = Query(False, description="Refresh online status from hardware"),
     lang: str = Query("en", description="Language code"),
+    calibration_unit: CalibrationUnit = Query(
+        "raw",
+        description="Calibration unit: raw, radian, or degree",
+    ),
 ) -> Robot:
     """Get a specific robot details."""
     manager = get_robot_manager()
     robot = manager.get_robot(robot_id, refresh_status=refresh_status)
     if not robot:
         raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
-    return resolve_robot(robot, lang)
+    return resolve_robot(robot, lang, calibration_unit)
 
 
 @router.get(
@@ -174,6 +244,41 @@ async def get_robot_motor_models_info(robot_id: str) -> list[MotorModelInfo]:
     """Return a deduplicated list of motor model metadata for the robot's definition."""
     manager = get_robot_manager()
     return manager.get_robot_motor_models_info(robot_id)
+
+
+@router.get(
+    "/robots/{robot_id}/available_calibration_methods",
+    response_model=list[dict],
+    operation_id="hardware_get_available_calibration_methods",
+)
+async def get_available_calibration_methods(
+    robot_id: str,
+    lang: str = Query("en", description="Language code for step descriptions (e.g. 'en', 'zh')"),
+) -> list[dict]:
+    """Return calibration methods supported by all motor buses of the robot.
+
+    Delegates discovery logic entirely to
+    :meth:`~leropilot.services.hardware.calibration.Calibrator.available_methods_for_robot`.
+    Each entry contains ``method_id`` and ``steps`` (localised descriptions).
+
+    Args:
+        robot_id: Persisted robot identifier.
+        lang: BCP-47 language code used to localise step descriptions.
+
+    Returns:
+        List of supported calibration method descriptors (may be empty).
+
+    Raises:
+        ResourceNotFoundError: If the robot is not found.
+    """
+    from leropilot.services.hardware.calibration import Calibrator
+
+    manager = get_robot_manager()
+    robot = manager.get_robot(robot_id)
+    if not robot:
+        raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
+
+    return Calibrator.available_methods_for_robot(robot, lang=lang)
 
 
 @router.post("/robots", response_model=Robot, operation_id="hardware_add_robot")
@@ -216,12 +321,11 @@ async def update_robot(
 @router.delete("/robots/{robot_id}", operation_id="hardware_remove_robot")
 async def remove_robot(
     robot_id: str,
-    delete_data: bool = Query(False, description="Also delete calibration/data files"),
     lang: str = Query("en", description="Language code"),
 ) -> dict[str, Any]:
     """Remove a robot from management."""
     manager = get_robot_manager()
-    success = manager.remove_robot(robot_id, delete_calibration=delete_data)
+    success = manager.remove_robot(robot_id)
     if not success:
         raise ResourceNotFoundError("hardware.robot_device.not_found", id=robot_id)
     i18n = get_i18n_service()

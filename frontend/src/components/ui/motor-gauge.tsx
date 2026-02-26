@@ -6,9 +6,7 @@ export interface MotorGaugeProps {
     speed: number;
     /** Current mechanical angle in radians */
     angle: number;
-    /** Safe operation range minimum in rad/s */
-    rangeMin?: number;
-    /** Safe operation range maximum in rad/s */
+    /** Safe speed limit in rad/s — arc is drawn symmetrically from -safeSpeed to +safeSpeed */
     rangeMax?: number;
     /** Max physical limit for the gauge scale (RPM) - used for scale calculation (default 120) */
     limitMax?: number;
@@ -32,7 +30,6 @@ export interface MotorGaugeProps {
 export function MotorGauge({
     speed,
     angle,
-    rangeMin,
     rangeMax,
     limitMax = 120,
     zeroOffset = 0,
@@ -69,16 +66,10 @@ export function MotorGauge({
         textSecondary: '#94a3b8',
     });
 
-    // Calculate effective ranges: use provided values or default to +/- 80% of limit
-
-    // actually user suggested percentage. Let's use 80% (0.8) as a clean default if not explicitly set.
-    // Or just Keep the values passed. 
-    // Wait, the user said "If blue part represents safe range, shouldn't it be a percentage... a fixed ratio is ok?"
-    // This implies they prefer a default behavior if they don't provide specific bounds.
-    // Let's settle on: If rangeMin/Max NOT provided, default to +/- 0.8 * limitMax.
-
-    const rMin = rangeMin !== undefined ? rangeMin : -limitMaxRadS * 0.8;
+    // Safe speed arc is always symmetric: -rMax to +rMax.
+    // Default to 80% of limitMax if not provided.
     const rMax = rangeMax !== undefined ? rangeMax : limitMaxRadS * 0.8;
+    const rMin = -rMax;
 
     // Helper: Update styles from CSS variables
     const updateStyles = () => {
@@ -272,17 +263,17 @@ export function MotorGauge({
 
         limits.forEach((val) => {
             if (val !== undefined) {
-                const angleRad = northRad + val;
+                // ctx.rotate(θ) + draw at (0,-r) → tip at (cx + r·sin(θ), cy - r·cos(θ))
+                // This matches the ball's polar position when θ = val directly (no northRad offset needed)
                 ctx.save();
                 ctx.translate(cx, cy);
-                ctx.rotate(angleRad);
+                ctx.rotate(val);
                 ctx.beginPath();
 
-                // Symmetric isosceles triangle pointing INWARD (Option C)
-                // Tip points to the center
-                ctx.moveTo(0, -targetRingRadius - 2);
-                ctx.lineTo(-4, -targetRingRadius - 9);
-                ctx.lineTo(4, -targetRingRadius - 9);
+                // Triangle: tip on the ring edge, base 7px toward center — fully within canvas
+                ctx.moveTo(0, -targetRingRadius);        // tip: exactly at ring edge
+                ctx.lineTo(-4, -targetRingRadius + 7);   // left base: 7px inward
+                ctx.lineTo(4, -targetRingRadius + 7);    // right base: 7px inward
 
                 ctx.closePath();
                 ctx.fillStyle = stylesRef.current.warning;
@@ -294,12 +285,13 @@ export function MotorGauge({
         // Zero Marker Triangle (Original Mechanical 0)
         ctx.save();
         ctx.translate(cx, cy);
-        // Shift by -zeroOffset to show the original 0 point relative to current calibrated scale
-        ctx.rotate(northRad - zeroOffset);
+        // Same coordinate system as limit markers: rotate(val) → tip matches ball at angle=val
+        // zeroOffset is the calibrated angle of the mechanical zero; negate to point at that position
+        ctx.rotate(-zeroOffset);
         ctx.beginPath();
-        ctx.moveTo(0, -targetRingRadius - 3);
-        ctx.lineTo(-3, -targetRingRadius - 8);
-        ctx.lineTo(3, -targetRingRadius - 8);
+        ctx.moveTo(0, -targetRingRadius);        // tip: exactly at ring edge
+        ctx.lineTo(-3, -targetRingRadius + 6);   // left base: 6px inward
+        ctx.lineTo(3, -targetRingRadius + 6);    // right base: 6px inward
         ctx.closePath();
         ctx.fillStyle = stylesRef.current.markerStatic;
         ctx.fill();
@@ -409,7 +401,7 @@ export function MotorGauge({
         return () => {
             window.cancelAnimationFrame(animationFrameId);
         };
-    }, [speed, angle, size, limitMax, rangeMin, rangeMax, nonLinearExp, damping, limitAngleMin, limitAngleMax, zeroOffset]);
+    }, [speed, angle, size, limitMax, rangeMax, nonLinearExp, damping, limitAngleMin, limitAngleMax, zeroOffset]);
 
     // Listen for theme changes to update colors
     useEffect(() => {

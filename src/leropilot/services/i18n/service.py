@@ -97,7 +97,8 @@ class I18nService:
                 # Format with kwargs
                 try:
                     return cast(str, result).format(**kwargs)
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"Failed to format i18n string '{candidate}': {e}. Params: {kwargs}")
                     return cast(str, result)
 
         # Nothing matched

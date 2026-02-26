@@ -61,14 +61,14 @@ def main() -> int:
     # print(f"Using interface={args.interface} baud={args.baud}")
 
     try:
-        mb = MotorBus.create("damiao", "pcan:PCAN_USBBUS2", 1000000)
+        mb = MotorBus.create("damiao")
     except Exception as e:
         print(f"Failed to create MotorBus: {e}")
         return 2
 
     try:
         # Connect and inspect driver/bus state
-        mb.connect()
+        mb.connect("pcan:PCAN_USBBUS2", 1000000)
         print("Connected to motor bus")
 
         driver = mb.driver

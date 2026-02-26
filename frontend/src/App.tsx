@@ -6,6 +6,7 @@ import { EnvironmentInstallationPage } from './pages/environment-installation';
 import { AdvancedInstallationPage } from './pages/advanced-installation';
 import { SettingsPage } from './pages/settings';
 import { HardwareDashboard } from './pages/hardware-dashboard';
+import { HardwareCalibrationPage } from './pages/hardware-calibration';
 import { DesignSystemPreview } from './pages/design-system/DesignSystemPreview';
 
 interface ElectronAPI {
@@ -52,7 +53,7 @@ function App() {
           <Route path="hardware/discovery" element={<Navigate to="/hardware" replace />} />
           <Route path="hardware/:id/settings" element={<Navigate to="/hardware" replace />} />
           <Route path="hardware/:id/control" element={<Navigate to="/environments" replace />} />
-          <Route path="hardware/:id/calibrate" element={<Navigate to="/environments" replace />} />
+          <Route path="hardware/:id/calibrate" element={<HardwareCalibrationPage />} />
           <Route
             path="recording"
             element={<div className="text-content-tertiary">Recording Placeholder</div>}

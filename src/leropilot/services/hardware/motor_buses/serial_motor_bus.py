@@ -19,22 +19,25 @@ class SerialMotorBus(MotorBus):
 
     def __init__(
         self,
-        interface: str,
-        baud_rate: int = 1000000,
         driver_class: type[BaseMotorDriver] | None = None,
     ) -> None:
         """Initialize SerialMotorBus.
 
         Args:
-            interface: Serial port (e.g., "COM1", "/dev/ttyUSB0")
-            baud_rate: Serial baudrate
             driver_class: Motor driver class to use (FeetechDriver, DynamixelDriver, etc.)
+
+        Call :meth:`connect` with ``interface`` and ``baud_rate`` to establish
+        a physical connection.
         """
-        super().__init__(interface, baud_rate)
+        super().__init__()
         self.driver_class = driver_class
 
-    def connect(self) -> None:
+    def connect(self, interface: str, baud_rate: int = 1000000) -> None:
         """Connect to serial motor bus.
+
+        Args:
+            interface: Serial port (e.g., "COM1", "/dev/ttyUSB0")
+            baud_rate: Serial baudrate
 
         Raises:
             OperationalError: If connection fails.
@@ -42,6 +45,8 @@ class SerialMotorBus(MotorBus):
         if self._connected:
             return
 
+        self.interface = interface
+        self.baud_rate = baud_rate
         try:
             # For serial buses, we don't need to pre-connect since drivers handle their own connections
             self._connected = True
