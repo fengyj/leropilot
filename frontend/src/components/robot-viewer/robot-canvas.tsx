@@ -324,8 +324,25 @@ function JointPanel({ joints, positions }: JointPanelProps) {
 export default function RobotCanvas({ robotId, telemetry }: RobotCanvasProps) {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [joints, setJoints] = useState<JointInfo[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleJointsLoaded = useCallback((j: JointInfo[]) => setJoints(j), []);
+
+  // Block two-finger scroll from triggering OrbitControls zoom.
+  // Browsers encode trackpad gestures as wheel events:
+  //   - two-finger scroll  → wheel, ctrlKey = false  (block)
+  //   - pinch to zoom      → wheel, ctrlKey = true   (allow)
+  // We add the listener in the capture phase on the container so it intercepts
+  // the event before OrbitControls' listener on the inner canvas element.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent): void => {
+      if (!e.ctrlKey) e.stopPropagation();
+    };
+    el.addEventListener('wheel', onWheel, { capture: true, passive: true });
+    return () => el.removeEventListener('wheel', onWheel, { capture: true });
+  }, []);
 
   // Derive current joint positions from the latest telemetry frame
   const jointPositions: Record<string, number> = {};
@@ -338,7 +355,10 @@ export default function RobotCanvas({ robotId, telemetry }: RobotCanvasProps) {
   }
 
   return (
-    <div className="bg-surface-secondary relative h-full w-full overflow-hidden rounded-lg">
+    <div
+      ref={containerRef}
+      className="bg-surface-secondary relative h-full w-full overflow-hidden rounded-lg"
+    >
       {/* Joint panel overlay (outside Canvas to avoid WebGL context issues) */}
       {loadState === 'ready' && (
         <JointPanel joints={joints} positions={jointPositions} />
