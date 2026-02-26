@@ -44,10 +44,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(title="LeRoPilot", lifespan=lifespan)
 
 # Add CORS middleware
+# This is a local-only server; restrict to localhost origins via regex.
+# Note: allow_credentials=True cannot be combined with allow_origins=["*"] per the CORS
+# specification — browsers will reject such responses. Since this server has no
+# authentication mechanism, credentials are not needed.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

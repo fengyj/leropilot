@@ -343,7 +343,6 @@ async def get_environment_installation_status(env_id: str) -> InstallationStatus
         if inst.env_config.id == env_id:
             installation = inst
             break
-            break
 
     if not installation:
         raise HTTPException(status_code=404, detail="No active installation found for environment")

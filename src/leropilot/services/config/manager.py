@@ -1,6 +1,7 @@
 """Configuration management for LeRoPilot."""
 
 import json
+import logging
 import os
 import shutil
 import sys
@@ -10,6 +11,10 @@ from typing import Any, Literal, cast
 import yaml
 
 from leropilot.models.app_config import AppConfig, PyPIMirror, RepositorySource
+
+# Use standard logging here (not structlog) because this module is loaded very
+# early — before the structured logger is fully configured.
+logger = logging.getLogger(__name__)
 
 
 def _get_resources_dir() -> Path:
@@ -67,10 +72,11 @@ class AppConfigManager:
         config_data: dict[str, Any] = {}
         is_first_time = not self.config_path.exists()
 
-        # Debug output for troubleshooting (always visible via print)
-        print(f"[CONFIG] Loading config from: {self.config_path}")
-        print(f"[CONFIG] Config file exists: {self.config_path.exists()}")
-        print(f"[CONFIG] Is first time user: {is_first_time}")
+        logger.info(
+            "Loading config from: %s (first-time user: %s)",
+            self.config_path,
+            is_first_time,
+        )
 
         # 1. Load from YAML file if it exists
         if self.config_path.exists():
@@ -82,16 +88,17 @@ class AppConfigManager:
 
         # 3. Load preset configuration for first-time users
         if is_first_time:
-            print("[CONFIG] First time user detected, applying preset configuration...")
+            logger.info("First time user detected, applying preset configuration...")
             config = self._apply_preset_config(config)
             # Save the preset config so it persists
-            print(f"[CONFIG] Saving preset config to: {self.config_path}")
+            logger.info("Saving preset config to: %s", self.config_path)
             self.save(config)
-            print("[CONFIG] Preset config saved successfully")
+            logger.info("Preset config saved successfully")
         else:
-            print(
-                f"[CONFIG] Existing config loaded with {len(config.repositories.lerobot_sources)} repos "
-                f"and {len(config.pypi.mirrors)} mirrors"
+            logger.info(
+                "Existing config loaded with %d repos and %d mirrors",
+                len(config.repositories.lerobot_sources),
+                len(config.pypi.mirrors),
             )
 
         # 4. Apply environment variable overrides
@@ -152,24 +159,22 @@ class AppConfigManager:
         detected_lang = self._detect_system_language()
         if detected_lang:
             config.ui.preferred_language = detected_lang
-            print(f"[CONFIG] Detected system language: {detected_lang}")
+            logger.info("Detected system language: %s", detected_lang)
 
         try:
             # Load preset configuration file
             resources_dir = _get_resources_dir()
             preset_path = resources_dir / "default_config.json"
-            print(f"[CONFIG] Loading preset config from: {preset_path}")
-            print(f"[CONFIG] Resources dir exists: {resources_dir.exists()}")
-            print(f"[CONFIG] Preset file exists: {preset_path.exists()}")
+            logger.info("Loading preset config from: %s (exists: %s)", preset_path, preset_path.exists())
 
             if not preset_path.exists():
-                print(f"[CONFIG] WARNING: Preset config file not found at: {preset_path}")
+                logger.warning("Preset config file not found at: %s", preset_path)
                 return config
 
             with open(preset_path, encoding="utf-8") as f:
                 preset_data = json.load(f)
 
-            print(f"[CONFIG] Loaded preset data keys: {list(preset_data.keys())}")
+            logger.debug("Loaded preset data keys: %s", list(preset_data.keys()))
 
             # Apply preset PyPI mirrors (only if user has no mirrors configured)
             if not config.pypi.mirrors and "pypi_mirrors" in preset_data:
@@ -181,7 +186,7 @@ class AppConfigManager:
                     )
                     for m in preset_data["pypi_mirrors"]
                 ]
-                print(f"[CONFIG] Applied {len(config.pypi.mirrors)} preset PyPI mirrors")
+                logger.info("Applied %d preset PyPI mirrors", len(config.pypi.mirrors))
 
             if not config.repositories.lerobot_sources and "repositories" in preset_data:
                 config.repositories.lerobot_sources = [
@@ -193,14 +198,11 @@ class AppConfigManager:
                     )
                     for r in preset_data["repositories"]["lerobot_sources"]
                 ]
-                print(f"[CONFIG] Applied {len(config.repositories.lerobot_sources)} preset repositories")
+                logger.info("Applied %d preset repositories", len(config.repositories.lerobot_sources))
 
         except Exception as e:
             # Log error but don't fail configuration loading
-            print(f"[CONFIG] ERROR: Failed to load preset configuration: {e}")
-            import traceback
-
-            traceback.print_exc()
+            logger.error("Failed to load preset configuration: %s", e, exc_info=True)
 
         return config
 
@@ -218,14 +220,14 @@ class AppConfigManager:
         default_language: Literal["en", "zh"] = "en"
 
         try:
-            # Try to get system locale
-            # This works on Windows, macOS, and Linux
-            system_locale = locale.getdefaultlocale()[0]  # e.g., 'en_US', 'zh_CN', 'zh_TW'
+            # Try to get the current locale (getlocale() replaces the deprecated getdefaultlocale())
+            locale_tuple = locale.getlocale()
+            system_locale = locale_tuple[0]  # e.g., 'en_US', 'zh_CN', 'zh_TW'
 
             if system_locale:
                 # Extract language code (first 2 characters)
                 lang_code = system_locale[:2].lower()
-                print(f"[CONFIG] System locale detected: {system_locale} -> {lang_code}")
+                logger.debug("System locale detected: %s -> %s", system_locale, lang_code)
 
                 if lang_code == "zh":
                     return "zh"
@@ -237,16 +239,16 @@ class AppConfigManager:
                 env_value = os.getenv(env_var, "")
                 if env_value:
                     lang_code = env_value[:2].lower()
-                    print(f"[CONFIG] Language from {env_var}: {env_value} -> {lang_code}")
+                    logger.debug("Language from %s: %s -> %s", env_var, env_value, lang_code)
                     if lang_code == "zh":
                         return "zh"
                     if lang_code == "en":
                         return "en"
 
         except Exception as e:
-            print(f"[CONFIG] Failed to detect system language: {e}")
+            logger.warning("Failed to detect system language: %s", e)
 
-        print(f"[CONFIG] Using default language: {default_language}")
+        logger.debug("Using default language: %s", default_language)
         return default_language
 
     def _apply_env_overrides(self, config: AppConfig) -> AppConfig:

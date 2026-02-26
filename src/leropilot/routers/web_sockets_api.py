@@ -9,6 +9,9 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/ws", tags=["terminal-v2"])
 
+# Valid WebSocket message types accepted by this endpoint
+_VALID_MSG_TYPES = frozenset({"input", "resize", "command"})
+
 
 @router.websocket("/pty_sessions/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
@@ -80,7 +83,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
             msg = await websocket.receive_json()
             logger.debug(f"Received WebSocket message: {msg}")
 
+            if not isinstance(msg, dict):
+                logger.warning("Ignoring non-dict WebSocket message: %s", type(msg))
+                continue
+
             msg_type = msg.get("type")
+
+            if msg_type not in _VALID_MSG_TYPES:
+                logger.warning("Ignoring unknown WebSocket message type: %r", msg_type)
+                continue
 
             if msg_type == "input":
                 # Raw input pass-through
