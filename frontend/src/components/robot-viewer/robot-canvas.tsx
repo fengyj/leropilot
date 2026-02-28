@@ -26,6 +26,13 @@ interface RobotCanvasProps {
   robotId: string;
   /** Live telemetry from an existing WebSocket session (optional). */
   telemetry?: RobotTelemetryFrame | null;
+  /**
+   * Per-motor calibration data keyed by motor name.  When provided, raw
+   * telemetry positions are converted to URDF joint angles via
+   * normalise → denormalise.  range_min/range_max must be in RAW_IN_RADIAN
+   * units (fetch the robot API with calibration_unit=radian).
+   */
+  calibration?: Record<string, CalibrationEntry>;
 }
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -35,6 +42,46 @@ interface JointInfo {
   name: string;
   lower: number;
   upper: number;
+}
+
+/**
+ * Per-motor calibration data (range_min/range_max in RAW_IN_RADIAN units,
+ * matching the telemetry position_type).  Passed in from the parent page
+ * which fetches the robot with calibration_unit=radian.
+ */
+export interface CalibrationEntry {
+  range_min: number;
+  range_max: number;
+  drive_mode: number;
+}
+
+/**
+ * Convert a RAW_IN_RADIAN telemetry position to a URDF joint angle.
+ *
+ * Pipeline:
+ *  1. Normalise raw radian value against the calibrated [range_min, range_max]
+ *     window → norm ∈ [-100, 100]  (lerobot RANGE_M100_100 convention).
+ *  2. Apply drive_mode sign inversion when needed.
+ *  3. Denormalise from norm into the URDF joint [lower, upper] limits.
+ *
+ * At home position (norm = 0), the output equals the URDF zero angle (0 rad)
+ * because lerobot calibration records range_min/range_max symmetrically around
+ * the home position in raw encoder space.
+ */
+function rawRadianToUrdfAngle(
+  position: number,
+  rangeMin: number,
+  rangeMax: number,
+  driveMode: number,
+  urdfLower: number,
+  urdfUpper: number,
+): number {
+  const denom = rangeMax - rangeMin;
+  if (denom <= 0) return 0;
+  const bounded = Math.max(rangeMin, Math.min(rangeMax, position));
+  let norm = ((bounded - rangeMin) / denom) * 200 - 100; // → [-100, 100]
+  if (driveMode === 1) norm = -norm;
+  return urdfLower + ((norm + 100) / 200) * (urdfUpper - urdfLower);
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +173,7 @@ function createMeshLoader(onAllMeshesLoaded: () => void) {
 interface URDFModelProps {
   robotId: string;
   telemetry?: RobotTelemetryFrame | null;
+  calibration?: Record<string, CalibrationEntry>;
   onLoadStateChange: (state: LoadState) => void;
   /** Called once the URDF is parsed; provides ordered joint info for the panel. */
   onJointsLoaded: (joints: JointInfo[]) => void;
@@ -134,6 +182,7 @@ interface URDFModelProps {
 function URDFModel({
   robotId,
   telemetry,
+  calibration,
   onLoadStateChange,
   onJointsLoaded,
 }: URDFModelProps) {
@@ -220,13 +269,29 @@ function URDFModel({
     const values: Record<string, number> = {};
     for (const busData of Object.values(telemetry.motor_buses)) {
       for (const [motorName, motorTelemetry] of Object.entries(busData.motors)) {
-        if (motorTelemetry.position !== null) {
+        if (motorTelemetry.position === null) continue;
+
+        const cal = calibration?.[motorName];
+        const urdfJoint = robot.joints[motorName];
+        const limit = urdfJoint?.limit as { lower: number; upper: number } | undefined;
+
+        if (cal && limit && cal.range_min !== cal.range_max) {
+          values[motorName] = rawRadianToUrdfAngle(
+            motorTelemetry.position,
+            cal.range_min,
+            cal.range_max,
+            cal.drive_mode,
+            limit.lower,
+            limit.upper,
+          );
+        } else {
+          // No calibration available — pass raw radian value directly.
           values[motorName] = motorTelemetry.position;
         }
       }
     }
     robot.setJointValues(values);
-  }, [telemetry]);
+  }, [telemetry, calibration]);
 
   // This component manages Three.js objects imperatively; no JSX output needed.
   return null;
@@ -321,7 +386,7 @@ function JointPanel({ joints, positions }: JointPanelProps) {
 // RobotCanvas (default export — lazy-loaded)
 // ---------------------------------------------------------------------------
 
-export default function RobotCanvas({ robotId, telemetry }: RobotCanvasProps) {
+export default function RobotCanvas({ robotId, telemetry, calibration }: RobotCanvasProps) {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [joints, setJoints] = useState<JointInfo[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -344,12 +409,27 @@ export default function RobotCanvas({ robotId, telemetry }: RobotCanvasProps) {
     return () => el.removeEventListener('wheel', onWheel, { capture: true });
   }, []);
 
-  // Derive current joint positions from the latest telemetry frame
+  // Derive current joint positions from the latest telemetry frame,
+  // applying the same norm→URDF conversion used inside URDFModel.
   const jointPositions: Record<string, number> = {};
   if (telemetry) {
     for (const busData of Object.values(telemetry.motor_buses)) {
       for (const [name, m] of Object.entries(busData.motors)) {
-        if (m.position !== null) jointPositions[name] = m.position;
+        if (m.position === null) continue;
+        const cal = calibration?.[name];
+        const joint = joints.find((j) => j.name === name);
+        if (cal && joint && cal.range_min !== cal.range_max) {
+          jointPositions[name] = rawRadianToUrdfAngle(
+            m.position,
+            cal.range_min,
+            cal.range_max,
+            cal.drive_mode,
+            joint.lower,
+            joint.upper,
+          );
+        } else {
+          jointPositions[name] = m.position;
+        }
       }
     }
   }
@@ -379,6 +459,7 @@ export default function RobotCanvas({ robotId, telemetry }: RobotCanvasProps) {
         <URDFModel
           robotId={robotId}
           telemetry={telemetry}
+          calibration={calibration}
           onLoadStateChange={setLoadState}
           onJointsLoaded={handleJointsLoaded}
         />

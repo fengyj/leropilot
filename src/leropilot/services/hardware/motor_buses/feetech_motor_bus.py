@@ -170,12 +170,16 @@ class FeetechMotorBus(MotorBus[int]):
                 
                 write_homing_offset(motor_id, 0.0)
                 current_position = int(driver.get_position(motor_id=motor_id))
-                homing_offset = float(int(max_res / 2) - current_position)
-                
+                # lerobot formula: Present_Position = Actual_Position - Homing_Offset
+                # Goal: at home position, Present_Position = max_res / 2 (encoder midpoint).
+                # So: homing_offset = current_position - max_res / 2
+                homing_offset = float(current_position - int(max_res / 2))
+
                 write_homing_offset(motor_id, homing_offset)
 
                 if cal is not None:
                     cal.homing_offset = homing_offset
+                    # Full raw range [0, max_res]; actual limits are recorded in step 1.
                     cal.range_min = 0.0
                     cal.range_max = float(max_res)
                     logger.info(

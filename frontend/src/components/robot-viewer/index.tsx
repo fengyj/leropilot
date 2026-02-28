@@ -17,6 +17,7 @@ import { lazy, Suspense } from 'react';
 import { Box } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { RobotTelemetryFrame } from '../../types/hardware';
+import type { CalibrationEntry } from './robot-canvas';
 
 // Heavy Three.js bundle — loaded on demand
 const RobotCanvas = lazy(() => import('./robot-canvas'));
@@ -33,6 +34,13 @@ export interface RobotViewerProps {
    * When provided, joint positions are synchronised in real-time.
    */
   telemetry?: RobotTelemetryFrame | null;
+  /**
+   * Per-motor calibration data keyed by motor name.  When provided, raw
+   * telemetry positions are converted to URDF joint angles so the 3D model
+   * reflects the actual physical pose.  Fetch the robot API with
+   * `calibration_unit=radian` and flatten calibration_settings into this map.
+   */
+  calibration?: Record<string, CalibrationEntry>;
   /**
    * Additional Tailwind / CSS classes for the container.
    * Use height utilities here (e.g. `h-64`, `h-[400px]`, `min-h-[300px]`).
@@ -58,11 +66,11 @@ function ViewerSkeleton() {
 // RobotViewer
 // ---------------------------------------------------------------------------
 
-export function RobotViewer({ robotId, telemetry, className }: RobotViewerProps) {
+export function RobotViewer({ robotId, telemetry, calibration, className }: RobotViewerProps) {
   return (
     <div className={cn('relative h-[400px] w-full', className)}>
       <Suspense fallback={<ViewerSkeleton />}>
-        <RobotCanvas robotId={robotId} telemetry={telemetry} />
+        <RobotCanvas robotId={robotId} telemetry={telemetry} calibration={calibration} />
       </Suspense>
     </div>
   );

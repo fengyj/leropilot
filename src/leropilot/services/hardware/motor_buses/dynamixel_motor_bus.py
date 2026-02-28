@@ -159,7 +159,7 @@ class DynamixelMotorBus(MotorBus[int]):
                 
                 write_homing_offset(motor_id, 0.0)
                 current_position = int(driver.get_position(motor_id=motor_id))
-                homing_offset = float(int(max_res / 2) - current_position)
+                homing_offset = float(current_position - int(max_res / 2))
                 write_homing_offset(motor_id, homing_offset)
 
                 if cal is not None:

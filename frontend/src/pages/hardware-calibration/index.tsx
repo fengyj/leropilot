@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../../components/ui/page-container';
 import { RobotViewer } from '../../components/robot-viewer';
+import type { CalibrationEntry } from '../../components/robot-viewer/robot-canvas';
 import { Button } from '../../components/ui/button';
 import { Select } from '../../components/ui/select';
 import { MotorGaugeGroup } from '../../components/ui/motor-gauge-group';
@@ -139,7 +140,24 @@ export function HardwareCalibrationPage() {
   }, [fetchRobot]);
 
   // ------------------------------------------------------------------
-  // Available calibration methods fetch
+  // Flat motor-name → CalibrationEntry map derived from robot.calibration_settings.
+  // range_min/range_max are in RAW_IN_RADIAN units because the robot is fetched
+  // with calibration_unit=radian, matching the telemetry position unit.
+  const viewerCalibration = useMemo<Record<string, CalibrationEntry>>(() => {
+    if (!robot?.calibration_settings) return {};
+    const map: Record<string, CalibrationEntry> = {};
+    for (const cals of Object.values(robot.calibration_settings)) {
+      for (const cal of cals) {
+        map[cal.name] = {
+          range_min: cal.range_min,
+          range_max: cal.range_max,
+          drive_mode: cal.drive_mode,
+        };
+      }
+    }
+    return map;
+  }, [robot?.calibration_settings]);
+
   // ------------------------------------------------------------------
 
   useEffect(() => {
@@ -684,7 +702,7 @@ export function HardwareCalibrationPage() {
                 icon={<Box className="h-5 w-5" />}
                 defaultExpanded={true}
               >
-                <RobotViewer robotId={robot.id} telemetry={telemetry} />
+                <RobotViewer robotId={robot.id} telemetry={telemetry} calibration={viewerCalibration} />
               </Section>
             )}
           </div>
